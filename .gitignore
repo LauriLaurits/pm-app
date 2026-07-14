@@ -43,3 +43,9 @@ next-env.d.ts
 
 # workflow scratch (never committed)
 .superpowers/
+
+# IDE
+.idea/
+
+# local dev-server log
+dev.log
