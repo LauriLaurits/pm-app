@@ -16,7 +16,7 @@ export async function approveUserAction(
   if (!parsed.success) return { error: "Invalid approval request." };
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("user_profiles")
     .update({
       status: "active",
@@ -25,17 +25,27 @@ export async function approveUserAction(
       approved_at: new Date().toISOString(),
     })
     .eq("id", parsed.data.userId)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("id");
 
   if (error) return { error: "Approval failed. Try again." };
+  if (!data || data.length === 0)
+    return { error: "User is not pending approval." };
 
   const service = createAdminClient();
-  await service.from("notifications").insert({
-    user_id: parsed.data.userId,
-    type: "user_approved",
-    title: "Account approved",
-    body: `You now have access as ${parsed.data.role.replace("_", " ")}.`,
-  });
+  const { error: notificationError } = await service
+    .from("notifications")
+    .insert({
+      user_id: parsed.data.userId,
+      type: "user_approved",
+      title: "Account approved",
+      body: `You now have access as ${parsed.data.role.replace("_", " ")}.`,
+    });
+  if (notificationError)
+    console.error(
+      "approval notification insert failed:",
+      notificationError.message
+    );
 
   await writeAudit({
     action: "user.approved",
@@ -71,10 +81,15 @@ export async function setUserStatusAction(
     .eq("id", parsed.data.userId);
   if (error) return { error: "Update failed." };
 
+  let sessionsRevoked = true;
+  let revokeFailed = false;
   if (parsed.data.status === "disabled") {
-    await supabase.rpc("admin_revoke_user_sessions", {
-      target_user: parsed.data.userId,
-    });
+    const { error: revokeError } = await supabase.rpc(
+      "admin_revoke_user_sessions",
+      { target_user: parsed.data.userId }
+    );
+    sessionsRevoked = !revokeError;
+    revokeFailed = Boolean(revokeError);
   }
 
   await writeAudit({
@@ -83,10 +98,22 @@ export async function setUserStatusAction(
     actorEmail: admin.profile.email,
     resourceType: "user",
     resourceId: parsed.data.userId,
-    metadata: { status: parsed.data.status },
+    metadata: {
+      status: parsed.data.status,
+      ...(parsed.data.status === "disabled"
+        ? { sessions_revoked: sessionsRevoked }
+        : {}),
+    },
   });
 
   revalidatePath("/admin/users");
+
+  if (revokeFailed)
+    return {
+      error:
+        "User disabled, but revoking their sessions failed — use 'Log out from all devices' to retry.",
+    };
+
   return { success: true as const };
 }
 

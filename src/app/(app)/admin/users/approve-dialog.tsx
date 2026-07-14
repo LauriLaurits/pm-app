@@ -48,7 +48,7 @@ export function ApproveDialog({
         </DialogHeader>
         <Select
           value={role}
-          onValueChange={(value) => setRole(value ?? "member")}
+          onValueChange={(value) => setRole(value ?? role)}
         >
           <SelectTrigger>
             <SelectValue />
