@@ -1,0 +1,28 @@
+import { z } from "zod";
+
+export const APP_ROLES = [
+  "admin",
+  "project_manager",
+  "finance",
+  "member",
+  "viewer",
+] as const;
+
+export const loginSchema = z.object({
+  email: z.string().email("Enter a valid email"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+export type LoginInput = z.infer<typeof loginSchema>;
+
+export const signupSchema = z.object({
+  fullName: z.string().min(2, "Enter your full name").max(120),
+  email: z.string().email("Enter a valid email"),
+  password: z.string().min(12, "Password must be at least 12 characters").max(128),
+});
+export type SignupInput = z.infer<typeof signupSchema>;
+
+export const approveUserSchema = z.object({
+  userId: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, "Invalid UUID format"),
+  role: z.enum(APP_ROLES),
+});
+export type ApproveUserInput = z.infer<typeof approveUserSchema>;
