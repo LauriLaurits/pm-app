@@ -49,3 +49,6 @@ next-env.d.ts
 
 # local dev-server log
 dev.log
+
+# Playwright MCP browser scratch dir
+.playwright-mcp/
