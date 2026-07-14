@@ -27,7 +27,9 @@ export function decideRedirect(input: GateInput): string | null {
   if (status === "pending") {
     return pathname === "/pending" ? null : "/pending";
   }
-  // active (or profile row missing — treat as active; RLS still protects data)
+  // active: the middleware maps missing/unreadable profile rows to
+  // "pending" before calling this gate, so a null status here means
+  // "verified active" or that the gate is being used outside middleware.
   if (isPublicPath(pathname) && !pathname.startsWith("/auth/")) return "/dashboard";
   if (pathname === "/pending" || pathname === "/") return "/dashboard";
   return null;

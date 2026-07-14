@@ -39,4 +39,35 @@ describe("decideRedirect", () => {
     );
     expect(decideRedirect({ pathname: "/login", ...disabled })).toBeNull();
   });
+
+  it("locks pending users out of the auth callback route", () => {
+    expect(decideRedirect({ pathname: "/auth/callback", ...pending })).toBe(
+      "/pending"
+    );
+  });
+
+  it("still flags disabled users on the auth callback route", () => {
+    expect(decideRedirect({ pathname: "/auth/callback", ...disabled })).toBe(
+      "/login?error=account_disabled"
+    );
+  });
+
+  it("lets active users through the auth callback route", () => {
+    expect(decideRedirect({ pathname: "/auth/callback", ...active })).toBeNull();
+  });
+
+  it("still flags disabled users on /pending", () => {
+    expect(decideRedirect({ pathname: "/pending", ...disabled })).toBe(
+      "/login?error=account_disabled"
+    );
+  });
+
+  it("does not treat prefix-similar paths as public for unauthenticated users", () => {
+    expect(decideRedirect({ pathname: "/loginfoo", ...anon })).toBe("/login");
+    expect(decideRedirect({ pathname: "/authorize", ...anon })).toBe("/login");
+  });
+
+  it("lets active users through unknown protected-looking paths", () => {
+    expect(decideRedirect({ pathname: "/loginfoo", ...active })).toBeNull();
+  });
 });

@@ -34,12 +34,29 @@ export async function updateSession(request: NextRequest) {
 
   let status: UserStatus | null = null;
   if (user) {
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("user_profiles")
       .select("status")
       .eq("id", user.id)
       .single();
-    status = (profile?.status as UserStatus | undefined) ?? null;
+
+    if (profileError && profileError.code !== "PGRST116") {
+      // Fail closed: the session may be perfectly valid, but we couldn't
+      // read the profile, so we can't confirm the user's status. Don't
+      // sign out (that would be discarding a possibly-good session) —
+      // just refuse to grant access and send them to /login.
+      console.error("middleware profile lookup failed:", profileError.message);
+      return redirectWithCookies(request, supabaseResponse, "/login");
+    }
+
+    if (!profile) {
+      // PGRST116 (zero rows) or otherwise missing data. A DB trigger
+      // guarantees a profile row per user, so this is abnormal — treat
+      // it as "pending" (locked to /pending) rather than granting access.
+      status = "pending";
+    } else {
+      status = (profile.status as UserStatus | undefined) ?? null;
+    }
 
     if (status === "disabled") {
       await supabase.auth.signOut({ scope: "local" });
@@ -53,12 +70,25 @@ export async function updateSession(request: NextRequest) {
   });
 
   if (target) {
-    const url = request.nextUrl.clone();
-    const [pathname, query] = target.split("?");
-    url.pathname = pathname;
-    url.search = query ? `?${query}` : "";
-    return NextResponse.redirect(url);
+    return redirectWithCookies(request, supabaseResponse, target);
   }
 
   return supabaseResponse;
+}
+
+function redirectWithCookies(
+  request: NextRequest,
+  supabaseResponse: NextResponse,
+  target: string
+): NextResponse {
+  const url = request.nextUrl.clone();
+  const [pathname, query] = target.split("?");
+  url.pathname = pathname;
+  url.search = query ? `?${query}` : "";
+
+  const redirectResponse = NextResponse.redirect(url);
+  supabaseResponse.cookies.getAll().forEach((cookie) => {
+    redirectResponse.cookies.set(cookie);
+  });
+  return redirectResponse;
 }
