@@ -20,6 +20,7 @@
 - Typed DB access via generated Supabase types (`src/lib/database.types.ts`).
 - Loading skeletons, empty states, and error handling on every data view.
 - Sessions: max lifetime 24h (`[auth.sessions] timebox = "24h"`), refresh-token rotation on. Logout uses `signOut({ scope: 'global' })`.
+- UI components are shadcn "base-nova" style built on `@base-ui/react` (NOT Radix): composition uses the `render` prop — `<FormControl render={<Input … />} />`, `<DialogTrigger render={<Button…>…</Button>} />` — never `asChild`; menu items take `onClick`, not `onSelect`. Read the component in `src/components/ui/` when unsure.
 - Log login, logout, failed login, session revocation to `audit_logs`. Rate-limit auth attempts (Supabase `[auth.rate_limit]`). Secure HTTP-only cookies (default with `@supabase/ssr`), CSRF protection (Next.js server actions enforce same-origin `Origin` header; cookies are `SameSite=Lax`).
 
 ## Decisions made (spec allows deciding + noting)
@@ -1502,9 +1503,9 @@ export function LoginForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input type="email" autoComplete="email" {...field} />
-              </FormControl>
+              <FormControl
+                render={<Input type="email" autoComplete="email" {...field} />}
+              />
               <FormMessage />
             </FormItem>
           )}
@@ -1515,9 +1516,15 @@ export function LoginForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input type="password" autoComplete="current-password" {...field} />
-              </FormControl>
+              <FormControl
+                render={
+                  <Input
+                    type="password"
+                    autoComplete="current-password"
+                    {...field}
+                  />
+                }
+              />
               <FormMessage />
             </FormItem>
           )}
@@ -1653,9 +1660,7 @@ export function SignupForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Full name</FormLabel>
-              <FormControl>
-                <Input autoComplete="name" {...field} />
-              </FormControl>
+              <FormControl render={<Input autoComplete="name" {...field} />} />
               <FormMessage />
             </FormItem>
           )}
@@ -1666,9 +1671,9 @@ export function SignupForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input type="email" autoComplete="email" {...field} />
-              </FormControl>
+              <FormControl
+                render={<Input type="email" autoComplete="email" {...field} />}
+              />
               <FormMessage />
             </FormItem>
           )}
@@ -1679,9 +1684,15 @@ export function SignupForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input type="password" autoComplete="new-password" {...field} />
-              </FormControl>
+              <FormControl
+                render={
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    {...field}
+                  />
+                }
+              />
               <FormMessage />
             </FormItem>
           )}
@@ -1849,11 +1860,11 @@ export function UserMenu({ name, email }: { name: string; email: string }) {
           <div className="text-xs text-muted-foreground">{email}</div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/settings/sessions">Sessions</Link>
-        </DropdownMenuItem>
+        <DropdownMenuItem
+          render={<Link href="/settings/sessions">Sessions</Link>}
+        />
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => signOutAction()}>
+        <DropdownMenuItem onClick={() => signOutAction()}>
           Sign out everywhere
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -2165,9 +2176,7 @@ export function ApproveDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">Approve</Button>
-      </DialogTrigger>
+      <DialogTrigger render={<Button size="sm">Approve</Button>} />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Approve {userLabel}</DialogTitle>
@@ -2177,7 +2186,7 @@ export function ApproveDialog({
         </DialogHeader>
         <Select value={role} onValueChange={setRole}>
           <SelectTrigger>
-            <SelectValue placeholder="Select role" />
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {APP_ROLES.map((r) => (
@@ -2222,14 +2231,16 @@ export function UserActions({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button size="sm" variant="outline" disabled={isPending}>
-          {isPending ? "Working…" : "Manage"}
-        </Button>
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger
+        render={
+          <Button size="sm" variant="outline" disabled={isPending}>
+            {isPending ? "Working…" : "Manage"}
+          </Button>
+        }
+      />
       <DropdownMenuContent align="end">
         <DropdownMenuItem
-          onSelect={() =>
+          onClick={() =>
             startTransition(async () => {
               await adminSignOutUserAction(userId);
             })
@@ -2238,7 +2249,7 @@ export function UserActions({
           Log out from all devices
         </DropdownMenuItem>
         <DropdownMenuItem
-          onSelect={() =>
+          onClick={() =>
             startTransition(async () => {
               await setUserStatusAction({
                 userId,
