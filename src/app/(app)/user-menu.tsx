@@ -1,5 +1,6 @@
 "use client";
 
+import { useTransition } from "react";
 import Link from "next/link";
 import { signOutAction } from "@/app/actions/auth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -9,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function UserMenu({ name, email }: { name: string; email: string }) {
+  const [isPending, startTransition] = useTransition();
   const initials = name
     .split(" ")
     .map((part) => part[0])
@@ -35,8 +37,11 @@ export function UserMenu({ name, email }: { name: string; email: string }) {
           render={<Link href="/settings/sessions">Sessions</Link>}
         />
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => signOutAction()}>
-          Sign out everywhere
+        <DropdownMenuItem
+          disabled={isPending}
+          onClick={() => startTransition(async () => { await signOutAction(); })}
+        >
+          {isPending ? "Signing out…" : "Sign out everywhere"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
