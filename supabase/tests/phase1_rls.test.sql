@@ -17,7 +17,8 @@ values
   ('22222222-2222-2222-2222-222222222222', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'pending@test.local', '{"full_name":"Pending"}', '{}', '', now(), now());
 
 select is(
-  (select count(*)::int from public.user_profiles),
+  (select count(*)::int from public.user_profiles
+   where id in ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222')),
   2,
   'trigger creates a profile per auth user'
 );
@@ -64,9 +65,10 @@ select throws_ok(
 set local "request.jwt.claims" to '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
 select is(
-  (select count(*)::int from public.user_profiles),
+  (select count(*)::int from public.user_profiles
+   where id in ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222')),
   2,
-  'admin sees all profiles'
+  'admin sees all profiles (both fixtures, including the non-own one)'
 );
 
 select is(

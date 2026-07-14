@@ -72,13 +72,10 @@ npm run test:db   # pgTAP — RLS policies + session-management RPCs, run agains
 npm run build     # production build / typecheck
 ```
 
-`npm run test:db` asserts exact row counts inside a fixture transaction that
-assumes an otherwise-empty `user_profiles` table. Run it against a freshly
-reset database (`npm run db:reset` with **no** seed script run yet) — if you
-run `npm run seed:admin` first, the seeded admin's profile row throws off the
-counts and two subtests will fail. This is a fixture-isolation limitation of
-the pgTAP suite, not an RLS bug (the seeded state is not itself a security
-regression — the same RLS behavior was independently verified end-to-end).
+`npm run test:db` creates its own fixture users inside a rolled-back
+transaction and scopes every assertion to those fixtures, so it's safe to run
+in either order — against a freshly reset database, or after
+`npm run seed:admin` has already created the first admin.
 
 Other useful scripts:
 
