@@ -160,7 +160,7 @@ export type Database = {
     Functions: {
       admin_revoke_user_sessions: {
         Args: { target_user: string }
-        Returns: undefined
+        Returns: number
       }
       is_admin: { Args: { uid?: string }; Returns: boolean }
       list_my_sessions: {
@@ -173,7 +173,7 @@ export type Database = {
           user_agent: string
         }[]
       }
-      revoke_session: { Args: { session_id: string }; Returns: undefined }
+      revoke_session: { Args: { session_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "project_manager" | "finance" | "member" | "viewer"

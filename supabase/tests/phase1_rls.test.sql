@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(18);
 
 -- Admin user first, promoted BEFORE the pending user signs up,
 -- so the pending-user notification trigger sees an active admin.
@@ -109,7 +109,11 @@ select is(
   'list_my_sessions returns only own session'
 );
 
-select public.revoke_session('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+select is(
+  (select public.revoke_session('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')),
+  false,
+  'cross-user session revoke returns false (no-op)'
+);
 
 reset role;
 select is(
@@ -128,7 +132,11 @@ select throws_ok(
   'non-admin cannot use admin_revoke_user_sessions'
 );
 
-select public.revoke_session('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+select is(
+  (select public.revoke_session('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb')),
+  true,
+  'own session revoke returns true'
+);
 
 reset role;
 select is(
@@ -147,9 +155,17 @@ values
 set local role authenticated;
 set local "request.jwt.claims" to '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
 
-select lives_ok(
-  $$ select public.admin_revoke_user_sessions('22222222-2222-2222-2222-222222222222') $$,
-  'admin can revoke another user''s sessions'
+select is(
+  (select public.admin_revoke_user_sessions('22222222-2222-2222-2222-222222222222')),
+  1,
+  'admin bulk revoke returns count of deleted sessions'
+);
+
+reset role;
+select is(
+  (select count(*)::int from auth.sessions where user_id = '22222222-2222-2222-2222-222222222222'),
+  0,
+  'admin bulk revoke actually deletes the target user''s sessions'
 );
 
 select * from finish();

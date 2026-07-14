@@ -202,26 +202,34 @@ as $$
 $$;
 
 create or replace function public.revoke_session(session_id uuid)
-returns void
+returns boolean
 language plpgsql security definer
 set search_path = ''
 as $$
+declare
+  deleted_count int;
 begin
   delete from auth.sessions
   where id = session_id and user_id = auth.uid();
+  get diagnostics deleted_count = row_count;
+  return deleted_count > 0;
 end;
 $$;
 
 create or replace function public.admin_revoke_user_sessions(target_user uuid)
-returns void
+returns integer
 language plpgsql security definer
 set search_path = ''
 as $$
+declare
+  deleted_count int;
 begin
   if not public.is_admin() then
     raise exception 'admin permission required';
   end if;
   delete from auth.sessions where user_id = target_user;
+  get diagnostics deleted_count = row_count;
+  return deleted_count;
 end;
 $$;
 

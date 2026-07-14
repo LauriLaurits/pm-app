@@ -83,11 +83,13 @@ export async function setUserStatusAction(
 
   let sessionsRevoked = true;
   let revokeFailed = false;
+  let revokedCount: number | null = null;
   if (parsed.data.status === "disabled") {
-    const { error: revokeError } = await supabase.rpc(
+    const { data, error: revokeError } = await supabase.rpc(
       "admin_revoke_user_sessions",
       { target_user: parsed.data.userId }
     );
+    revokedCount = data ?? null;
     sessionsRevoked = !revokeError;
     revokeFailed = Boolean(revokeError);
   }
@@ -101,7 +103,10 @@ export async function setUserStatusAction(
     metadata: {
       status: parsed.data.status,
       ...(parsed.data.status === "disabled"
-        ? { sessions_revoked: sessionsRevoked }
+        ? {
+            sessions_revoked: sessionsRevoked,
+            sessions_deleted: revokedCount ?? 0,
+          }
         : {}),
     },
   });
@@ -125,9 +130,10 @@ export async function adminSignOutUserAction(
     return { error: "Invalid user id." };
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("admin_revoke_user_sessions", {
-    target_user: userId,
-  });
+  const { data: revokedCount, error } = await supabase.rpc(
+    "admin_revoke_user_sessions",
+    { target_user: userId }
+  );
   if (error) return { error: "Could not revoke sessions." };
 
   await writeAudit({
@@ -136,6 +142,7 @@ export async function adminSignOutUserAction(
     actorEmail: admin.profile.email,
     resourceType: "user",
     resourceId: userId,
+    metadata: { sessions_revoked: revokedCount ?? 0 },
   });
 
   revalidatePath("/admin/users");

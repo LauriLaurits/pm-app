@@ -14,10 +14,12 @@ export async function revokeSessionAction(
     return { error: "Invalid session id." };
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("revoke_session", {
+  const { data: deleted, error } = await supabase.rpc("revoke_session", {
     session_id: sessionId,
   });
   if (error) return { error: "Could not revoke session." };
+  if (!deleted)
+    return { error: "Session not found or already revoked." };
 
   await writeAudit({
     action: "auth.session_revoked",
