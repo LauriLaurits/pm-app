@@ -23,6 +23,7 @@ export async function createClient() {
           }
         },
       },
+      cookieOptions: { httpOnly: true },
     }
   );
 }

@@ -24,6 +24,7 @@ export async function updateSession(request: NextRequest) {
           );
         },
       },
+      cookieOptions: { httpOnly: true },
     }
   );
 

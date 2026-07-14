@@ -3,7 +3,7 @@
 Internal project-management CMS. Phase 1 covers authentication, session
 management, and the admin user-approval workflow.
 
-**Stack:** Next.js 15 (App Router, TypeScript, server components by default)
+**Stack:** Next.js 16 (App Router, TypeScript, server components by default)
 + Supabase (Postgres, Auth, Row Level Security) running locally via Docker.
 Cookie-based auth via `@supabase/ssr`; every request passes through
 middleware that validates the session and gates routes based on user status
@@ -125,6 +125,11 @@ testability. Before deploying to a real (hosted) Supabase project:
 - **Set a real `site_url`** — `[auth] site_url` (and
   `additional_redirect_urls`) must point at the production domain, not
   `http://localhost:3000`.
+- **Set `NEXT_PUBLIC_SITE_URL`** to the real deployed origin (e.g.
+  `https://pm.example.com`) — it feeds the OAuth `redirectTo` for the
+  Microsoft sign-in callback (`src/app/actions/auth.ts`); left unset or
+  pointed at localhost, production OAuth sign-ins will redirect users back to
+  a dead `localhost` URL after authenticating.
 - **Match the hosted project's auth settings to `config.toml`:**
   - Session timebox: 24h (`[auth.sessions] timebox = "24h"`), refresh-token
     rotation on (`enable_refresh_token_rotation = true`).

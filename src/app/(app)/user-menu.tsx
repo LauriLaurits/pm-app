@@ -20,7 +20,10 @@ export function UserMenu({ name, email }: { name: string; email: string }) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2">
+      <DropdownMenuTrigger
+        className="rounded-full outline-none focus-visible:ring-2"
+        aria-label="Account menu"
+      >
         <Avatar className="h-8 w-8">
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>

@@ -128,7 +128,9 @@ begin
     if new.status is distinct from old.status
        or new.role is distinct from old.role
        or new.approved_by is distinct from old.approved_by
-       or new.approved_at is distinct from old.approved_at then
+       or new.approved_at is distinct from old.approved_at
+       or new.email is distinct from old.email
+       or new.created_at is distinct from old.created_at then
       raise exception 'not allowed to change protected profile fields';
     end if;
   end if;

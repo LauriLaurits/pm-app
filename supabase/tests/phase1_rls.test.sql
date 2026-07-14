@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(20);
 
 -- Admin user first, promoted BEFORE the pending user signs up,
 -- so the pending-user notification trigger sees an active admin.
@@ -39,6 +39,20 @@ select throws_ok(
   'P0001',
   'not allowed to change protected profile fields',
   'non-admin cannot self-approve'
+);
+
+select throws_ok(
+  $$ update public.user_profiles set email = 'fake@corp.com'
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  'P0001',
+  'not allowed to change protected profile fields',
+  'non-admin cannot change own email (identity anchor protected)'
+);
+
+select lives_ok(
+  $$ update public.user_profiles set full_name = 'New Name'
+     where id = '22222222-2222-2222-2222-222222222222' $$,
+  'non-admin can still self-edit full_name'
 );
 
 select is(

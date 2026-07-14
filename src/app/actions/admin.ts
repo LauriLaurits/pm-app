@@ -81,7 +81,6 @@ export async function setUserStatusAction(
     .eq("id", parsed.data.userId);
   if (error) return { error: "Update failed." };
 
-  let sessionsRevoked = true;
   let revokeFailed = false;
   let revokedCount: number | null = null;
   if (parsed.data.status === "disabled") {
@@ -90,7 +89,6 @@ export async function setUserStatusAction(
       { target_user: parsed.data.userId }
     );
     revokedCount = data ?? null;
-    sessionsRevoked = !revokeError;
     revokeFailed = Boolean(revokeError);
   }
 
@@ -104,8 +102,8 @@ export async function setUserStatusAction(
       status: parsed.data.status,
       ...(parsed.data.status === "disabled"
         ? {
-            sessions_revoked: sessionsRevoked,
-            sessions_deleted: revokedCount ?? 0,
+            sessions_revoked: revokedCount ?? 0,
+            revoke_failed: revokeFailed,
           }
         : {}),
     },
