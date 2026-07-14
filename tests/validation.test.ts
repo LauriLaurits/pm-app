@@ -41,7 +41,7 @@ describe("approveUserSchema", () => {
   it("requires uuid + known role", () => {
     expect(
       approveUserSchema.safeParse({
-        userId: "11111111-1111-1111-1111-111111111111",
+        userId: "11111111-1111-4111-8111-111111111111",
         role: "project_manager",
       }).success
     ).toBe(true);
@@ -50,10 +50,16 @@ describe("approveUserSchema", () => {
     ).toBe(false);
     expect(
       approveUserSchema.safeParse({
-        userId: "11111111-1111-1111-1111-111111111111",
+        userId: "11111111-1111-4111-8111-111111111111",
         role: "superuser",
       }).success
     ).toBe(false);
+    expect(
+      approveUserSchema.safeParse({
+        userId: "11111111-1111-4111-8111-111111111111".toUpperCase(),
+        role: "member",
+      }).success
+    ).toBe(true);
   });
   it("exposes the five v1 roles", () => {
     expect(APP_ROLES).toEqual([
