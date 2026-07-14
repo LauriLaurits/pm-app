@@ -153,12 +153,18 @@ alter table public.notifications enable row level security;
 -- for the policies below to be reachable at all; they do not themselves grant
 -- anything beyond what each table's RLS policies allow for anon/authenticated.
 -- service_role has BYPASSRLS and is trusted server-side code (this migration,
--- the seed script, and later server actions), so it is granted full CRUD.
+-- the seed script, and later server actions), so it is granted broad CRUD,
+-- except where a table is intentionally append-only (see audit_logs below).
 grant select, update on public.user_profiles to authenticated;
 grant select on public.audit_logs to authenticated;
-grant select, update on public.notifications to authenticated;
+-- notifications: clients may only flip the read_at receipt column -- title/body/
+-- type/metadata must stay server-controlled, so the grant is column-scoped
+-- rather than table-wide (the RLS policy below narrows rows, not columns).
+grant select on public.notifications to authenticated;
+grant update (read_at) on public.notifications to authenticated;
 grant select, insert, update, delete on public.user_profiles to service_role;
-grant select, insert, update, delete on public.audit_logs to service_role;
+-- audit_logs is append-only even for trusted server-side code: no update/delete.
+grant select, insert on public.audit_logs to service_role;
 grant select, insert, update, delete on public.notifications to service_role;
 
 create policy "read own profile" on public.user_profiles
