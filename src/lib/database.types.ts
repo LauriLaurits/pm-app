@@ -34,6 +34,67 @@ export type Database = {
   }
   public: {
     Tables: {
+      assignments: {
+        Row: {
+          allocation_pct: number
+          created_at: string
+          end_date: string | null
+          id: string
+          person_id: string
+          project_id: string
+          project_part_id: string | null
+          role_on_project: string | null
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          allocation_pct: number
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          person_id: string
+          project_id: string
+          project_part_id?: string | null
+          role_on_project?: string | null
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          allocation_pct?: number
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          person_id?: string
+          project_id?: string
+          project_part_id?: string | null
+          role_on_project?: string | null
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignments_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_project_part_id_fkey"
+            columns: ["project_part_id"]
+            isOneToOne: false
+            referencedRelation: "project_parts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -177,6 +238,62 @@ export type Database = {
           },
         ]
       }
+      people: {
+        Row: {
+          avatar_url: string | null
+          contacts: Json
+          created_at: string
+          department: string | null
+          email: string | null
+          employment_type: Database["public"]["Enums"]["employment_type"]
+          full_name: string
+          id: string
+          role_title: string | null
+          status: Database["public"]["Enums"]["person_status"]
+          updated_at: string
+          user_id: string | null
+          weekly_capacity_hours: number
+        }
+        Insert: {
+          avatar_url?: string | null
+          contacts?: Json
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          employment_type?: Database["public"]["Enums"]["employment_type"]
+          full_name: string
+          id?: string
+          role_title?: string | null
+          status?: Database["public"]["Enums"]["person_status"]
+          updated_at?: string
+          user_id?: string | null
+          weekly_capacity_hours?: number
+        }
+        Update: {
+          avatar_url?: string | null
+          contacts?: Json
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          employment_type?: Database["public"]["Enums"]["employment_type"]
+          full_name?: string
+          id?: string
+          role_title?: string | null
+          status?: Database["public"]["Enums"]["person_status"]
+          updated_at?: string
+          user_id?: string | null
+          weekly_capacity_hours?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "people_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       permissions: {
         Row: {
           delegatable: boolean
@@ -194,6 +311,39 @@ export type Database = {
           key?: string
         }
         Relationships: []
+      }
+      person_skills: {
+        Row: {
+          level: number
+          person_id: string
+          skill_id: string
+        }
+        Insert: {
+          level?: number
+          person_id: string
+          skill_id: string
+        }
+        Update: {
+          level?: number
+          person_id?: string
+          skill_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_skills_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_skills_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_links: {
         Row: {
@@ -347,6 +497,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "parts_responsible_fk"
+            columns: ["responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_parts_project_id_fkey"
             columns: ["project_id"]
@@ -504,6 +661,44 @@ export type Database = {
           },
         ]
       }
+      rates: {
+        Row: {
+          amount: number
+          currency: string
+          id: number
+          person_id: string
+          rate_type: Database["public"]["Enums"]["rate_type"]
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          amount: number
+          currency?: string
+          id?: never
+          person_id: string
+          rate_type: Database["public"]["Enums"]["rate_type"]
+          valid_from: string
+          valid_to?: string | null
+        }
+        Update: {
+          amount?: number
+          currency?: string
+          id?: never
+          person_id?: string
+          rate_type?: Database["public"]["Enums"]["rate_type"]
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rates_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
           permission_key: string
@@ -554,6 +749,117 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      skills: {
+        Row: {
+          category: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          category?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          category?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      time_entries: {
+        Row: {
+          billable: boolean
+          created_at: string
+          description: string | null
+          entry_date: string
+          hours: number
+          id: number
+          person_id: string
+          project_id: string
+          project_part_id: string | null
+        }
+        Insert: {
+          billable?: boolean
+          created_at?: string
+          description?: string | null
+          entry_date: string
+          hours: number
+          id?: never
+          person_id: string
+          project_id: string
+          project_part_id?: string | null
+        }
+        Update: {
+          billable?: boolean
+          created_at?: string
+          description?: string | null
+          entry_date?: string
+          hours?: number
+          id?: never
+          person_id?: string
+          project_id?: string
+          project_part_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_project_part_id_fkey"
+            columns: ["project_part_id"]
+            isOneToOne: false
+            referencedRelation: "project_parts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      time_off: {
+        Row: {
+          ends_on: string
+          id: number
+          note: string | null
+          person_id: string
+          starts_on: string
+          type: Database["public"]["Enums"]["time_off_type"]
+        }
+        Insert: {
+          ends_on: string
+          id?: never
+          note?: string | null
+          person_id: string
+          starts_on: string
+          type?: Database["public"]["Enums"]["time_off_type"]
+        }
+        Update: {
+          ends_on?: string
+          id?: never
+          note?: string | null
+          person_id?: string
+          starts_on?: string
+          type?: Database["public"]["Enums"]["time_off_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_off_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_profiles: {
         Row: {
@@ -702,6 +1008,7 @@ export type Database = {
         Args: { target_user: string }
         Returns: number
       }
+      current_person_id: { Args: never; Returns: string }
       has_permission: {
         Args: { perm: string; project?: string; uid: string }
         Returns: boolean
@@ -722,6 +1029,7 @@ export type Database = {
     Enums: {
       billing_model: "fixed" | "hourly"
       budget_type: "fixed" | "hourly" | "mixed"
+      employment_type: "employee" | "contractor" | "freelance"
       link_type:
         | "repo"
         | "issue_tracker"
@@ -739,6 +1047,7 @@ export type Database = {
       link_visibility: "project" | "pm_only" | "admins_only"
       part_status: "not_started" | "in_progress" | "blocked" | "done"
       permission_scope: "global" | "own_projects" | "member_projects"
+      person_status: "active" | "inactive"
       project_health: "healthy" | "warning" | "critical"
       project_priority: "low" | "medium" | "high"
       project_status:
@@ -747,6 +1056,8 @@ export type Database = {
         | "on_hold"
         | "completed"
         | "archived"
+      rate_type: "internal_cost" | "billing"
+      time_off_type: "vacation" | "sick" | "other"
       user_status: "pending" | "active" | "disabled"
     }
     CompositeTypes: {
@@ -880,6 +1191,7 @@ export const Constants = {
     Enums: {
       billing_model: ["fixed", "hourly"],
       budget_type: ["fixed", "hourly", "mixed"],
+      employment_type: ["employee", "contractor", "freelance"],
       link_type: [
         "repo",
         "issue_tracker",
@@ -898,6 +1210,7 @@ export const Constants = {
       link_visibility: ["project", "pm_only", "admins_only"],
       part_status: ["not_started", "in_progress", "blocked", "done"],
       permission_scope: ["global", "own_projects", "member_projects"],
+      person_status: ["active", "inactive"],
       project_health: ["healthy", "warning", "critical"],
       project_priority: ["low", "medium", "high"],
       project_status: [
@@ -907,6 +1220,8 @@ export const Constants = {
         "completed",
         "archived",
       ],
+      rate_type: ["internal_cost", "billing"],
+      time_off_type: ["vacation", "sick", "other"],
       user_status: ["pending", "active", "disabled"],
     },
   },
