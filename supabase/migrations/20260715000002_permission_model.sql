@@ -182,6 +182,7 @@ drop type public.app_role;
 
 -- ---------- has_permission v1 (extended with project-scope rules in migration 0003) ----------
 
+-- every non-admin branch requires an ACTIVE profile (disabled users' live JWTs must not pass RLS)
 create or replace function public.has_permission(uid uuid, perm text, project uuid default null)
 returns boolean
 language sql stable security definer
@@ -189,15 +190,20 @@ set search_path = public
 as $$
   select
     public.is_admin(uid)
-    or exists (
-      select 1 from public.user_roles ur
-      join public.role_permissions rp on rp.role_key = ur.role_key
-      where ur.user_id = uid and rp.permission_key = perm and rp.scope = 'global')
-    or exists (
-      select 1 from public.user_project_permissions upp
-      where upp.user_id = uid and upp.permission_key = perm
-        and (upp.expires_at is null or upp.expires_at > now())
-        and (project is null or upp.project_id = project))
+    or (
+      exists (select 1 from public.user_profiles up where up.id = uid and up.status = 'active')
+      and (
+        exists (
+          select 1 from public.user_roles ur
+          join public.role_permissions rp on rp.role_key = ur.role_key
+          where ur.user_id = uid and rp.permission_key = perm and rp.scope = 'global')
+        or exists (
+          select 1 from public.user_project_permissions upp
+          where upp.user_id = uid and upp.permission_key = perm
+            and (upp.expires_at is null or upp.expires_at > now())
+            and (project is null or upp.project_id = project))
+      )
+    )
 $$;
 
 revoke all on function public.has_permission(uuid, text, uuid) from public, anon;

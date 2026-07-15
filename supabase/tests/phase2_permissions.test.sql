@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(12);
 
 -- fixtures: admin, pm, finance, member (auth trigger creates profiles)
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, raw_app_meta_data, encrypted_password, created_at, updated_at) values
@@ -23,6 +23,13 @@ select is(public.is_admin('a0000000-0000-4000-8000-000000000002'), false, 'PM is
 select is(public.has_permission('a0000000-0000-4000-8000-000000000003','view_internal_cost'), true,  'finance has global view_internal_cost');
 select is(public.has_permission('a0000000-0000-4000-8000-000000000002','view_internal_cost'), false, 'PM lacks view_internal_cost');
 select is(public.has_permission('a0000000-0000-4000-8000-000000000001','anything_at_all'), true,     'admin bypasses everything');
+
+update public.user_profiles set status = 'disabled' where id = 'a0000000-0000-4000-8000-000000000003';
+select is(public.has_permission('a0000000-0000-4000-8000-000000000003','view_internal_cost'), false,
+  'disabled user loses role-based permissions');
+update public.user_profiles set status = 'active' where id = 'a0000000-0000-4000-8000-000000000003';
+select is(public.has_permission('a0000000-0000-4000-8000-000000000003','view_internal_cost'), true,
+  're-enabled user regains role-based permissions');
 
 -- explicit per-project grant with expiry (project uuid is synthetic here; FK to projects comes in Task 3, so this table starts without the FK — see migration note)
 insert into public.user_project_permissions (user_id, project_id, permission_key, expires_at) values
