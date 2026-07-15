@@ -263,6 +263,225 @@ export type Database = {
         }
         Relationships: []
       }
+      credential_access: {
+        Row: {
+          credential_id: string
+          expires_at: string | null
+          granted_at: string
+          granted_by: string | null
+          id: number
+          user_id: string
+        }
+        Insert: {
+          credential_id: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: never
+          user_id: string
+        }
+        Update: {
+          credential_id?: string
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: never
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credential_access_credential_id_fkey"
+            columns: ["credential_id"]
+            isOneToOne: false
+            referencedRelation: "credentials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credential_access_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credential_access_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credentials: {
+        Row: {
+          created_at: string
+          environment: Database["public"]["Enums"]["credential_environment"]
+          expires_at: string | null
+          id: string
+          last_rotated_at: string | null
+          name: string
+          notes: string | null
+          owner_id: string | null
+          project_id: string
+          related_url: string | null
+          secret_id: string
+          type: Database["public"]["Enums"]["credential_type"]
+          updated_at: string
+          username: string | null
+          visibility: Database["public"]["Enums"]["credential_visibility"]
+        }
+        Insert: {
+          created_at?: string
+          environment?: Database["public"]["Enums"]["credential_environment"]
+          expires_at?: string | null
+          id?: string
+          last_rotated_at?: string | null
+          name: string
+          notes?: string | null
+          owner_id?: string | null
+          project_id: string
+          related_url?: string | null
+          secret_id: string
+          type: Database["public"]["Enums"]["credential_type"]
+          updated_at?: string
+          username?: string | null
+          visibility?: Database["public"]["Enums"]["credential_visibility"]
+        }
+        Update: {
+          created_at?: string
+          environment?: Database["public"]["Enums"]["credential_environment"]
+          expires_at?: string | null
+          id?: string
+          last_rotated_at?: string | null
+          name?: string
+          notes?: string | null
+          owner_id?: string | null
+          project_id?: string
+          related_url?: string | null
+          secret_id?: string
+          type?: Database["public"]["Enums"]["credential_type"]
+          updated_at?: string
+          username?: string | null
+          visibility?: Database["public"]["Enums"]["credential_visibility"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credentials_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credentials_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delegation_permissions: {
+        Row: {
+          delegation_id: string
+          id: number
+          permission_key: string
+          project_id: string
+        }
+        Insert: {
+          delegation_id: string
+          id?: never
+          permission_key: string
+          project_id: string
+        }
+        Update: {
+          delegation_id?: string
+          id?: never
+          permission_key?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delegation_permissions_delegation_id_fkey"
+            columns: ["delegation_id"]
+            isOneToOne: false
+            referencedRelation: "delegations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delegation_permissions_permission_key_fkey"
+            columns: ["permission_key"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "delegation_permissions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delegations: {
+        Row: {
+          created_at: string
+          ends_at: string
+          from_user: string
+          handover_notes: string | null
+          id: string
+          revoked_at: string | null
+          revoked_by: string | null
+          starts_at: string
+          to_user: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          from_user: string
+          handover_notes?: string | null
+          id?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          starts_at: string
+          to_user: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          from_user?: string
+          handover_notes?: string | null
+          id?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          starts_at?: string
+          to_user?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delegations_from_user_fkey"
+            columns: ["from_user"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delegations_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delegations_to_user_fkey"
+            columns: ["to_user"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
@@ -1172,6 +1391,10 @@ export type Database = {
         Returns: number
       }
       current_person_id: { Args: never; Returns: string }
+      has_credential_access: {
+        Args: { cred_id: string; uid?: string }
+        Returns: boolean
+      }
       has_permission: {
         Args: { perm: string; project?: string; uid: string }
         Returns: boolean
@@ -1199,6 +1422,17 @@ export type Database = {
         | "payment"
         | "change"
       budget_type: "fixed" | "hourly" | "mixed"
+      credential_environment: "prod" | "prelive" | "staging" | "dev" | "other"
+      credential_type:
+        | "server_login"
+        | "db_login"
+        | "api_key"
+        | "hosting"
+        | "admin_panel"
+        | "third_party"
+        | "ssh"
+        | "client_provided"
+      credential_visibility: "project_members" | "pms_only" | "admins_only"
       employment_type: "employee" | "contractor" | "freelance"
       link_type:
         | "repo"
@@ -1368,6 +1602,18 @@ export const Constants = {
         "change",
       ],
       budget_type: ["fixed", "hourly", "mixed"],
+      credential_environment: ["prod", "prelive", "staging", "dev", "other"],
+      credential_type: [
+        "server_login",
+        "db_login",
+        "api_key",
+        "hosting",
+        "admin_panel",
+        "third_party",
+        "ssh",
+        "client_provided",
+      ],
+      credential_visibility: ["project_members", "pms_only", "admins_only"],
       employment_type: ["employee", "contractor", "freelance"],
       link_type: [
         "repo",
