@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(15);
 
 -- fixtures: PM Anna (owns P1), PM Bella (owns P2), member Max (member of P1 only), finance Fia
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, raw_app_meta_data, encrypted_password, created_at, updated_at) values
@@ -24,6 +24,9 @@ insert into public.project_members (project_id, user_id, role_on_project) values
 insert into public.project_links (project_id, name, url, type, visibility) values
   ('c2000000-0000-4000-8000-000000000001','Repo','https://github.com/acme/p1','repo','project'),
   ('c2000000-0000-4000-8000-000000000001','Prod DB','https://db.acme','db_dashboard','pm_only');
+insert into public.project_parts (id, project_id, name, billing_model) values
+  ('c3000000-0000-4000-8000-000000000001','c2000000-0000-4000-8000-000000000001','P1 Part','fixed'),
+  ('c3000000-0000-4000-8000-000000000002','c2000000-0000-4000-8000-000000000002','P2 Part','fixed');
 
 -- member Max: sees only P1; cannot edit it; sees project-visibility links but not pm_only
 set local role authenticated;
@@ -47,6 +50,19 @@ select lives_ok(
 select throws_ok(
   $$ update public.project_status_updates set completed = 'rewritten history' where project_id = 'c2000000-0000-4000-8000-000000000001' $$,
   '42501', null, 'status updates are immutable');
+select throws_ok(
+  $$ insert into public.part_dependencies (part_id, depends_on_part_id)
+     values ('c3000000-0000-4000-8000-000000000001', 'c3000000-0000-4000-8000-000000000002') $$,
+  'P0001', 'part dependencies must stay within one project',
+  'cross-project dependency rejected');
+select throws_ok(
+  $$ insert into public.projects (name, budget_type, pm_id)
+     values ('Spoofed', 'fixed', 'c0000000-0000-4000-8000-000000000002') $$,
+  '42501', null, 'PM cannot create a project owned by someone else');
+select lives_ok(
+  $$ insert into public.projects (name, budget_type, pm_id)
+     values ('Own new project', 'fixed', auth.uid()) $$,
+  'PM creates own project');
 
 -- finance Fia: portfolio visibility without membership
 set local "request.jwt.claims" to '{"sub":"c0000000-0000-4000-8000-000000000004","role":"authenticated"}';

@@ -82,6 +82,22 @@ create table public.part_dependencies (
   check (part_id <> depends_on_part_id)
 );
 
+-- dependencies are project-internal: an edge may never cross projects
+create or replace function public.enforce_same_project_dependency()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if (select project_id from public.project_parts where id = new.part_id)
+     is distinct from
+     (select project_id from public.project_parts where id = new.depends_on_part_id) then
+    raise exception 'part dependencies must stay within one project';
+  end if;
+  return new;
+end;
+$$;
+create trigger part_dependencies_same_project
+  before insert or update on public.part_dependencies
+  for each row execute function public.enforce_same_project_dependency();
+
 create table public.project_status_updates (
   id bigint generated always as identity primary key,
   project_id uuid not null references public.projects (id) on delete cascade,
@@ -175,7 +191,9 @@ create policy "view clients" on public.clients for select using (public.has_perm
 create policy "manage clients" on public.clients for all using (public.has_permission(auth.uid(),'manage_clients')) with check (public.has_permission(auth.uid(),'manage_clients'));
 
 create policy "view project" on public.projects for select using (public.has_permission(auth.uid(),'view_project', id));
-create policy "create project" on public.projects for insert with check (public.has_permission(auth.uid(),'create_project'));
+create policy "create project" on public.projects for insert with check (
+  public.has_permission(auth.uid(),'create_project')
+  and (pm_id = auth.uid() or public.is_admin()));
 create policy "edit project" on public.projects for update using (public.has_permission(auth.uid(),'edit_project', id));
 create policy "admin delete project" on public.projects for delete using (public.is_admin());
 
