@@ -162,9 +162,18 @@ Every branch after the admin bypass is scoped: global-scope permissions
 (`view_clients`, `manage_clients`, `view_people`, `log_time`, etc.) are
 checked without a project argument; every other resource policy passes the
 row's own `project_id` (or, for part-scoped financial tables, the project
-resolved via the `part_project()` helper) as the third argument. There is no
-policy in the codebase that calls `has_permission` for a project-scoped
-permission without also passing the project.
+resolved via the `part_project()` helper) as the third argument.
+
+The `user_project_permissions` (explicit per-project grant) branch of
+`has_permission` only ever satisfies a **project-scoped** check
+(`project is not null and upp.project_id = project`) — a per-project grant can
+never satisfy an unscoped/global check. This is what makes the
+person-level `rates` table safe even though its policy calls
+`view_internal_cost` without a project argument: only finance's **global**
+role grant passes that check; an admin handing someone `view_internal_cost`
+scoped to a single project does **not** expose the company-wide rate card.
+(This closed a Critical found in the Phase-2 final review — see the hardening
+list below.)
 
 ---
 
