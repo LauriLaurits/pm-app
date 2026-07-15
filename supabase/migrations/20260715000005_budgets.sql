@@ -31,6 +31,9 @@ create table public.budgets (
   updated_at timestamptz not null default now(),
   unique (project_id, part_id)
 );
+-- unique(project_id, part_id) doesn't constrain rows where part_id is null (NULLs are
+-- never equal), so a project could otherwise get more than one project-level budget.
+create unique index budgets_project_only_uidx on public.budgets (project_id) where part_id is null;
 
 create table public.budget_items (
   id bigint generated always as identity primary key,
@@ -40,7 +43,7 @@ create table public.budget_items (
   amount numeric(12,2) not null,
   occurred_on date not null default current_date,
   note text,
-  created_by uuid references public.user_profiles (id),
+  created_by uuid references public.user_profiles (id) default auth.uid(),
   created_at timestamptz not null default now()
 );
 create index budget_items_budget_idx on public.budget_items (budget_id, occurred_on);
@@ -67,14 +70,27 @@ alter table public.budget_items enable row level security;
 create policy "view part billing" on public.part_billing for select using (public.has_permission(auth.uid(),'view_budget', public.part_project(part_id)));
 create policy "manage part billing" on public.part_billing for all using (public.has_permission(auth.uid(),'manage_budget', public.part_project(part_id))) with check (public.has_permission(auth.uid(),'manage_budget', public.part_project(part_id)));
 
-create policy "finance views part costs" on public.part_costs for select using (public.has_permission(auth.uid(),'view_internal_cost'));
-create policy "finance manages part costs" on public.part_costs for all using (public.has_permission(auth.uid(),'view_internal_cost') and public.has_permission(auth.uid(),'manage_budget', public.part_project(part_id))) with check (public.has_permission(auth.uid(),'view_internal_cost') and public.has_permission(auth.uid(),'manage_budget', public.part_project(part_id)));
+-- NOTE: has_permission's project argument must be passed here. Its global branch ignores
+-- the project argument entirely, so finance's GLOBAL view_internal_cost grant still passes
+-- unchanged; but a per-project explicit grant (via user_project_permissions) would otherwise
+-- match part_costs rows for EVERY project, not just the granted one.
+create policy "finance views part costs" on public.part_costs for select using (
+  public.has_permission(auth.uid(),'view_internal_cost', public.part_project(part_id)));
+create policy "finance manages part costs" on public.part_costs for all using (
+  public.has_permission(auth.uid(),'view_internal_cost', public.part_project(part_id))
+  and public.has_permission(auth.uid(),'manage_budget', public.part_project(part_id)))
+with check (
+  public.has_permission(auth.uid(),'view_internal_cost', public.part_project(part_id))
+  and public.has_permission(auth.uid(),'manage_budget', public.part_project(part_id)));
 
 create policy "view budgets" on public.budgets for select using (public.has_permission(auth.uid(),'view_budget', project_id));
 create policy "manage budgets" on public.budgets for all using (public.has_permission(auth.uid(),'manage_budget', project_id)) with check (public.has_permission(auth.uid(),'manage_budget', project_id));
 
 create policy "view budget items" on public.budget_items for select using (exists (select 1 from public.budgets b where b.id = budget_id and public.has_permission(auth.uid(),'view_budget', b.project_id)));
-create policy "manage budget items" on public.budget_items for all using (exists (select 1 from public.budgets b where b.id = budget_id and public.has_permission(auth.uid(),'manage_budget', b.project_id))) with check (exists (select 1 from public.budgets b where b.id = budget_id and public.has_permission(auth.uid(),'manage_budget', b.project_id)));
+-- WITH CHECK also pins created_by to the caller: the column default fills it in when the
+-- insert omits it, but an explicit different value (spoofing another user) must be rejected.
+-- Service-role/seed inserts bypass RLS entirely, so they are unaffected.
+create policy "manage budget items" on public.budget_items for all using (exists (select 1 from public.budgets b where b.id = budget_id and public.has_permission(auth.uid(),'manage_budget', b.project_id))) with check (exists (select 1 from public.budgets b where b.id = budget_id and public.has_permission(auth.uid(),'manage_budget', b.project_id)) and budget_items.created_by = auth.uid());
 
 -- ---------- grants ----------
 grant select, insert, update, delete on public.part_billing, public.part_costs, public.budgets, public.budget_items to authenticated;
