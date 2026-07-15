@@ -52,8 +52,10 @@ SEED_ADMIN_PASSWORD=change-me-locally
 Then apply the schema and seed the first admin:
 
 ```bash
-npm run db:reset      # applies supabase/migrations against a clean local DB
-npm run seed:admin    # creates + activates the first admin user (reads .env.local)
+npm run db:reset      # applies supabase/migrations against a clean local DB,
+                       # then loads supabase/seed.sql (demo dataset, below)
+npm run seed:admin    # adds your own personal admin on top of the demo data
+                       # (reads .env.local)
 npm run dev
 ```
 
@@ -61,8 +63,32 @@ Open http://localhost:3000. Sign in with the seeded admin credentials, or
 sign up a new account — new accounts land on `/pending` until an admin
 approves them from `/admin/users`.
 
-> `npm run db:reset` wipes all users. Re-run `npm run seed:admin` immediately
-> after any reset, or you'll have no admin to approve anyone with.
+> `npm run db:reset` wipes all users and reloads the demo dataset below.
+> Re-run `npm run seed:admin` immediately after any reset if you want your
+> own personal admin login in addition to the demo accounts.
+
+### Demo dataset
+
+`npm run db:reset` runs `supabase/seed.sql` after the migrations, seeding a
+demo portfolio: 3 clients, 9 projects (all three billing types and health
+states), 16 people with skills/rates/capacities/vacations, budgets with
+item history, project links, Vault-backed credentials, and one active
+delegation. It also creates six demo logins, one per role, all sharing the
+password `Password123!`:
+
+| Email | Role | Notes |
+|---|---|---|
+| `admin.demo@pmcms.local` | admin | Full access |
+| `anna.pm@pmcms.local` | project_manager | PM on 5 projects |
+| `bella.pm@pmcms.local` | project_manager | PM on 4 projects; currently on vacation — her active projects are delegated to Milo |
+| `frank.fin@pmcms.local` | finance | Global budget + internal-cost + rates access |
+| `milo.dev@pmcms.local` | member | Also a `people` row (Senior Backend Developer); holds Bella's active delegation |
+| `vera.view@pmcms.local` | viewer | No role permissions — access comes entirely from an explicit, time-limited `view_project`/`view_links` grant on one project |
+
+`npm run seed:admin` creates a **separate** personal admin
+(`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` from `.env.local`) on top of the
+demo dataset — it does not replace or depend on the demo accounts above, and
+is safe to run before or after them.
 
 ## Tests
 
