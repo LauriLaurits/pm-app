@@ -10,7 +10,9 @@ export type AuditAction =
   | "auth.session_revoked"
   | "auth.sessions_revoked_all"
   | "user.approved"
-  | "user.status_changed";
+  | "user.status_changed"
+  | "project.updated"
+  | "project.status_posted";
 
 export type AuditEntry = {
   action: AuditAction;

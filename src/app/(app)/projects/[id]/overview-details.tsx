@@ -1,14 +1,21 @@
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { formatDate } from "../types";
 import type { ProjectRow } from "./types";
 
-export function OverviewDetailsCard({ project }: { project: ProjectRow }) {
+export function OverviewDetailsCard({
+  project,
+  editAction,
+}: {
+  project: ProjectRow;
+  editAction?: React.ReactNode;
+}) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Details</CardTitle>
+        {editAction && <CardAction>{editAction}</CardAction>}
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-foreground">

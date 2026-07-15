@@ -1,0 +1,107 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { editProjectAction } from "@/app/actions/projects";
+import {
+  editProjectSchema,
+  PROJECT_HEALTH_OPTIONS,
+  PROJECT_PRIORITY_OPTIONS,
+  PROJECT_STATUS_OPTIONS,
+  type EditProjectInput,
+} from "@/lib/validation/project";
+import type { ProjectRow } from "./types";
+import {
+  DateField, EnumSelectField, ProgressField, TagsField, TextAreaField, TEXT_FIELDS,
+} from "./overview-edit-fields";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { DialogFooter } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
+function toDefaults(project: ProjectRow): EditProjectInput {
+  return {
+    name: project.name,
+    description: project.description,
+    status: project.status,
+    health: project.health,
+    priority: project.priority,
+    start_date: project.start_date,
+    deadline: project.deadline,
+    progress: project.progress,
+    risks: project.risks,
+    blockers: project.blockers,
+    next_steps: project.next_steps,
+    internal_notes: project.internal_notes,
+    client_notes: project.client_notes,
+    tags: project.tags,
+  };
+}
+
+export function OverviewEditForm({
+  project,
+  onSuccess,
+}: {
+  project: ProjectRow;
+  onSuccess: () => void;
+}) {
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const form = useForm<EditProjectInput>({
+    resolver: zodResolver(editProjectSchema),
+    defaultValues: toDefaults(project),
+  });
+
+  function onSubmit(values: EditProjectInput) {
+    setServerError(null);
+    startTransition(async () => {
+      const result = await editProjectAction(project.id, values);
+      if ("error" in result) setServerError(result.error);
+      else onSuccess();
+    });
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {serverError && (
+          <Alert variant="destructive">
+            <AlertDescription>{serverError}</AlertDescription>
+          </Alert>
+        )}
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Name</FormLabel>
+              <FormControl render={<Input {...field} />} />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="grid grid-cols-3 gap-3">
+          <EnumSelectField control={form.control} name="status" label="Status" options={PROJECT_STATUS_OPTIONS} />
+          <EnumSelectField control={form.control} name="health" label="Health" options={PROJECT_HEALTH_OPTIONS} />
+          <EnumSelectField control={form.control} name="priority" label="Priority" options={PROJECT_PRIORITY_OPTIONS} />
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <DateField control={form.control} name="start_date" label="Start date" />
+          <DateField control={form.control} name="deadline" label="Deadline" />
+          <ProgressField control={form.control} />
+        </div>
+        <TagsField control={form.control} />
+        {TEXT_FIELDS.map(({ name, label }) => (
+          <TextAreaField key={name} control={form.control} name={name} label={label} />
+        ))}
+        <DialogFooter>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? "Saving…" : "Save changes"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </Form>
+  );
+}

@@ -1,9 +1,12 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/session";
 import { OverviewDetailsCard } from "./overview-details";
+import { OverviewEditDialog } from "./overview-edit-dialog";
 import { OverviewNotesCard } from "./overview-notes";
 import { OverviewPeopleCard } from "./overview-people";
 import { StatusHistory } from "./status-history";
+import { StatusUpdateForm } from "./status-update-form";
 import type { PersonRef, ProjectRow, StatusUpdateRow } from "./types";
 
 export default async function ProjectOverviewPage({
@@ -22,6 +25,17 @@ export default async function ProjectOverviewPage({
 
   if (!project) notFound();
   const row = project as ProjectRow;
+
+  // UX gating only -- purely decides whether to render the edit/status forms at all.
+  // The real security boundary is requirePermission() inside each server action, which
+  // re-checks has_permission server-side before any write regardless of what's rendered here.
+  const current = await getCurrentUser();
+  const [{ data: canEdit }, { data: canEditStatus }] = current
+    ? await Promise.all([
+        supabase.rpc("has_permission", { uid: current.user.id, perm: "edit_project", project: id }),
+        supabase.rpc("has_permission", { uid: current.user.id, perm: "edit_status", project: id }),
+      ])
+    : [{ data: false }, { data: false }];
 
   const { data: updates } = await supabase
     .from("project_status_updates")
@@ -50,11 +64,15 @@ export default async function ProjectOverviewPage({
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <div className="space-y-4 lg:col-span-2">
+        {canEditStatus && <StatusUpdateForm projectId={row.id} />}
         <StatusHistory updates={(updates ?? []) as StatusUpdateRow[]} />
         <OverviewNotesCard project={row} />
       </div>
       <div className="space-y-4">
-        <OverviewDetailsCard project={row} />
+        <OverviewDetailsCard
+          project={row}
+          editAction={canEdit ? <OverviewEditDialog project={row} /> : null}
+        />
         <OverviewPeopleCard pm={toPersonRef(row.pm_id)} owner={toPersonRef(row.owner_id)} />
       </div>
     </div>
