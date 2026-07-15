@@ -87,11 +87,26 @@ create policy "view budgets" on public.budgets for select using (public.has_perm
 create policy "manage budgets" on public.budgets for all using (public.has_permission(auth.uid(),'manage_budget', project_id)) with check (public.has_permission(auth.uid(),'manage_budget', project_id));
 
 create policy "view budget items" on public.budget_items for select using (exists (select 1 from public.budgets b where b.id = budget_id and public.has_permission(auth.uid(),'view_budget', b.project_id)));
--- WITH CHECK also pins created_by to the caller: the column default fills it in when the
--- insert omits it, but an explicit different value (spoofing another user) must be rejected.
+-- Attribution binds at INSERT (created_by = auth.uid(), enforced by WITH CHECK below; the
+-- column default fills it in when the insert omits it, but an explicit different value
+-- spoofing another user is rejected) and is immutable afterwards -- enforced not by UPDATE's
+-- WITH CHECK (which would re-validate the row's ORIGINAL created_by against the current actor
+-- on every update, blocking a manager from updating items they didn't personally create) but
+-- by withholding UPDATE privilege on the created_by column entirely (see grants below).
 -- Service-role/seed inserts bypass RLS entirely, so they are unaffected.
-create policy "manage budget items" on public.budget_items for all using (exists (select 1 from public.budgets b where b.id = budget_id and public.has_permission(auth.uid(),'manage_budget', b.project_id))) with check (exists (select 1 from public.budgets b where b.id = budget_id and public.has_permission(auth.uid(),'manage_budget', b.project_id)) and budget_items.created_by = auth.uid());
+create policy "insert budget items" on public.budget_items for insert
+  with check (exists (select 1 from public.budgets b where b.id = budget_id and public.has_permission(auth.uid(),'manage_budget', b.project_id)) and budget_items.created_by = auth.uid());
+create policy "update budget items" on public.budget_items for update
+  using (exists (select 1 from public.budgets b where b.id = budget_id and public.has_permission(auth.uid(),'manage_budget', b.project_id)))
+  with check (exists (select 1 from public.budgets b where b.id = budget_id and public.has_permission(auth.uid(),'manage_budget', b.project_id)));
+create policy "delete budget items" on public.budget_items for delete
+  using (exists (select 1 from public.budgets b where b.id = budget_id and public.has_permission(auth.uid(),'manage_budget', b.project_id)));
 
 -- ---------- grants ----------
-grant select, insert, update, delete on public.part_billing, public.part_costs, public.budgets, public.budget_items to authenticated;
-grant select, insert, update, delete on public.part_billing, public.part_costs, public.budgets, public.budget_items to service_role;
+grant select, insert, update, delete on public.part_billing, public.part_costs, public.budgets to authenticated;
+grant select, insert, update, delete on public.part_billing, public.part_costs, public.budgets to service_role;
+grant select, insert, delete on public.budget_items to authenticated;
+-- No UPDATE privilege on created_by/budget_id: attribution can't be rewritten, and items
+-- can't be silently moved to another budget.
+grant update (item_type, name, amount, occurred_on, note) on public.budget_items to authenticated;
+grant select, insert, update, delete on public.budget_items to service_role;

@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(16);
 
 -- fixtures: PM Petra (owns B1, not B2), finance Fred, member Mia (member of B1)
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, raw_app_meta_data, encrypted_password, created_at, updated_at) values
@@ -82,6 +82,21 @@ select lives_ok(
   $$ insert into public.budget_items (budget_id, item_type, name, amount)
      values ('e5000000-0000-4000-8000-000000000001','invoice','Attributed', 100) $$,
   'default attribution works');
+
+-- postgres: seed a budget_items row attributed to finance Fred (simulating a colleague's entry)
+reset role;
+insert into public.budget_items (budget_id, item_type, name, amount, created_by) values
+  ('e5000000-0000-4000-8000-000000000001','planned_cost','Fred entry', 250, 'e0000000-0000-4000-8000-000000000002');
+
+-- PM Petra manages budget items she didn't personally create, but cannot rewrite attribution
+set local role authenticated;
+set local "request.jwt.claims" to '{"sub":"e0000000-0000-4000-8000-000000000001","role":"authenticated"}';
+select lives_ok(
+  $$ update public.budget_items set amount = 275 where budget_id = 'e5000000-0000-4000-8000-000000000001' and name = 'Fred entry' $$,
+  'manager can update items created by others');
+select throws_ok(
+  $$ update public.budget_items set created_by = 'e0000000-0000-4000-8000-000000000001' where budget_id = 'e5000000-0000-4000-8000-000000000001' and name = 'Fred entry' $$,
+  '42501', null, 'attribution is immutable');
 
 select * from finish();
 rollback;
