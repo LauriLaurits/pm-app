@@ -54,7 +54,7 @@ select throws_ok(
 -- finance: everything financial, everywhere
 set local "request.jwt.claims" to '{"sub":"e0000000-0000-4000-8000-000000000002","role":"authenticated"}';
 select is((select count(*)::int from public.part_billing where part_id::text like 'e3000000-%'), 2, 'finance sees all billing');
-select is((select count(*)::int from public.part_costs), 2, 'finance sees internal costs');
+select is((select count(*)::int from public.part_costs where part_id::text like 'e3000000-%'), 2, 'finance sees internal costs');
 select lives_ok(
   $$ update public.part_costs set actual_internal_cost = 4200 where part_id = 'e3000000-0000-4000-8000-000000000001' $$,
   'finance manages internal costs');
