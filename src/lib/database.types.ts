@@ -83,6 +83,13 @@ export type Database = {
             foreignKeyName: "assignments_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "project_list_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -219,6 +226,13 @@ export type Database = {
             columns: ["part_id"]
             isOneToOne: false
             referencedRelation: "project_parts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_list_rows"
             referencedColumns: ["id"]
           },
           {
@@ -376,6 +390,13 @@ export type Database = {
             foreignKeyName: "credentials_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "project_list_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credentials_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -414,6 +435,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "permissions"
             referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "delegation_permissions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_list_rows"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "delegation_permissions_project_id_fkey"
@@ -782,6 +810,13 @@ export type Database = {
             foreignKeyName: "project_links_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "project_list_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_links_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -813,6 +848,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_list_rows"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_members_project_id_fkey"
             columns: ["project_id"]
@@ -890,6 +932,13 @@ export type Database = {
             foreignKeyName: "project_parts_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "project_list_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_parts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -938,6 +987,13 @@ export type Database = {
             columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_status_updates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_list_rows"
             referencedColumns: ["id"]
           },
           {
@@ -1196,6 +1252,13 @@ export type Database = {
             foreignKeyName: "time_entries_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "project_list_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_entries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -1312,6 +1375,13 @@ export type Database = {
             foreignKeyName: "upp_project_fk"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "project_list_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upp_project_fk"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
@@ -1383,7 +1453,28 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      project_list_rows: {
+        Row: {
+          budget_remaining: number | null
+          budget_total: number | null
+          budget_type: Database["public"]["Enums"]["budget_type"] | null
+          budget_used: number | null
+          client_name: string | null
+          deadline: string | null
+          health: Database["public"]["Enums"]["project_health"] | null
+          id: string | null
+          member_count: number | null
+          name: string | null
+          pm_avatar_url: string | null
+          pm_name: string | null
+          priority: Database["public"]["Enums"]["project_priority"] | null
+          progress: number | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["project_status"] | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_revoke_user_sessions: {
