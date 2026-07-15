@@ -93,6 +93,30 @@ create trigger delegation_permissions_own_project
   before insert or update on public.delegation_permissions
   for each row execute function public.validate_delegation_project();
 
+-- a delegation may only ever be updated to set revoked_at/revoked_by (one-way revoke); once
+-- revoked it is immutable. RLS ("revoke own delegation") only gates row access, not column
+-- mutation, so this is enforced structurally here.
+create or replace function public.enforce_delegation_update()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if old.revoked_at is not null then
+    raise exception 'a revoked delegation is immutable';
+  end if;
+  if new.from_user is distinct from old.from_user
+     or new.to_user is distinct from old.to_user
+     or new.starts_at is distinct from old.starts_at
+     or new.ends_at is distinct from old.ends_at
+     or new.handover_notes is distinct from old.handover_notes
+     or new.created_at is distinct from old.created_at then
+    raise exception 'only revoked_at/revoked_by may be updated on a delegation';
+  end if;
+  return new;
+end;
+$$;
+create trigger delegations_update_guard
+  before update on public.delegations
+  for each row execute function public.enforce_delegation_update();
+
 -- ---------- has_permission v3: + live delegation check ----------
 -- Same ACTIVE-profile gate as v2 wraps every non-admin branch, including delegations.
 
@@ -156,6 +180,9 @@ as $$
   );
 $$;
 
+revoke all on function public.has_credential_access(uuid, uuid) from public, anon;
+grant execute on function public.has_credential_access(uuid, uuid) to authenticated;
+
 -- ---------- RLS ----------
 
 alter table public.credentials enable row level security;
@@ -170,7 +197,17 @@ create policy "view credential metadata" on public.credentials for select using 
         or public.is_admin()))
   or owner_id = auth.uid()
   or public.has_credential_access(id, auth.uid()));
-create policy "manage credentials" on public.credentials for all using (public.has_permission(auth.uid(),'manage_credentials', project_id)) with check (public.has_permission(auth.uid(),'manage_credentials', project_id));
+-- Write policies must respect the same admins_only visibility gate as the read policy above
+-- (VG), otherwise a project-scoped manager (manage_credentials own_projects) could read/write
+-- admins_only credentials via UPDATE/DELETE even though SELECT would hide them. MC = holds
+-- manage_credentials on the credential's project; VG = not admins_only, or is_admin().
+create policy "insert credentials" on public.credentials for insert
+  with check (public.has_permission(auth.uid(),'manage_credentials', project_id) and (visibility <> 'admins_only' or public.is_admin()));
+create policy "update credentials" on public.credentials for update
+  using (public.has_permission(auth.uid(),'manage_credentials', project_id) and (visibility <> 'admins_only' or public.is_admin()))
+  with check (public.has_permission(auth.uid(),'manage_credentials', project_id) and (visibility <> 'admins_only' or public.is_admin()));
+create policy "delete credentials" on public.credentials for delete
+  using (public.has_permission(auth.uid(),'manage_credentials', project_id) and (visibility <> 'admins_only' or public.is_admin()));
 
 create policy "view own credential grants" on public.credential_access for select using (user_id = auth.uid());
 create policy "managers view credential grants" on public.credential_access for select using (exists (select 1 from public.credentials c where c.id = credential_id and public.has_permission(auth.uid(),'manage_credentials', c.project_id)));
@@ -186,6 +223,9 @@ create policy "create own delegation" on public.delegations for insert with chec
     select 1 from public.projects p
     where p.pm_id = auth.uid()
       and public.has_permission(auth.uid(),'manage_delegations', p.id)));
+-- The policy below only gates row ACCESS (who may attempt an update); WHAT may actually change
+-- on that row (only revoked_at/revoked_by, one-way, never un-revoking) is enforced structurally
+-- by the delegations_update_guard trigger (enforce_delegation_update) defined above.
 create policy "revoke own delegation" on public.delegations for update using (from_user = auth.uid() or public.is_admin());
 create policy "admin delete delegation" on public.delegations for delete using (public.is_admin());
 

@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(20);
 
 -- fixtures: PM Vera (owns V1), stand-in Sam (member role), outsider Otto (member role, no relation)
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, raw_app_meta_data, encrypted_password, created_at, updated_at) values
@@ -53,6 +53,25 @@ set local "request.jwt.claims" to '{"sub":"f0000000-0000-4000-8000-000000000003"
 select is((select count(*)::int from public.credentials), 0, 'outsider sees no credentials');
 select is((select count(*)::int from public.delegations), 0, 'outsider sees no delegations');
 
+-- explicit credential_access grant: Otto has no project relation and no other visibility
+-- path, so credential_access is the only thing that could show him the V1 credential.
+reset role;
+insert into public.credential_access (credential_id, user_id, granted_by, expires_at) values
+  ('f3000000-0000-4000-8000-000000000001','f0000000-0000-4000-8000-000000000003','f0000000-0000-4000-8000-000000000001',
+   now() + interval '1 day');
+set local role authenticated;
+set local "request.jwt.claims" to '{"sub":"f0000000-0000-4000-8000-000000000003","role":"authenticated"}';
+select is((select count(*)::int from public.credentials where id = 'f3000000-0000-4000-8000-000000000001'), 1,
+  'explicit credential_access grants visibility');
+
+reset role;
+update public.credential_access set expires_at = now() - interval '1 day'
+  where credential_id = 'f3000000-0000-4000-8000-000000000001' and user_id = 'f0000000-0000-4000-8000-000000000003';
+set local role authenticated;
+set local "request.jwt.claims" to '{"sub":"f0000000-0000-4000-8000-000000000003","role":"authenticated"}';
+select is((select count(*)::int from public.credentials where id = 'f3000000-0000-4000-8000-000000000001'), 0,
+  'expired credential_access grant denies visibility');
+
 -- INSERT policy: manage_delegations is scoped own_projects, so creating a delegation shell
 -- requires holding it on an owned project; the trigger still confines actual delegated
 -- projects to ones the delegator owns.
@@ -74,6 +93,25 @@ select throws_ok(
      values ('f0000000-0000-4000-8000-000000000002', 'f0000000-0000-4000-8000-000000000003', now(), now() + interval '5 days') $$,
   '42501', null, 'cannot create delegations on behalf of others');
 
+-- admins_only visibility must also gate the write policies (Fix 2), not just SELECT: a PM's
+-- manage_credentials own_projects must not let them read/write an admins_only credential.
+reset role;
+update public.credentials set visibility = 'admins_only' where id = 'f3000000-0000-4000-8000-000000000001';
+set local role authenticated;
+set local "request.jwt.claims" to '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
+select is((select count(*)::int from public.credentials where id = 'f3000000-0000-4000-8000-000000000001'), 0,
+  'PM cannot see admins_only credential');
+-- Note: RLS USING-clause failures on UPDATE/DELETE silently exclude the row (0 rows affected)
+-- rather than raising an error - an error only fires when USING passes on the OLD row but
+-- WITH CHECK then rejects the NEW row. Since VG is identical in USING and WITH CHECK here and
+-- visibility isn't changing, the row never becomes visible to Vera's UPDATE, so the correct,
+-- observable assertion is "the name did not change", not a thrown exception.
+update public.credentials set name = 'renamed-by-pm' where id = 'f3000000-0000-4000-8000-000000000001';
+reset role;
+select isnt((select name from public.credentials where id = 'f3000000-0000-4000-8000-000000000001'), 'renamed-by-pm',
+  'PM cannot manage admins_only credential');
+update public.credentials set visibility = 'project_members' where id = 'f3000000-0000-4000-8000-000000000001';
+
 -- revoke ends access immediately
 reset role;
 update public.delegations set revoked_at = now(), revoked_by = 'f0000000-0000-4000-8000-000000000001'
@@ -86,6 +124,25 @@ insert into public.delegations (id, from_user, to_user, starts_at, ends_at) valu
 insert into public.delegation_permissions (delegation_id, project_id, permission_key) values
   ('f4000000-0000-4000-8000-000000000002','f2000000-0000-4000-8000-000000000001','view_project');
 select is(public.has_permission('f0000000-0000-4000-8000-000000000002','view_project','f2000000-0000-4000-8000-000000000001'), false, 'expired delegation grants nothing');
+
+-- delegation immutability (Fix 3): an active delegation may only ever be updated to set
+-- revoked_at/revoked_by, one-way; the trigger enforces this regardless of the RLS row-access
+-- gate (which still passes here, since Vera is from_user).
+insert into public.delegations (id, from_user, to_user, starts_at, ends_at) values
+  ('f4000000-0000-4000-8000-000000000003','f0000000-0000-4000-8000-000000000001','f0000000-0000-4000-8000-000000000002',
+   now() - interval '1 hour', now() + interval '10 days');
+set local role authenticated;
+set local "request.jwt.claims" to '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
+select throws_ok(
+  $$ update public.delegations set ends_at = ends_at + interval '30 days' where id = 'f4000000-0000-4000-8000-000000000003' $$,
+  'P0001', 'only revoked_at/revoked_by may be updated on a delegation', 'cannot rewrite delegation window');
+select lives_ok(
+  $$ update public.delegations set revoked_at = now(), revoked_by = auth.uid() where id = 'f4000000-0000-4000-8000-000000000003' $$,
+  'delegator can revoke own delegation');
+select throws_ok(
+  $$ update public.delegations set revoked_at = null where id = 'f4000000-0000-4000-8000-000000000003' $$,
+  'P0001', 'a revoked delegation is immutable', 'cannot un-revoke a delegation');
+reset role;
 
 select * from finish();
 rollback;
