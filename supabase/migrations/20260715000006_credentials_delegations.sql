@@ -177,7 +177,15 @@ create policy "managers view credential grants" on public.credential_access for 
 create policy "managers manage credential grants" on public.credential_access for all using (exists (select 1 from public.credentials c where c.id = credential_id and public.has_permission(auth.uid(),'manage_credentials', c.project_id))) with check (exists (select 1 from public.credentials c where c.id = credential_id and public.has_permission(auth.uid(),'manage_credentials', c.project_id)));
 
 create policy "view own delegations" on public.delegations for select using (from_user = auth.uid() or to_user = auth.uid() or public.is_admin());
-create policy "create own delegation" on public.delegations for insert with check (from_user = auth.uid() and public.has_permission(auth.uid(),'manage_delegations'));
+-- manage_delegations is scoped own_projects, so this only checks the delegator holds it on
+-- at least one owned project; which project(s) actually get delegated is enforced per-row
+-- by the validate_delegation_project trigger on delegation_permissions.
+create policy "create own delegation" on public.delegations for insert with check (
+  from_user = auth.uid()
+  and exists (
+    select 1 from public.projects p
+    where p.pm_id = auth.uid()
+      and public.has_permission(auth.uid(),'manage_delegations', p.id)));
 create policy "revoke own delegation" on public.delegations for update using (from_user = auth.uid() or public.is_admin());
 create policy "admin delete delegation" on public.delegations for delete using (public.is_admin());
 

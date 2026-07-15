@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(13);
 
 -- fixtures: PM Vera (owns V1), stand-in Sam (member role), outsider Otto (member role, no relation)
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, raw_app_meta_data, encrypted_password, created_at, updated_at) values
@@ -52,6 +52,27 @@ select is((select count(*)::int from information_schema.columns where table_sche
 set local "request.jwt.claims" to '{"sub":"f0000000-0000-4000-8000-000000000003","role":"authenticated"}';
 select is((select count(*)::int from public.credentials), 0, 'outsider sees no credentials');
 select is((select count(*)::int from public.delegations), 0, 'outsider sees no delegations');
+
+-- INSERT policy: manage_delegations is scoped own_projects, so creating a delegation shell
+-- requires holding it on an owned project; the trigger still confines actual delegated
+-- projects to ones the delegator owns.
+set local "request.jwt.claims" to '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
+select lives_ok(
+  $$ insert into public.delegations (from_user, to_user, starts_at, ends_at)
+     values (auth.uid(), 'f0000000-0000-4000-8000-000000000003', now(), now() + interval '5 days') $$,
+  'PM can create a delegation');
+
+set local "request.jwt.claims" to '{"sub":"f0000000-0000-4000-8000-000000000002","role":"authenticated"}';
+select throws_ok(
+  $$ insert into public.delegations (from_user, to_user, starts_at, ends_at)
+     values (auth.uid(), 'f0000000-0000-4000-8000-000000000003', now(), now() + interval '5 days') $$,
+  '42501', null, 'non-PM cannot create delegations');
+
+set local "request.jwt.claims" to '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
+select throws_ok(
+  $$ insert into public.delegations (from_user, to_user, starts_at, ends_at)
+     values ('f0000000-0000-4000-8000-000000000002', 'f0000000-0000-4000-8000-000000000003', now(), now() + interval '5 days') $$,
+  '42501', null, 'cannot create delegations on behalf of others');
 
 -- revoke ends access immediately
 reset role;
