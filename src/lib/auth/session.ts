@@ -13,12 +13,17 @@ export async function getCurrentUser() {
 
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("*")
+    .select("*, user_roles!user_roles_user_id_fkey(role_key)")
     .eq("id", user.id)
     .single();
   if (!profile) return null;
 
-  return { user, profile };
+  const { user_roles: roleRows, ...profileFields } = profile;
+  return {
+    user,
+    profile: profileFields as Profile,
+    role: roleRows?.[0]?.role_key ?? null,
+  };
 }
 
 /** Shared pre-check for every server action. Throws unless logged in + approved. */
@@ -32,7 +37,7 @@ export async function requireActiveUser() {
 
 export async function requireAdmin() {
   const current = await requireActiveUser();
-  if (current.profile.role !== "admin") {
+  if (current.role !== "admin") {
     throw new Error("Admin permission required");
   }
   return current;

@@ -11,7 +11,7 @@ export default async function AppLayout({
   const current = await getCurrentUser();
   if (!current) redirect("/login");
 
-  const isAdmin = current.profile.role === "admin";
+  const isAdmin = current.role === "admin";
 
   return (
     <div className="min-h-svh">

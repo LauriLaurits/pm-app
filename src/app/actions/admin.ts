@@ -20,7 +20,6 @@ export async function approveUserAction(
     .from("user_profiles")
     .update({
       status: "active",
-      role: parsed.data.role,
       approved_by: admin.user.id,
       approved_at: new Date().toISOString(),
     })
@@ -31,6 +30,17 @@ export async function approveUserAction(
   if (error) return { error: "Approval failed. Try again." };
   if (!data || data.length === 0)
     return { error: "User is not pending approval." };
+
+  const { error: roleError } = await supabase.from("user_roles").upsert({
+    user_id: parsed.data.userId,
+    role_key: parsed.data.role,
+    granted_by: admin.user.id,
+  });
+  if (roleError)
+    return {
+      error:
+        "Role assignment failed. User is active but has no role — retry the approval.",
+    };
 
   const service = createAdminClient();
   const { error: notificationError } = await service

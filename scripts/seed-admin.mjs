@@ -29,12 +29,19 @@ const { error: profileError } = await admin
   .from("user_profiles")
   .update({
     status: "active",
-    role: "admin",
     approved_at: new Date().toISOString(),
   })
   .eq("id", data.user.id);
 if (profileError) {
   console.error("profile activation failed:", profileError.message);
+  process.exit(1);
+}
+
+const { error: roleError } = await admin
+  .from("user_roles")
+  .upsert({ user_id: data.user.id, role_key: "admin" });
+if (roleError) {
+  console.error("role assignment failed:", roleError.message);
   process.exit(1);
 }
 
