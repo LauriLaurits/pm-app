@@ -725,6 +725,8 @@ alter table public.user_project_permissions
   add constraint upp_project_fk foreign key (project_id) references public.projects (id) on delete cascade;
 
 -- ---------- has_permission v2: adds own_projects / member_projects scopes ----------
+-- NOTE (review finding): every non-admin branch is gated on the profile being ACTIVE —
+-- a disabled user's still-valid JWT must not pass RLS through role/explicit grants.
 
 create or replace function public.has_permission(uid uuid, perm text, project uuid default null)
 returns boolean
@@ -733,27 +735,32 @@ set search_path = public
 as $$
   select
     public.is_admin(uid)
-    or exists (
-      select 1 from public.user_roles ur
-      join public.role_permissions rp on rp.role_key = ur.role_key
-      where ur.user_id = uid and rp.permission_key = perm and rp.scope = 'global')
-    or (project is not null and exists (
-      select 1 from public.user_roles ur
-      join public.role_permissions rp on rp.role_key = ur.role_key
-      join public.projects p on p.id = project
-      where ur.user_id = uid and rp.permission_key = perm
-        and rp.scope = 'own_projects' and p.pm_id = uid))
-    or (project is not null and exists (
-      select 1 from public.user_roles ur
-      join public.role_permissions rp on rp.role_key = ur.role_key
-      join public.project_members pm on pm.project_id = project and pm.user_id = uid
-      where ur.user_id = uid and rp.permission_key = perm
-        and rp.scope = 'member_projects'))
-    or exists (
-      select 1 from public.user_project_permissions upp
-      where upp.user_id = uid and upp.permission_key = perm
-        and (upp.expires_at is null or upp.expires_at > now())
-        and (project is null or upp.project_id = project))
+    or (
+      exists (select 1 from public.user_profiles up where up.id = uid and up.status = 'active')
+      and (
+        exists (
+          select 1 from public.user_roles ur
+          join public.role_permissions rp on rp.role_key = ur.role_key
+          where ur.user_id = uid and rp.permission_key = perm and rp.scope = 'global')
+        or (project is not null and exists (
+          select 1 from public.user_roles ur
+          join public.role_permissions rp on rp.role_key = ur.role_key
+          join public.projects p on p.id = project
+          where ur.user_id = uid and rp.permission_key = perm
+            and rp.scope = 'own_projects' and p.pm_id = uid))
+        or (project is not null and exists (
+          select 1 from public.user_roles ur
+          join public.role_permissions rp on rp.role_key = ur.role_key
+          join public.project_members pm on pm.project_id = project and pm.user_id = uid
+          where ur.user_id = uid and rp.permission_key = perm
+            and rp.scope = 'member_projects'))
+        or exists (
+          select 1 from public.user_project_permissions upp
+          where upp.user_id = uid and upp.permission_key = perm
+            and (upp.expires_at is null or upp.expires_at > now())
+            and (project is null or upp.project_id = project))
+      )
+    )
 $$;
 
 -- ---------- RLS ----------
@@ -1429,6 +1436,7 @@ create trigger delegation_permissions_own_project
   for each row execute function public.validate_delegation_project();
 
 -- ---------- has_permission v3: + live delegation check ----------
+-- Same ACTIVE-profile gate as v2 wraps every non-admin branch, including delegations.
 
 create or replace function public.has_permission(uid uuid, perm text, project uuid default null)
 returns boolean
@@ -1437,32 +1445,37 @@ set search_path = public
 as $$
   select
     public.is_admin(uid)
-    or exists (
-      select 1 from public.user_roles ur
-      join public.role_permissions rp on rp.role_key = ur.role_key
-      where ur.user_id = uid and rp.permission_key = perm and rp.scope = 'global')
-    or (project is not null and exists (
-      select 1 from public.user_roles ur
-      join public.role_permissions rp on rp.role_key = ur.role_key
-      join public.projects p on p.id = project
-      where ur.user_id = uid and rp.permission_key = perm
-        and rp.scope = 'own_projects' and p.pm_id = uid))
-    or (project is not null and exists (
-      select 1 from public.user_roles ur
-      join public.role_permissions rp on rp.role_key = ur.role_key
-      join public.project_members pm on pm.project_id = project and pm.user_id = uid
-      where ur.user_id = uid and rp.permission_key = perm
-        and rp.scope = 'member_projects'))
-    or exists (
-      select 1 from public.user_project_permissions upp
-      where upp.user_id = uid and upp.permission_key = perm
-        and (upp.expires_at is null or upp.expires_at > now())
-        and (project is null or upp.project_id = project))
-    or (project is not null and exists (
-      select 1 from public.delegations d
-      join public.delegation_permissions dp on dp.delegation_id = d.id
-      where d.to_user = uid and dp.permission_key = perm and dp.project_id = project
-        and d.revoked_at is null and now() >= d.starts_at and now() < d.ends_at))
+    or (
+      exists (select 1 from public.user_profiles up where up.id = uid and up.status = 'active')
+      and (
+        exists (
+          select 1 from public.user_roles ur
+          join public.role_permissions rp on rp.role_key = ur.role_key
+          where ur.user_id = uid and rp.permission_key = perm and rp.scope = 'global')
+        or (project is not null and exists (
+          select 1 from public.user_roles ur
+          join public.role_permissions rp on rp.role_key = ur.role_key
+          join public.projects p on p.id = project
+          where ur.user_id = uid and rp.permission_key = perm
+            and rp.scope = 'own_projects' and p.pm_id = uid))
+        or (project is not null and exists (
+          select 1 from public.user_roles ur
+          join public.role_permissions rp on rp.role_key = ur.role_key
+          join public.project_members pm on pm.project_id = project and pm.user_id = uid
+          where ur.user_id = uid and rp.permission_key = perm
+            and rp.scope = 'member_projects'))
+        or exists (
+          select 1 from public.user_project_permissions upp
+          where upp.user_id = uid and upp.permission_key = perm
+            and (upp.expires_at is null or upp.expires_at > now())
+            and (project is null or upp.project_id = project))
+        or (project is not null and exists (
+          select 1 from public.delegations d
+          join public.delegation_permissions dp on dp.delegation_id = d.id
+          where d.to_user = uid and dp.permission_key = perm and dp.project_id = project
+            and d.revoked_at is null and now() >= d.starts_at and now() < d.ends_at))
+      )
+    )
 $$;
 
 -- ---------- RLS ----------
