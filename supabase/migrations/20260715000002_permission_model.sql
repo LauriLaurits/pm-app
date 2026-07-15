@@ -230,5 +230,7 @@ create policy "managers delete project grants" on public.user_project_permission
 
 -- explicit grants (auto_expose_new_tables is off locally)
 grant select on public.roles, public.permissions, public.role_permissions to authenticated;
-grant select, insert, update, delete on public.user_roles, public.user_project_permissions to authenticated;
+grant select, insert, update, delete on public.user_roles to authenticated;
+-- user_project_permissions has no UPDATE policy — grant stays as narrow as the policies
+grant select, insert, delete on public.user_project_permissions to authenticated;
 grant select, insert, update, delete on public.roles, public.permissions, public.role_permissions, public.user_roles, public.user_project_permissions to service_role;
