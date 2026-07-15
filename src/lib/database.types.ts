@@ -114,6 +114,75 @@ export type Database = {
           },
         ]
       }
+      permissions: {
+        Row: {
+          delegatable: boolean
+          description: string | null
+          key: string
+        }
+        Insert: {
+          delegatable?: boolean
+          description?: string | null
+          key: string
+        }
+        Update: {
+          delegatable?: boolean
+          description?: string | null
+          key?: string
+        }
+        Relationships: []
+      }
+      role_permissions: {
+        Row: {
+          permission_key: string
+          role_key: string
+          scope: Database["public"]["Enums"]["permission_scope"]
+        }
+        Insert: {
+          permission_key: string
+          role_key: string
+          scope?: Database["public"]["Enums"]["permission_scope"]
+        }
+        Update: {
+          permission_key?: string
+          role_key?: string
+          scope?: Database["public"]["Enums"]["permission_scope"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_key_fkey"
+            columns: ["permission_key"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "role_permissions_role_key_fkey"
+            columns: ["role_key"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          description: string | null
+          key: string
+          name: string
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          name: string
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          name?: string
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           approved_at: string | null
@@ -123,7 +192,6 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
-          role: Database["public"]["Enums"]["app_role"] | null
           status: Database["public"]["Enums"]["user_status"]
           updated_at: string
         }
@@ -135,7 +203,6 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
-          role?: Database["public"]["Enums"]["app_role"] | null
           status?: Database["public"]["Enums"]["user_status"]
           updated_at?: string
         }
@@ -147,11 +214,105 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
-          role?: Database["public"]["Enums"]["app_role"] | null
           status?: Database["public"]["Enums"]["user_status"]
           updated_at?: string
         }
         Relationships: []
+      }
+      user_project_permissions: {
+        Row: {
+          expires_at: string | null
+          granted_at: string
+          granted_by: string | null
+          id: number
+          permission_key: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: never
+          permission_key: string
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: never
+          permission_key?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_project_permissions_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_project_permissions_permission_key_fkey"
+            columns: ["permission_key"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "user_project_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          granted_at: string
+          granted_by: string | null
+          role_key: string
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          granted_by?: string | null
+          role_key: string
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          granted_by?: string | null
+          role_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_role_key_fkey"
+            columns: ["role_key"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -161,6 +322,10 @@ export type Database = {
       admin_revoke_user_sessions: {
         Args: { target_user: string }
         Returns: number
+      }
+      has_permission: {
+        Args: { perm: string; project?: string; uid: string }
+        Returns: boolean
       }
       is_admin: { Args: { uid?: string }; Returns: boolean }
       list_my_sessions: {
@@ -176,7 +341,7 @@ export type Database = {
       revoke_session: { Args: { session_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "project_manager" | "finance" | "member" | "viewer"
+      permission_scope: "global" | "own_projects" | "member_projects"
       user_status: "pending" | "active" | "disabled"
     }
     CompositeTypes: {
@@ -308,7 +473,7 @@ export const Constants = {
   },
   public: {
     Enums: {
-      app_role: ["admin", "project_manager", "finance", "member", "viewer"],
+      permission_scope: ["global", "own_projects", "member_projects"],
       user_status: ["pending", "active", "disabled"],
     },
   },

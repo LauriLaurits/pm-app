@@ -8,9 +8,8 @@ insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, r
 values
   ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'admin@test.local', '{"full_name":"Admin"}', '{}', '', now(), now());
 
-update public.user_profiles
-  set role = 'admin', status = 'active'
-  where id = '11111111-1111-1111-1111-111111111111';
+update public.user_profiles set status = 'active' where id = '11111111-1111-1111-1111-111111111111';
+insert into public.user_roles (user_id, role_key) values ('11111111-1111-1111-1111-111111111111','admin');
 
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, raw_app_meta_data, encrypted_password, created_at, updated_at)
 values
