@@ -31,7 +31,11 @@ update public.user_profiles set status = 'active' where id = 'a0000000-0000-4000
 select is(public.has_permission('a0000000-0000-4000-8000-000000000003','view_internal_cost'), true,
   're-enabled user regains role-based permissions');
 
--- explicit per-project grant with expiry (project uuid is synthetic here; FK to projects comes in Task 3, so this table starts without the FK — see migration note)
+-- explicit per-project grant with expiry (project_id now FK'd to projects as of Task 3's migration;
+-- create minimal real projects here so the fixture rows satisfy the FK)
+insert into public.projects (id, name, budget_type) values
+  ('b0000000-0000-4000-8000-000000000099','Grant Fixture Project A','fixed'),
+  ('b0000000-0000-4000-8000-000000000098','Grant Fixture Project B','fixed');
 insert into public.user_project_permissions (user_id, project_id, permission_key, expires_at) values
   ('a0000000-0000-4000-8000-000000000004','b0000000-0000-4000-8000-000000000099','view_budget', now() + interval '1 day'),
   ('a0000000-0000-4000-8000-000000000004','b0000000-0000-4000-8000-000000000098','view_budget', now() - interval '1 day');

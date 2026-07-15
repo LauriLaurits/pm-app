@@ -73,6 +73,39 @@ export type Database = {
         }
         Relationships: []
       }
+      clients: {
+        Row: {
+          contact_email: string | null
+          contact_name: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string | null
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
@@ -114,6 +147,36 @@ export type Database = {
           },
         ]
       }
+      part_dependencies: {
+        Row: {
+          depends_on_part_id: string
+          part_id: string
+        }
+        Insert: {
+          depends_on_part_id: string
+          part_id: string
+        }
+        Update: {
+          depends_on_part_id?: string
+          part_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "part_dependencies_depends_on_part_id_fkey"
+            columns: ["depends_on_part_id"]
+            isOneToOne: false
+            referencedRelation: "project_parts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_dependencies_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "project_parts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       permissions: {
         Row: {
           delegatable: boolean
@@ -131,6 +194,315 @@ export type Database = {
           key?: string
         }
         Relationships: []
+      }
+      project_links: {
+        Row: {
+          created_at: string
+          description: string | null
+          environment: string | null
+          id: string
+          last_verified_at: string | null
+          name: string
+          owner_id: string | null
+          project_id: string
+          type: Database["public"]["Enums"]["link_type"]
+          updated_at: string
+          url: string
+          visibility: Database["public"]["Enums"]["link_visibility"]
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          environment?: string | null
+          id?: string
+          last_verified_at?: string | null
+          name: string
+          owner_id?: string | null
+          project_id: string
+          type?: Database["public"]["Enums"]["link_type"]
+          updated_at?: string
+          url: string
+          visibility?: Database["public"]["Enums"]["link_visibility"]
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          environment?: string | null
+          id?: string
+          last_verified_at?: string | null
+          name?: string
+          owner_id?: string | null
+          project_id?: string
+          type?: Database["public"]["Enums"]["link_type"]
+          updated_at?: string
+          url?: string
+          visibility?: Database["public"]["Enums"]["link_visibility"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_links_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_links_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_members: {
+        Row: {
+          ends_on: string | null
+          id: number
+          project_id: string
+          role_on_project: string | null
+          starts_on: string | null
+          user_id: string
+        }
+        Insert: {
+          ends_on?: string | null
+          id?: never
+          project_id: string
+          role_on_project?: string | null
+          starts_on?: string | null
+          user_id: string
+        }
+        Update: {
+          ends_on?: string | null
+          id?: never
+          project_id?: string
+          role_on_project?: string | null
+          starts_on?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_parts: {
+        Row: {
+          billing_model: Database["public"]["Enums"]["billing_model"]
+          created_at: string
+          description: string | null
+          end_date: string | null
+          estimated_hours: number | null
+          id: string
+          name: string
+          notes: string | null
+          progress: number
+          project_id: string
+          responsible_person_id: string | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["part_status"]
+          updated_at: string
+        }
+        Insert: {
+          billing_model: Database["public"]["Enums"]["billing_model"]
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          name: string
+          notes?: string | null
+          progress?: number
+          project_id: string
+          responsible_person_id?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["part_status"]
+          updated_at?: string
+        }
+        Update: {
+          billing_model?: Database["public"]["Enums"]["billing_model"]
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          name?: string
+          notes?: string | null
+          progress?: number
+          project_id?: string
+          responsible_person_id?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["part_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_parts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_status_updates: {
+        Row: {
+          author_id: string
+          blockers: string | null
+          completed: string | null
+          created_at: string
+          decisions_needed: string | null
+          handover_info: string | null
+          id: number
+          in_progress: string | null
+          next_milestone: string | null
+          project_id: string
+        }
+        Insert: {
+          author_id: string
+          blockers?: string | null
+          completed?: string | null
+          created_at?: string
+          decisions_needed?: string | null
+          handover_info?: string | null
+          id?: never
+          in_progress?: string | null
+          next_milestone?: string | null
+          project_id: string
+        }
+        Update: {
+          author_id?: string
+          blockers?: string | null
+          completed?: string | null
+          created_at?: string
+          decisions_needed?: string | null
+          handover_info?: string | null
+          id?: never
+          in_progress?: string | null
+          next_milestone?: string | null
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_status_updates_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_status_updates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          blockers: string | null
+          budget_type: Database["public"]["Enums"]["budget_type"]
+          client_id: string | null
+          client_notes: string | null
+          created_at: string
+          deadline: string | null
+          description: string | null
+          health: Database["public"]["Enums"]["project_health"]
+          id: string
+          internal_notes: string | null
+          name: string
+          next_steps: string | null
+          owner_id: string | null
+          pm_id: string | null
+          priority: Database["public"]["Enums"]["project_priority"]
+          progress: number
+          risks: string | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["project_status"]
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          blockers?: string | null
+          budget_type: Database["public"]["Enums"]["budget_type"]
+          client_id?: string | null
+          client_notes?: string | null
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          health?: Database["public"]["Enums"]["project_health"]
+          id?: string
+          internal_notes?: string | null
+          name: string
+          next_steps?: string | null
+          owner_id?: string | null
+          pm_id?: string | null
+          priority?: Database["public"]["Enums"]["project_priority"]
+          progress?: number
+          risks?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          blockers?: string | null
+          budget_type?: Database["public"]["Enums"]["budget_type"]
+          client_id?: string | null
+          client_notes?: string | null
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          health?: Database["public"]["Enums"]["project_health"]
+          id?: string
+          internal_notes?: string | null
+          name?: string
+          next_steps?: string | null
+          owner_id?: string | null
+          pm_id?: string | null
+          priority?: Database["public"]["Enums"]["project_priority"]
+          progress?: number
+          risks?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"]
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_pm_id_fkey"
+            columns: ["pm_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       role_permissions: {
         Row: {
@@ -249,6 +621,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "upp_project_fk"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "user_project_permissions_granted_by_fkey"
             columns: ["granted_by"]
             isOneToOne: false
@@ -341,7 +720,33 @@ export type Database = {
       revoke_session: { Args: { session_id: string }; Returns: boolean }
     }
     Enums: {
+      billing_model: "fixed" | "hourly"
+      budget_type: "fixed" | "hourly" | "mixed"
+      link_type:
+        | "repo"
+        | "issue_tracker"
+        | "design"
+        | "docs"
+        | "env_prod"
+        | "env_prelive"
+        | "env_staging"
+        | "env_dev"
+        | "api_docs"
+        | "monitoring"
+        | "hosting"
+        | "db_dashboard"
+        | "custom"
+      link_visibility: "project" | "pm_only" | "admins_only"
+      part_status: "not_started" | "in_progress" | "blocked" | "done"
       permission_scope: "global" | "own_projects" | "member_projects"
+      project_health: "healthy" | "warning" | "critical"
+      project_priority: "low" | "medium" | "high"
+      project_status:
+        | "planning"
+        | "active"
+        | "on_hold"
+        | "completed"
+        | "archived"
       user_status: "pending" | "active" | "disabled"
     }
     CompositeTypes: {
@@ -473,7 +878,35 @@ export const Constants = {
   },
   public: {
     Enums: {
+      billing_model: ["fixed", "hourly"],
+      budget_type: ["fixed", "hourly", "mixed"],
+      link_type: [
+        "repo",
+        "issue_tracker",
+        "design",
+        "docs",
+        "env_prod",
+        "env_prelive",
+        "env_staging",
+        "env_dev",
+        "api_docs",
+        "monitoring",
+        "hosting",
+        "db_dashboard",
+        "custom",
+      ],
+      link_visibility: ["project", "pm_only", "admins_only"],
+      part_status: ["not_started", "in_progress", "blocked", "done"],
       permission_scope: ["global", "own_projects", "member_projects"],
+      project_health: ["healthy", "warning", "critical"],
+      project_priority: ["low", "medium", "high"],
+      project_status: [
+        "planning",
+        "active",
+        "on_hold",
+        "completed",
+        "archived",
+      ],
       user_status: ["pending", "active", "disabled"],
     },
   },
