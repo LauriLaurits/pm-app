@@ -134,6 +134,102 @@ export type Database = {
         }
         Relationships: []
       }
+      budget_items: {
+        Row: {
+          amount: number
+          budget_id: string
+          created_at: string
+          created_by: string | null
+          id: number
+          item_type: Database["public"]["Enums"]["budget_item_type"]
+          name: string
+          note: string | null
+          occurred_on: string
+        }
+        Insert: {
+          amount: number
+          budget_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          item_type: Database["public"]["Enums"]["budget_item_type"]
+          name: string
+          note?: string | null
+          occurred_on?: string
+        }
+        Update: {
+          amount?: number
+          budget_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          item_type?: Database["public"]["Enums"]["budget_item_type"]
+          name?: string
+          note?: string | null
+          occurred_on?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_items_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_items_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budgets: {
+        Row: {
+          created_at: string
+          currency: string
+          id: string
+          note: string | null
+          part_id: string | null
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          part_id?: string | null
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          part_id?: string | null
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "project_parts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           contact_email: string | null
@@ -204,6 +300,73 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      part_billing: {
+        Row: {
+          client_price: number | null
+          currency: string
+          fixed_amount: number | null
+          hourly_rate: number | null
+          part_id: string
+          updated_at: string
+        }
+        Insert: {
+          client_price?: number | null
+          currency?: string
+          fixed_amount?: number | null
+          hourly_rate?: number | null
+          part_id: string
+          updated_at?: string
+        }
+        Update: {
+          client_price?: number | null
+          currency?: string
+          fixed_amount?: number | null
+          hourly_rate?: number | null
+          part_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "part_billing_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: true
+            referencedRelation: "project_parts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      part_costs: {
+        Row: {
+          actual_internal_cost: number | null
+          currency: string
+          part_id: string
+          planned_internal_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          actual_internal_cost?: number | null
+          currency?: string
+          part_id: string
+          planned_internal_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          actual_internal_cost?: number | null
+          currency?: string
+          part_id?: string
+          planned_internal_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "part_costs_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: true
+            referencedRelation: "project_parts"
             referencedColumns: ["id"]
           },
         ]
@@ -1024,10 +1187,17 @@ export type Database = {
           user_agent: string
         }[]
       }
+      part_project: { Args: { p_part: string }; Returns: string }
       revoke_session: { Args: { session_id: string }; Returns: boolean }
     }
     Enums: {
       billing_model: "fixed" | "hourly"
+      budget_item_type:
+        | "planned_cost"
+        | "actual_cost"
+        | "invoice"
+        | "payment"
+        | "change"
       budget_type: "fixed" | "hourly" | "mixed"
       employment_type: "employee" | "contractor" | "freelance"
       link_type:
@@ -1190,6 +1360,13 @@ export const Constants = {
   public: {
     Enums: {
       billing_model: ["fixed", "hourly"],
+      budget_item_type: [
+        "planned_cost",
+        "actual_cost",
+        "invoice",
+        "payment",
+        "change",
+      ],
       budget_type: ["fixed", "hourly", "mixed"],
       employment_type: ["employee", "contractor", "freelance"],
       link_type: [

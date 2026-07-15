@@ -1,0 +1,56 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(8);
+
+-- fixtures: PM Petra (owns B1, not B2), finance Fred, member Mia (member of B1)
+insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, raw_app_meta_data, encrypted_password, created_at, updated_at) values
+  ('e0000000-0000-4000-8000-000000000001','00000000-0000-0000-0000-000000000000','authenticated','authenticated','petra@test.local','{"full_name":"Petra"}','{}','',now(),now()),
+  ('e0000000-0000-4000-8000-000000000002','00000000-0000-0000-0000-000000000000','authenticated','authenticated','fred@test.local','{"full_name":"Fred"}','{}','',now(),now()),
+  ('e0000000-0000-4000-8000-000000000003','00000000-0000-0000-0000-000000000000','authenticated','authenticated','mia@test.local','{"full_name":"Mia"}','{}','',now(),now());
+update public.user_profiles set status='active' where id::text like 'e0000000-%';
+insert into public.user_roles (user_id, role_key) values
+  ('e0000000-0000-4000-8000-000000000001','project_manager'),
+  ('e0000000-0000-4000-8000-000000000002','finance'),
+  ('e0000000-0000-4000-8000-000000000003','member');
+
+insert into public.projects (id, name, pm_id, budget_type) values
+  ('e2000000-0000-4000-8000-000000000001','B1','e0000000-0000-4000-8000-000000000001','mixed'),
+  ('e2000000-0000-4000-8000-000000000002','B2', null, 'fixed');
+insert into public.project_members (project_id, user_id) values
+  ('e2000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-000000000003');
+insert into public.project_parts (id, project_id, name, billing_model) values
+  ('e3000000-0000-4000-8000-000000000001','e2000000-0000-4000-8000-000000000001','Discovery','fixed'),
+  ('e3000000-0000-4000-8000-000000000002','e2000000-0000-4000-8000-000000000002','Build','fixed');
+insert into public.part_billing (part_id, fixed_amount, client_price) values
+  ('e3000000-0000-4000-8000-000000000001', 12000, 12000),
+  ('e3000000-0000-4000-8000-000000000002', 30000, 30000);
+insert into public.part_costs (part_id, planned_internal_cost, actual_internal_cost) values
+  ('e3000000-0000-4000-8000-000000000001', 7000, 4100);
+insert into public.budgets (id, project_id, currency) values
+  ('e5000000-0000-4000-8000-000000000001','e2000000-0000-4000-8000-000000000001','EUR');
+insert into public.budget_items (budget_id, item_type, name, amount, occurred_on) values
+  ('e5000000-0000-4000-8000-000000000001','invoice','Milestone 1', 6000, current_date - 20),
+  ('e5000000-0000-4000-8000-000000000001','payment','Milestone 1 paid', 6000, current_date - 5);
+
+-- PM: billing on OWN project only; internal costs NEVER
+set local role authenticated;
+set local "request.jwt.claims" to '{"sub":"e0000000-0000-4000-8000-000000000001","role":"authenticated"}';
+select is((select count(*)::int from public.part_billing where part_id::text like 'e3000000-%'), 1, 'PM sees billing on own project only');
+select is((select count(*)::int from public.part_costs), 0, 'PM never sees internal costs');
+select is((select count(*)::int from public.budget_items), 2, 'PM sees own-project budget items');
+select lives_ok(
+  $$ update public.part_billing set client_price = 12500 where part_id = 'e3000000-0000-4000-8000-000000000001' $$,
+  'PM manages billing on own project');
+
+-- finance: everything financial, everywhere
+set local "request.jwt.claims" to '{"sub":"e0000000-0000-4000-8000-000000000002","role":"authenticated"}';
+select is((select count(*)::int from public.part_billing where part_id::text like 'e3000000-%'), 2, 'finance sees all billing');
+select is((select count(*)::int from public.part_costs), 1, 'finance sees internal costs');
+
+-- member: nothing financial
+set local "request.jwt.claims" to '{"sub":"e0000000-0000-4000-8000-000000000003","role":"authenticated"}';
+select is((select count(*)::int from public.part_billing), 0, 'member sees no billing');
+select is((select count(*)::int from public.budget_items), 0, 'member sees no budget items');
+
+select * from finish();
+rollback;
