@@ -191,11 +191,12 @@ alter table public.credential_access enable row level security;
 alter table public.delegations enable row level security;
 alter table public.delegation_permissions enable row level security;
 
+-- Anyone with view_credentials on the project (PM, an active delegate the PM handed
+-- credential access to, or an explicit grantee) sees project_members and pms_only
+-- credentials. admins_only stays admin-only (owner still sees their own).
 create policy "view credential metadata" on public.credentials for select using (
   (public.has_permission(auth.uid(),'view_credentials', project_id)
-   and (visibility = 'project_members'
-        or (visibility = 'pms_only' and public.has_permission(auth.uid(),'edit_project', project_id))
-        or public.is_admin()))
+   and (visibility <> 'admins_only' or public.is_admin()))
   or owner_id = auth.uid()
   or public.has_credential_access(id, auth.uid()));
 -- Write policies must respect the same admins_only visibility gate as the read policy above
