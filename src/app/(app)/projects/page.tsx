@@ -48,7 +48,11 @@ export default async function ProjectsPage({
   if (budgetType) query = query.eq("budget_type", budgetType satisfies BudgetType);
   if (params.pm) query = query.eq("pm_name", params.pm);
   if (params.client) query = query.eq("client_name", params.client);
-  if (params.q) query = query.or(`name.ilike.%${params.q}%,client_name.ilike.%${params.q}%`);
+  if (params.q) {
+    // Strip PostgREST filter metacharacters so a search term can't inject predicates.
+    const term = params.q.replace(/[,()*\\]/g, " ").trim();
+    if (term) query = query.or(`name.ilike.%${term}%,client_name.ilike.%${term}%`);
+  }
 
   const { data: rows, error } = await query.order("updated_at", { ascending: false });
 
@@ -67,7 +71,7 @@ export default async function ProjectsPage({
       <ProjectFilters pmOptions={pmOptions} clientOptions={clientOptions} />
 
       {error ? (
-        <p className="text-destructive">Failed to load projects: {error.message}</p>
+        <p className="text-destructive">Failed to load projects. Try again.</p>
       ) : !rows || rows.length === 0 ? (
         <EmptyState hasFilters={hasFilters} />
       ) : view === "cards" ? (
