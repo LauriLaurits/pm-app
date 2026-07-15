@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(12);
 
 -- fixtures: PM Paula (owns PX), member Milo (person + user, member of PX), finance Frank
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, raw_app_meta_data, encrypted_password, created_at, updated_at) values
@@ -27,6 +27,15 @@ insert into public.rates (person_id, rate_type, amount, valid_from) values
 insert into public.assignments (project_id, project_part_id, person_id, allocation_pct, start_date, end_date) values
   ('d2000000-0000-4000-8000-000000000001','d3000000-0000-4000-8000-000000000001','d4000000-0000-4000-8000-000000000001', 60, current_date - 10, current_date + 30);
 
+-- second project: Milo has no assignment here (used to prove log_time requires an assignment)
+insert into public.projects (id, name, pm_id, budget_type) values
+  ('d2000000-0000-4000-8000-000000000002','PY',null,'hourly');
+
+-- Milo's time_off: one sick (directory-hidden), one vacation (directory-visible)
+insert into public.time_off (person_id, starts_on, ends_on, type, note) values
+  ('d4000000-0000-4000-8000-000000000001', current_date, current_date + 2, 'sick', 'flu'),
+  ('d4000000-0000-4000-8000-000000000001', current_date + 10, current_date + 12, 'vacation', null);
+
 -- finance sees rates
 set local role authenticated;
 set local "request.jwt.claims" to '{"sub":"d0000000-0000-4000-8000-000000000003","role":"authenticated"}';
@@ -37,6 +46,7 @@ set local "request.jwt.claims" to '{"sub":"d0000000-0000-4000-8000-000000000001"
 select is((select count(*)::int from public.rates where person_id = 'd4000000-0000-4000-8000-000000000001'), 0, 'PM cannot see rates');
 select is((select count(*)::int from public.people where id = 'd4000000-0000-4000-8000-000000000001'), 1, 'PM sees people directory');
 select is((select count(*)::int from public.assignments where project_id = 'd2000000-0000-4000-8000-000000000001'), 1, 'PM sees assignments (workload)');
+select is((select count(*)::int from public.time_off where person_id = 'd4000000-0000-4000-8000-000000000001'), 1, 'sick leave hidden from directory');
 
 -- member Milo: sees own person row, logs time on own assignment, cannot log for others
 set local "request.jwt.claims" to '{"sub":"d0000000-0000-4000-8000-000000000002","role":"authenticated"}';
@@ -51,6 +61,11 @@ select throws_ok(
      values (gen_random_uuid(),'d2000000-0000-4000-8000-000000000001','d3000000-0000-4000-8000-000000000001', current_date, 6, true) $$,
   '42501', null, 'member cannot log time as someone else');
 select is((select count(*)::int from public.time_entries where project_id = 'd2000000-0000-4000-8000-000000000001'), 1, 'member reads own entries');
+select throws_ok(
+  $$ insert into public.time_entries (person_id, project_id, project_part_id, entry_date, hours, billable)
+     values ('d4000000-0000-4000-8000-000000000001','d2000000-0000-4000-8000-000000000002',null, current_date, 6, true) $$,
+  '42501', null, 'cannot log time on a project without an assignment');
+select is((select count(*)::int from public.time_off where person_id = 'd4000000-0000-4000-8000-000000000001'), 2, 'member sees own time_off (sick + vacation)');
 
 select * from finish();
 rollback;

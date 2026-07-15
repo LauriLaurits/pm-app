@@ -118,7 +118,11 @@ create policy "manage skills" on public.skills for all using (public.has_permiss
 create policy "view person_skills" on public.person_skills for select using (public.has_permission(auth.uid(),'view_people'));
 create policy "manage person_skills" on public.person_skills for all using (public.has_permission(auth.uid(),'manage_people')) with check (public.has_permission(auth.uid(),'manage_people'));
 
-create policy "view time_off" on public.time_off for select using (public.has_permission(auth.uid(),'view_people'));
+create policy "view time_off" on public.time_off for select using (
+  (public.has_permission(auth.uid(),'view_people') and type = 'vacation')
+  or exists (select 1 from public.people p where p.id = person_id and p.user_id = auth.uid())
+  or public.has_permission(auth.uid(),'manage_people')
+  or public.is_admin());
 create policy "manage time_off" on public.time_off for all using (public.has_permission(auth.uid(),'manage_people')) with check (public.has_permission(auth.uid(),'manage_people'));
 
 create policy "view assignments" on public.assignments for select using (
@@ -129,7 +133,12 @@ create policy "manage assignments" on public.assignments for all using (public.h
 create policy "read own time" on public.time_entries for select using (person_id = public.current_person_id());
 create policy "read project time" on public.time_entries for select using (public.has_permission(auth.uid(),'view_time', project_id));
 create policy "log own time" on public.time_entries for insert with check (
-  public.has_permission(auth.uid(),'log_time') and person_id = public.current_person_id());
+  public.has_permission(auth.uid(),'log_time')
+  and person_id = public.current_person_id()
+  and exists (
+    select 1 from public.assignments a
+    where a.person_id = time_entries.person_id
+      and a.project_id = time_entries.project_id));
 create policy "edit own time" on public.time_entries for update using (person_id = public.current_person_id()) with check (person_id = public.current_person_id());
 create policy "delete own time" on public.time_entries for delete using (person_id = public.current_person_id());
 
