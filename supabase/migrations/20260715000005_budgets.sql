@@ -86,7 +86,13 @@ with check (
 create policy "view budgets" on public.budgets for select using (public.has_permission(auth.uid(),'view_budget', project_id));
 create policy "manage budgets" on public.budgets for all using (public.has_permission(auth.uid(),'manage_budget', project_id)) with check (public.has_permission(auth.uid(),'manage_budget', project_id));
 
-create policy "view budget items" on public.budget_items for select using (exists (select 1 from public.budgets b where b.id = budget_id and public.has_permission(auth.uid(),'view_budget', b.project_id)));
+-- cost-type rows (planned_cost/actual_cost) hold internal money and must additionally require
+-- view_internal_cost; view_budget alone only clears client-facing item types (invoice/payment/change).
+create policy "view budget items" on public.budget_items for select using (
+  exists (select 1 from public.budgets b where b.id = budget_id
+    and public.has_permission(auth.uid(),'view_budget', b.project_id))
+  and (item_type not in ('planned_cost','actual_cost')
+       or public.has_permission(auth.uid(),'view_internal_cost')));
 -- Attribution binds at INSERT (created_by = auth.uid(), enforced by WITH CHECK below; the
 -- column default fills it in when the insert omits it, but an explicit different value
 -- spoofing another user is rejected) and is immutable afterwards -- enforced not by UPDATE's

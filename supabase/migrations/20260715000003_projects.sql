@@ -134,6 +134,19 @@ create trigger projects_updated_at before update on public.projects for each row
 create trigger project_parts_updated_at before update on public.project_parts for each row execute function public.set_updated_at();
 create trigger project_links_updated_at before update on public.project_links for each row execute function public.set_updated_at();
 
+-- non-admins may never change a project's pm_id (would transfer own_projects powers without consent)
+create or replace function public.protect_project_pm()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.pm_id is distinct from old.pm_id and not public.is_admin() then
+    raise exception 'only an admin can reassign a project''s PM';
+  end if;
+  return new;
+end;
+$$;
+create trigger projects_protect_pm before update on public.projects
+  for each row execute function public.protect_project_pm();
+
 -- user_project_permissions now gets its FK
 alter table public.user_project_permissions
   add constraint upp_project_fk foreign key (project_id) references public.projects (id) on delete cascade;
@@ -169,10 +182,11 @@ as $$
           where ur.user_id = uid and rp.permission_key = perm
             and rp.scope = 'member_projects'))
         or exists (
+          -- a per-project grant only satisfies a project-scoped check (never an unscoped/global one)
           select 1 from public.user_project_permissions upp
           where upp.user_id = uid and upp.permission_key = perm
             and (upp.expires_at is null or upp.expires_at > now())
-            and (project is null or upp.project_id = project))
+            and project is not null and upp.project_id = project)
       )
     )
 $$;

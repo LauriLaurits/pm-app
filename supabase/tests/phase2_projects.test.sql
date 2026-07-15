@@ -1,19 +1,22 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(18);
 
--- fixtures: PM Anna (owns P1), PM Bella (owns P2), member Max (member of P1 only), finance Fia
+-- fixtures: PM Anna (owns P1), PM Bella (owns P2), member Max (member of P1 only), finance Fia,
+-- admin Aida (for I3: only an admin may reassign a project's pm_id)
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, raw_app_meta_data, encrypted_password, created_at, updated_at) values
   ('c0000000-0000-4000-8000-000000000001','00000000-0000-0000-0000-000000000000','authenticated','authenticated','anna@test.local','{"full_name":"Anna"}','{}','',now(),now()),
   ('c0000000-0000-4000-8000-000000000002','00000000-0000-0000-0000-000000000000','authenticated','authenticated','bella@test.local','{"full_name":"Bella"}','{}','',now(),now()),
   ('c0000000-0000-4000-8000-000000000003','00000000-0000-0000-0000-000000000000','authenticated','authenticated','max@test.local','{"full_name":"Max"}','{}','',now(),now()),
-  ('c0000000-0000-4000-8000-000000000004','00000000-0000-0000-0000-000000000000','authenticated','authenticated','fia@test.local','{"full_name":"Fia"}','{}','',now(),now());
+  ('c0000000-0000-4000-8000-000000000004','00000000-0000-0000-0000-000000000000','authenticated','authenticated','fia@test.local','{"full_name":"Fia"}','{}','',now(),now()),
+  ('c0000000-0000-4000-8000-000000000005','00000000-0000-0000-0000-000000000000','authenticated','authenticated','aida@test.local','{"full_name":"Aida"}','{}','',now(),now());
 update public.user_profiles set status='active' where id::text like 'c0000000-%';
 insert into public.user_roles (user_id, role_key) values
   ('c0000000-0000-4000-8000-000000000001','project_manager'),
   ('c0000000-0000-4000-8000-000000000002','project_manager'),
   ('c0000000-0000-4000-8000-000000000003','member'),
-  ('c0000000-0000-4000-8000-000000000004','finance');
+  ('c0000000-0000-4000-8000-000000000004','finance'),
+  ('c0000000-0000-4000-8000-000000000005','admin');
 
 insert into public.clients (id, name) values ('c1000000-0000-4000-8000-000000000001','ACME');
 insert into public.projects (id, name, client_id, pm_id, status, health, budget_type) values
@@ -63,6 +66,20 @@ select lives_ok(
   $$ insert into public.projects (name, budget_type, pm_id)
      values ('Own new project', 'fixed', auth.uid()) $$,
   'PM creates own project');
+
+-- I3: pm_id may not be reassigned by a non-admin (closes the UPDATE bypass of insert-time binding)
+select throws_ok(
+  $$ update public.projects set pm_id = 'c0000000-0000-4000-8000-000000000002' where id = 'c2000000-0000-4000-8000-000000000001' $$,
+  'P0001', 'only an admin can reassign a project''s PM', 'PM cannot reassign project pm_id');
+
+-- admin Aida: reassignment allowed, then restored
+set local "request.jwt.claims" to '{"sub":"c0000000-0000-4000-8000-000000000005","role":"authenticated"}';
+select lives_ok(
+  $$ update public.projects set pm_id = 'c0000000-0000-4000-8000-000000000002' where id = 'c2000000-0000-4000-8000-000000000001' $$,
+  'admin can reassign a project''s PM');
+select lives_ok(
+  $$ update public.projects set pm_id = 'c0000000-0000-4000-8000-000000000001' where id = 'c2000000-0000-4000-8000-000000000001' $$,
+  'admin can restore original PM');
 
 -- finance Fia: portfolio visibility without membership
 set local "request.jwt.claims" to '{"sub":"c0000000-0000-4000-8000-000000000004","role":"authenticated"}';

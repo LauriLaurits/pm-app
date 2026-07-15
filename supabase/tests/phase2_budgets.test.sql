@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(19);
 
 -- fixtures: PM Petra (owns B1, not B2), finance Fred, member Mia (member of B1)
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, raw_app_meta_data, encrypted_password, created_at, updated_at) values
@@ -38,12 +38,24 @@ insert into public.budget_items (budget_id, item_type, name, amount, occurred_on
 insert into public.user_project_permissions (user_id, project_id, permission_key) values
   ('e0000000-0000-4000-8000-000000000003','e2000000-0000-4000-8000-000000000001','view_internal_cost');
 
+-- rates fixture (C1): the global rate card must NOT leak via Mia's per-project grant above
+insert into public.people (id, full_name) values
+  ('e4000000-0000-4000-8000-000000000001','Fixture Person');
+insert into public.rates (person_id, rate_type, amount, valid_from) values
+  ('e4000000-0000-4000-8000-000000000001','internal_cost', 60, current_date);
+
+-- I1 fixture: a planned_cost item on Petra's own budget (internal money, gated separately below)
+insert into public.budget_items (budget_id, item_type, name, amount, occurred_on, created_by) values
+  ('e5000000-0000-4000-8000-000000000001','planned_cost','Internal dev cost', 500, current_date - 3, 'e0000000-0000-4000-8000-000000000001');
+
 -- PM: billing on OWN project only; internal costs NEVER
 set local role authenticated;
 set local "request.jwt.claims" to '{"sub":"e0000000-0000-4000-8000-000000000001","role":"authenticated"}';
 select is((select count(*)::int from public.part_billing where part_id::text like 'e3000000-%'), 1, 'PM sees billing on own project only');
 select is((select count(*)::int from public.part_costs), 0, 'PM never sees internal costs');
 select is((select count(*)::int from public.budget_items), 2, 'PM sees own-project budget items');
+select is((select count(*)::int from public.budget_items where item_type='planned_cost'), 0, 'PM cannot see internal cost budget items (I1)');
+select ok((select count(*)::int from public.budget_items where item_type not in ('planned_cost','actual_cost')) >= 1, 'PM sees invoice/payment items but not cost items');
 select lives_ok(
   $$ update public.part_billing set client_price = 12500 where part_id = 'e3000000-0000-4000-8000-000000000001' $$,
   'PM manages billing on own project');
@@ -64,6 +76,7 @@ set local "request.jwt.claims" to '{"sub":"e0000000-0000-4000-8000-000000000003"
 select is((select count(*)::int from public.part_billing), 0, 'member sees no billing');
 select is((select count(*)::int from public.budget_items), 0, 'member sees no budget items');
 select is((select count(*)::int from public.part_costs), 1, 'per-project internal-cost grant is project-scoped');
+select is((select count(*)::int from public.rates), 0, 'per-project internal-cost grant does NOT expose the global rate card');
 
 -- postgres: DB-level constraint enforcement (bypasses RLS)
 reset role;

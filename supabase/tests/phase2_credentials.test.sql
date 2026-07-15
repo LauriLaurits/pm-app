@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(21);
 
 -- fixtures: PM Vera (owns V1), stand-in Sam (member role), outsider Otto (member role, no relation)
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, raw_app_meta_data, encrypted_password, created_at, updated_at) values
@@ -101,6 +101,14 @@ set local role authenticated;
 set local "request.jwt.claims" to '{"sub":"f0000000-0000-4000-8000-000000000001","role":"authenticated"}';
 select is((select count(*)::int from public.credentials where id = 'f3000000-0000-4000-8000-000000000001'), 0,
   'PM cannot see admins_only credential');
+
+-- I4: extending an admins_only credential's access must be gated the same way writes are -- a
+-- manager/owner cannot grant credential_access to a credential they cannot even see themselves.
+select throws_ok(
+  $$ insert into public.credential_access (credential_id, user_id, granted_by)
+     values ('f3000000-0000-4000-8000-000000000001','f0000000-0000-4000-8000-000000000002','f0000000-0000-4000-8000-000000000001') $$,
+  '42501', null, 'cannot extend admins_only credential');
+
 -- Note: RLS USING-clause failures on UPDATE/DELETE silently exclude the row (0 rows affected)
 -- rather than raising an error - an error only fires when USING passes on the OLD row but
 -- WITH CHECK then rejects the NEW row. Since VG is identical in USING and WITH CHECK here and

@@ -147,10 +147,11 @@ as $$
           where ur.user_id = uid and rp.permission_key = perm
             and rp.scope = 'member_projects'))
         or exists (
+          -- a per-project grant only satisfies a project-scoped check (never an unscoped/global one)
           select 1 from public.user_project_permissions upp
           where upp.user_id = uid and upp.permission_key = perm
             and (upp.expires_at is null or upp.expires_at > now())
-            and (project is null or upp.project_id = project))
+            and project is not null and upp.project_id = project)
         or (project is not null and exists (
           select 1 from public.delegations d
           join public.delegation_permissions dp on dp.delegation_id = d.id
@@ -211,7 +212,9 @@ create policy "delete credentials" on public.credentials for delete
 
 create policy "view own credential grants" on public.credential_access for select using (user_id = auth.uid());
 create policy "managers view credential grants" on public.credential_access for select using (exists (select 1 from public.credentials c where c.id = credential_id and public.has_permission(auth.uid(),'manage_credentials', c.project_id)));
-create policy "managers manage credential grants" on public.credential_access for all using (exists (select 1 from public.credentials c where c.id = credential_id and public.has_permission(auth.uid(),'manage_credentials', c.project_id))) with check (exists (select 1 from public.credentials c where c.id = credential_id and public.has_permission(auth.uid(),'manage_credentials', c.project_id)));
+-- extending access to an admins_only credential is itself gated: a manager/owner must not be
+-- able to grant others into a credential they cannot even see (mirrors the write-policy VG above).
+create policy "managers manage credential grants" on public.credential_access for all using (exists (select 1 from public.credentials c where c.id = credential_id and public.has_permission(auth.uid(),'manage_credentials', c.project_id) and (c.visibility <> 'admins_only' or public.is_admin()))) with check (exists (select 1 from public.credentials c where c.id = credential_id and public.has_permission(auth.uid(),'manage_credentials', c.project_id) and (c.visibility <> 'admins_only' or public.is_admin())));
 
 create policy "view own delegations" on public.delegations for select using (from_user = auth.uid() or to_user = auth.uid() or public.is_admin());
 -- manage_delegations is scoped own_projects, so this only checks the delegator holds it on

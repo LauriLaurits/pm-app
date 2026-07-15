@@ -198,10 +198,11 @@ as $$
           join public.role_permissions rp on rp.role_key = ur.role_key
           where ur.user_id = uid and rp.permission_key = perm and rp.scope = 'global')
         or exists (
+          -- a per-project grant only satisfies a project-scoped check (never an unscoped/global one)
           select 1 from public.user_project_permissions upp
           where upp.user_id = uid and upp.permission_key = perm
             and (upp.expires_at is null or upp.expires_at > now())
-            and (project is null or upp.project_id = project))
+            and project is not null and upp.project_id = project)
       )
     )
 $$;
