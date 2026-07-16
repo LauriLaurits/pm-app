@@ -14,7 +14,11 @@ export type AuditAction =
   | "project.updated"
   | "project.status_posted"
   | "part.upserted"
-  | "part.deleted";
+  | "part.deleted"
+  | "member.added"
+  | "member.removed"
+  | "link.upserted"
+  | "link.deleted";
 
 export type AuditEntry = {
   action: AuditAction;

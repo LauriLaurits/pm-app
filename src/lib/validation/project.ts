@@ -98,3 +98,36 @@ export const partSchema = z.object({
 });
 export type PartInput = z.input<typeof partSchema>;
 export type PartOutput = z.output<typeof partSchema>;
+
+// ---------- project members (access) ----------
+
+/** Adds an existing user_profiles user (picked via their `people` row) as a project member. */
+export const addMemberSchema = z.object({
+  user_id: z.uuid("Select a person"),
+  role_on_project: nullableText(200),
+  starts_on: nullableDate,
+  ends_on: nullableDate,
+});
+export type AddMemberInput = z.input<typeof addMemberSchema>;
+export type AddMemberOutput = z.output<typeof addMemberSchema>;
+
+// ---------- project links ----------
+
+export const LINK_TYPE_OPTIONS = [
+  "repo", "issue_tracker", "design", "docs",
+  "env_prod", "env_prelive", "env_staging", "env_dev",
+  "api_docs", "monitoring", "hosting", "db_dashboard", "custom",
+] as const;
+// NOTE: DB enum is `pm_only` (not `pms_only`) — matches migration 20260715000003_projects.sql.
+export const LINK_VISIBILITY_OPTIONS = ["project", "pm_only", "admins_only"] as const;
+
+export const linkSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(200),
+  url: z.url("Enter a valid URL").max(2000),
+  type: z.enum(LINK_TYPE_OPTIONS),
+  environment: nullableText(100),
+  description: nullableText(),
+  visibility: z.enum(LINK_VISIBILITY_OPTIONS),
+});
+export type LinkInput = z.input<typeof linkSchema>;
+export type LinkOutput = z.output<typeof linkSchema>;

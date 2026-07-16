@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { editProjectSchema, partSchema, statusUpdateSchema } from "@/lib/validation/project";
+import {
+  addMemberSchema, editProjectSchema, linkSchema, partSchema, statusUpdateSchema,
+} from "@/lib/validation/project";
 
 const validProject = {
   name: "Retail e-shop replatform",
@@ -207,5 +209,71 @@ describe("partSchema", () => {
     const parsed = partSchema.parse({ ...validPart, description: "  ", notes: "" });
     expect(parsed.description).toBeNull();
     expect(parsed.notes).toBeNull();
+  });
+});
+
+const validMember = {
+  user_id: "10000005-0000-4000-8000-000000000005",
+  role_on_project: "backend lead",
+  starts_on: "2026-01-01",
+  ends_on: null,
+};
+
+describe("addMemberSchema", () => {
+  it("accepts a fully populated valid member", () => {
+    expect(addMemberSchema.safeParse(validMember).success).toBe(true);
+  });
+
+  it("rejects a non-uuid user_id", () => {
+    expect(addMemberSchema.safeParse({ ...validMember, user_id: "not-a-uuid" }).success).toBe(false);
+  });
+
+  it("rejects a missing user_id", () => {
+    const { user_id, ...rest } = validMember;
+    void user_id;
+    expect(addMemberSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it("allows an omitted role_on_project and normalizes blank to null", () => {
+    const parsed = addMemberSchema.parse({ ...validMember, role_on_project: "" });
+    expect(parsed.role_on_project).toBeNull();
+  });
+
+  it("rejects a malformed date", () => {
+    expect(addMemberSchema.safeParse({ ...validMember, starts_on: "01/01/2026" }).success).toBe(false);
+  });
+});
+
+const validLink = {
+  name: "Prod monitoring",
+  url: "https://grafana.acme.dev/shop",
+  type: "monitoring",
+  environment: "prod",
+  description: "Grafana dashboards",
+  visibility: "pm_only",
+};
+
+describe("linkSchema", () => {
+  it("accepts a fully populated valid link", () => {
+    expect(linkSchema.safeParse(validLink).success).toBe(true);
+  });
+
+  it("rejects an empty name", () => {
+    expect(linkSchema.safeParse({ ...validLink, name: "  " }).success).toBe(false);
+  });
+
+  it("rejects a malformed url", () => {
+    expect(linkSchema.safeParse({ ...validLink, url: "not-a-url" }).success).toBe(false);
+  });
+
+  it("rejects an unknown type/visibility", () => {
+    expect(linkSchema.safeParse({ ...validLink, type: "wiki" }).success).toBe(false);
+    expect(linkSchema.safeParse({ ...validLink, visibility: "public" }).success).toBe(false);
+  });
+
+  it("allows omitted environment/description and normalizes blank to null", () => {
+    const parsed = linkSchema.parse({ ...validLink, environment: "", description: undefined });
+    expect(parsed.environment).toBeNull();
+    expect(parsed.description).toBeNull();
   });
 });
