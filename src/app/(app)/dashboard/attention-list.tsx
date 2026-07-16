@@ -24,12 +24,12 @@ export function AttentionList({
         {items.length === 0 ? (
           <p className="py-2 text-sm text-muted-foreground">{emptyMessage}</p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="-mx-2">
             {items.map((item) => (
               <li key={item.id}>
                 <Link
                   href={item.href}
-                  className="flex items-center justify-between gap-2 py-2 text-sm hover:underline"
+                  className="flex items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
                 >
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{item.primary}</span>
