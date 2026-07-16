@@ -1,24 +1,27 @@
+import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "./types";
 import type { TimeEntryWithProject } from "./types";
+import { TimeEntryDeleteButton } from "./time-entry-delete-button";
 
-export function RecentHoursCard({ entries }: { entries: TimeEntryWithProject[] }) {
+/** `headerAction` (the "Log time" dialog trigger) and per-row delete are only ever passed by
+ * the caller when `canManage` is true -- which page.tsx only does on the viewer's OWN person
+ * page. On anyone else's page this renders as a plain read-only list, same as Task 2. */
+export function RecentHoursCard({
+  entries,
+  canManage = false,
+  headerAction,
+}: {
+  entries: TimeEntryWithProject[];
+  canManage?: boolean;
+  headerAction?: ReactNode;
+}) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Recent logged hours</CardTitle>
-        <CardAction>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            title="Time logging is coming in a moment."
-          >
-            Log time
-          </Button>
-        </CardAction>
+        {headerAction && <CardAction>{headerAction}</CardAction>}
       </CardHeader>
       <CardContent>
         {entries.length === 0 ? (
@@ -37,6 +40,7 @@ export function RecentHoursCard({ entries }: { entries: TimeEntryWithProject[] }
                 <div className="flex items-center gap-2">
                   {!e.billable && <Badge variant="ghost">Non-billable</Badge>}
                   <span className="font-medium">{e.hours}h</span>
+                  {canManage && <TimeEntryDeleteButton entryId={e.id} />}
                 </div>
               </div>
             ))}

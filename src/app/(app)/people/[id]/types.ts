@@ -12,6 +12,11 @@ export type PersonSkillRow = {
   skills: { name: string; category: string | null } | null;
 };
 
+// Log-time picker options — deliberately narrow (id/name only), built server-side in page.tsx
+// from the viewer's OWN assignments/parts, never from an open-ended projects/parts query.
+export type AssignedProjectOption = { id: string; name: string };
+export type PartOption = { id: string; name: string };
+
 export function formatDate(date: string | null) {
   if (!date) return "—";
   return new Date(date).toLocaleDateString("en-GB", {

@@ -20,7 +20,9 @@ export type AuditAction =
   | "link.upserted"
   | "link.deleted"
   | "credential.added"
-  | "credential.deleted";
+  | "credential.deleted"
+  | "time.logged"
+  | "time.deleted";
 
 export type AuditEntry = {
   action: AuditAction;

@@ -4,12 +4,16 @@ import type { PersonWorkloadRow } from "../types";
 import { CapacitySummaryCard } from "./capacity-summary-card";
 import { CurrentProjectsCard } from "./current-projects-card";
 import { FinancialsCard } from "./financials-card";
+import { resolveLogTimeData } from "./log-time-data";
+import { LogTimeDialog } from "./log-time-dialog";
 import { PersonHeader } from "./person-header";
 import { RecentHoursCard } from "./recent-hours-card";
 import { SkillsCard } from "./skills-card";
 import { TimeOffCard } from "./time-off-card";
 import type {
+  AssignedProjectOption,
   AssignmentWithProject,
+  PartOption,
   PersonSkillRow,
   TimeEntryWithProject,
   TimeOffRow,
@@ -36,31 +40,39 @@ export default async function PersonDetailPage({
   const row = person as PersonWorkloadRow;
 
   // "view assignments" / "read own time" / "view time_off" / "view person_skills" RLS already
-  // scopes each of these to whatever the caller may see (global for PM/finance/admin, own rows
-  // for a plain member) -- this page does not widen any of that, it just reads through it.
-  const [{ data: assignmentRows }, { data: timeEntryRows }, { data: timeOffRows }, { data: skillRows }] =
-    await Promise.all([
-      supabase
-        .from("assignments")
-        .select("*")
-        .eq("person_id", id)
-        .order("start_date", { ascending: false }),
-      supabase
-        .from("time_entries")
-        .select("*")
-        .eq("person_id", id)
-        .order("entry_date", { ascending: false })
-        .limit(20),
-      supabase
-        .from("time_off")
-        .select("*")
-        .eq("person_id", id)
-        .order("starts_on", { ascending: false }),
-      supabase
-        .from("person_skills")
-        .select("level, skills(name, category)")
-        .eq("person_id", id),
-    ]);
+  // scopes each of these to whatever the caller may see -- this page does not widen any of
+  // that. current_person_id() also tells us if the VIEWER is on their OWN page -- the log-time
+  // form/delete controls are only ever wired in for that case (everyone else gets a read-only list).
+  const [
+    { data: assignmentRows },
+    { data: timeEntryRows },
+    { data: timeOffRows },
+    { data: skillRows },
+    { data: myPersonId },
+  ] = await Promise.all([
+    supabase
+      .from("assignments")
+      .select("*")
+      .eq("person_id", id)
+      .order("start_date", { ascending: false }),
+    supabase
+      .from("time_entries")
+      .select("*")
+      .eq("person_id", id)
+      .order("entry_date", { ascending: false })
+      .limit(20),
+    supabase
+      .from("time_off")
+      .select("*")
+      .eq("person_id", id)
+      .order("starts_on", { ascending: false }),
+    supabase
+      .from("person_skills")
+      .select("level, skills(name, category)")
+      .eq("person_id", id),
+    supabase.rpc("current_person_id"),
+  ]);
+  const isOwnPage = myPersonId === id;
 
   // Project names resolved via a separate `projects` query (RLS: "view project", scoped by
   // has_permission(..., 'view_project', id)) rather than a nested select on assignments/
@@ -94,6 +106,12 @@ export default async function PersonDetailPage({
   const upcoming = assignments.filter((a) => a.start_date > today);
   const past = assignments.filter((a) => a.end_date && a.end_date < today);
 
+  // Log-time picker data (own page only) -- see log-time-data.ts for why ALL assignments
+  // (not just current) are used, matching the RLS assignment guard exactly.
+  const { assignedProjects, partsByProject } = isOwnPage
+    ? await resolveLogTimeData(supabase, assignments, projectNameById)
+    : { assignedProjects: [] as AssignedProjectOption[], partsByProject: {} as Record<string, PartOption[]> };
+
   // Finance gating lives entirely in `person_workload_rows` (security_invoker view whose LEFT
   // JOIN onto `rates` is nulled by RLS for non-finance callers) -- this page never reads
   // `rates` directly. Non-null here means the caller already has view_internal_cost.
@@ -106,7 +124,15 @@ export default async function PersonDetailPage({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <CurrentProjectsCard current={current} upcoming={upcoming} past={past} />
-          <RecentHoursCard entries={timeEntries} />
+          <RecentHoursCard
+            entries={timeEntries}
+            canManage={isOwnPage}
+            headerAction={
+              isOwnPage ? (
+                <LogTimeDialog projects={assignedProjects} partsByProject={partsByProject} />
+              ) : undefined
+            }
+          />
         </div>
         <div className="space-y-4">
           <CapacitySummaryCard person={row} />
