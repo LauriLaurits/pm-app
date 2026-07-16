@@ -111,6 +111,13 @@ export type Database = {
             foreignKeyName: "assignments_project_part_id_fkey"
             columns: ["project_part_id"]
             isOneToOne: false
+            referencedRelation: "part_budget_rows"
+            referencedColumns: ["part_id"]
+          },
+          {
+            foreignKeyName: "assignments_project_part_id_fkey"
+            columns: ["project_part_id"]
+            isOneToOne: false
             referencedRelation: "project_parts"
             referencedColumns: ["id"]
           },
@@ -235,6 +242,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "budgets_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "part_budget_rows"
+            referencedColumns: ["part_id"]
+          },
           {
             foreignKeyName: "budgets_part_id_fkey"
             columns: ["part_id"]
@@ -616,6 +630,13 @@ export type Database = {
             foreignKeyName: "part_billing_part_id_fkey"
             columns: ["part_id"]
             isOneToOne: true
+            referencedRelation: "part_budget_rows"
+            referencedColumns: ["part_id"]
+          },
+          {
+            foreignKeyName: "part_billing_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: true
             referencedRelation: "project_parts"
             referencedColumns: ["id"]
           },
@@ -648,6 +669,13 @@ export type Database = {
             foreignKeyName: "part_costs_part_id_fkey"
             columns: ["part_id"]
             isOneToOne: true
+            referencedRelation: "part_budget_rows"
+            referencedColumns: ["part_id"]
+          },
+          {
+            foreignKeyName: "part_costs_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: true
             referencedRelation: "project_parts"
             referencedColumns: ["id"]
           },
@@ -671,8 +699,22 @@ export type Database = {
             foreignKeyName: "part_dependencies_depends_on_part_id_fkey"
             columns: ["depends_on_part_id"]
             isOneToOne: false
+            referencedRelation: "part_budget_rows"
+            referencedColumns: ["part_id"]
+          },
+          {
+            foreignKeyName: "part_dependencies_depends_on_part_id_fkey"
+            columns: ["depends_on_part_id"]
+            isOneToOne: false
             referencedRelation: "project_parts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_dependencies_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "part_budget_rows"
+            referencedColumns: ["part_id"]
           },
           {
             foreignKeyName: "part_dependencies_part_id_fkey"
@@ -1364,6 +1406,13 @@ export type Database = {
             foreignKeyName: "time_entries_project_part_id_fkey"
             columns: ["project_part_id"]
             isOneToOne: false
+            referencedRelation: "part_budget_rows"
+            referencedColumns: ["part_id"]
+          },
+          {
+            foreignKeyName: "time_entries_project_part_id_fkey"
+            columns: ["project_part_id"]
+            isOneToOne: false
             referencedRelation: "project_parts"
             referencedColumns: ["id"]
           },
@@ -1565,6 +1614,50 @@ export type Database = {
       }
     }
     Views: {
+      part_budget_rows: {
+        Row: {
+          actual_internal_cost: number | null
+          billable_hours: number | null
+          billing_model: Database["public"]["Enums"]["billing_model"] | null
+          client_price: number | null
+          estimated_hours: number | null
+          fixed_amount: number | null
+          hourly_rate: number | null
+          invoiced: number | null
+          logged_hours: number | null
+          margin: number | null
+          margin_pct: number | null
+          paid: number | null
+          part_id: string | null
+          part_name: string | null
+          planned_internal_cost: number | null
+          project_id: string | null
+          remaining: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_parts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_budget_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_parts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_list_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_parts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       person_workload_rows: {
         Row: {
           active_project_count: number | null
