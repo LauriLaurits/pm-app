@@ -25,10 +25,11 @@ export async function upsertPartAction(
   if (!parsed.success) return { error: "Invalid part details." };
 
   // Billing figures (client_price/fixed_amount/hourly_rate) live in the separate
-  // view_budget-gated part_billing table, never in project_parts.
+  // manage_budget-gated part_billing table, never in project_parts.
   const { client_price, fixed_amount, hourly_rate, ...partFields } = parsed.data;
 
   const supabase = await createClient();
+  const isNewPart = !partId;
   const write = partId
     ? supabase.from("project_parts").update(partFields).eq("id", partId).eq("project_id", projectId)
     : supabase.from("project_parts").insert({ project_id: projectId, ...partFields });
@@ -36,21 +37,36 @@ export async function upsertPartAction(
   if (error || !part) return { error: "Save failed. Try again." };
 
   // Only write part_billing if the form actually submitted billing figures AND the
-  // caller holds view_budget. A caller without view_budget never sees/submits these
-  // fields in the UI, but we re-check server-side rather than trusting the client —
-  // and skip silently (not an error) rather than bypassing the gate to "help".
+  // caller holds manage_budget — this matches the RLS "manage part billing" policy on
+  // part_billing exactly (that policy checks manage_budget, not view_budget, which
+  // only gates reads). A caller without manage_budget never sees/submits these fields
+  // in the UI, but we re-check server-side rather than trusting the client — and skip
+  // silently (not an error) rather than attempting a write RLS would reject anyway.
   const billingProvided = client_price != null || fixed_amount != null || hourly_rate != null;
   if (billingProvided) {
-    const { data: canViewBudget } = await supabase.rpc("has_permission", {
+    const { data: canManageBudget } = await supabase.rpc("has_permission", {
       uid: current.user.id,
-      perm: "view_budget",
+      perm: "manage_budget",
       project: projectId,
     });
-    if (canViewBudget === true) {
+    if (canManageBudget === true) {
       const { error: billingError } = await supabase
         .from("part_billing")
         .upsert({ part_id: part.id, client_price, fixed_amount, hourly_rate });
-      if (billingError) return { error: "Part saved, but billing update failed." };
+      if (billingError) {
+        if (isNewPart) {
+          // Compensating cleanup: the client never learned this part's id, so leaving
+          // it in place would cause a resubmit to insert a duplicate part. Delete it
+          // so the failure is atomic — nothing was saved.
+          await supabase
+            .from("project_parts")
+            .delete()
+            .eq("id", part.id)
+            .eq("project_id", projectId);
+          return { error: "Could not save part billing. Nothing was saved — try again." };
+        }
+        return { error: "Part saved, but billing update failed." };
+      }
     }
   }
 
