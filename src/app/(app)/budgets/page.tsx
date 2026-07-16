@@ -47,18 +47,22 @@ export default async function BudgetsPage({
     ? budgetRows.reduce((sum, row) => sum + (row.remaining ?? 0), 0)
     : null;
 
-  // margin is read straight off each row (already null-gated by the view) and summed -- never
-  // recomputed from a separately-fetched internal cost.
-  const financeRows = rows.filter((row) => row.margin !== null && row.client_amount !== null);
-  const hasFinanceVisibility = financeRows.length > 0;
+  // Total internal cost sums EVERY project whose cost the viewer can see (view_internal_cost),
+  // independent of whether that project also has client billing — a cost-only project (cost but
+  // no billing row) still counts. Blended margin, by contrast, is only meaningful over projects
+  // that have BOTH client amount and cost, so it uses the margin-paired subset.
+  const costRows = rows.filter((row) => row.internal_cost !== null);
+  const hasFinanceVisibility = costRows.length > 0;
   const totalInternalCost = hasFinanceVisibility
-    ? financeRows.reduce((sum, row) => sum + (row.internal_cost ?? 0), 0)
+    ? costRows.reduce((sum, row) => sum + (row.internal_cost ?? 0), 0)
     : null;
-  const totalMargin = hasFinanceVisibility
-    ? financeRows.reduce((sum, row) => sum + (row.margin ?? 0), 0)
+
+  const marginRows = rows.filter((row) => row.margin !== null && row.client_amount !== null);
+  const totalMargin = marginRows.length > 0
+    ? marginRows.reduce((sum, row) => sum + (row.margin ?? 0), 0)
     : null;
-  const totalClientAmountForMargin = hasFinanceVisibility
-    ? financeRows.reduce((sum, row) => sum + (row.client_amount ?? 0), 0)
+  const totalClientAmountForMargin = marginRows.length > 0
+    ? marginRows.reduce((sum, row) => sum + (row.client_amount ?? 0), 0)
     : null;
   const blendedMarginPct = marginPct(totalMargin, totalClientAmountForMargin);
 
