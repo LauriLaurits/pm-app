@@ -1,0 +1,143 @@
+import type { createClient } from "@/lib/supabase/server";
+import { lastNMonthKeys, monthKey } from "@/lib/dashboard";
+import type { ProjectBudgetRow, ProjectListRow, PersonWorkloadRow } from "./types";
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+const CREDENTIAL_HORIZON_DAYS = 30;
+const HISTORY_MONTHS = 6;
+
+function isoDaysFromNow(days: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function isoMonthsAgo(months: number): string {
+  const d = new Date();
+  d.setUTCMonth(d.getUTCMonth() - months, 1);
+  return d.toISOString().slice(0, 10);
+}
+
+// Every read here goes through RLS'd tables/views only (project_list_rows, project_budget_rows,
+// person_workload_rows, projects/project_status_updates/credentials/time_entries/project_parts) --
+// never part_costs/rates directly. Financial columns on project_budget_rows are already nulled by
+// its own security_invoker gating; this module just carries rows through, it never re-derives money.
+
+// Base project + budget + workload rows -- fetched together since every card/chart/attention
+// section on the dashboard derives from one of these three.
+export async function fetchDashboardBase(supabase: Supabase) {
+  const [projectsRes, budgetRes, workloadRes] = await Promise.all([
+    supabase.from("project_list_rows").select("*"),
+    supabase.from("project_budget_rows").select("*"),
+    supabase
+      .from("person_workload_rows")
+      .select("id, full_name, current_allocation_pct, weekly_capacity_hours, on_vacation_now"),
+  ]);
+
+  return {
+    projects: (projectsRes.data ?? []) as ProjectListRow[],
+    projectsError: projectsRes.error,
+    budgetRows: (budgetRes.data ?? []) as ProjectBudgetRow[],
+    budgetError: budgetRes.error,
+    workloadRows: (workloadRes.data ?? []) as Pick<
+      PersonWorkloadRow,
+      "id" | "full_name" | "current_allocation_pct" | "weekly_capacity_hours" | "on_vacation_now"
+    >[],
+    workloadError: workloadRes.error,
+  };
+}
+
+// Latest status update timestamp per project (RLS: "view status updates", same view_project gate
+// as the project itself) -- reduced client-side to one row per project since PostgREST has no
+// simple GROUP BY max() through the JS client.
+export async function fetchLatestStatusUpdateByProject(supabase: Supabase) {
+  const { data } = await supabase
+    .from("project_status_updates")
+    .select("project_id, created_at")
+    .order("created_at", { ascending: false });
+
+  const latest = new Map<string, string>();
+  for (const row of data ?? []) {
+    if (!latest.has(row.project_id)) latest.set(row.project_id, row.created_at);
+  }
+  return latest;
+}
+
+// Credentials expiring within the horizon (or already expired) -- RLS ("view credential
+// metadata") already scopes this to what the caller may see. Project names are fetched
+// separately (not via a `projects(name)` embed) and merged in JS: `credentials_project_id_fkey`
+// shows up multiple times in the generated types (once per view built on `projects`), which makes
+// PostgREST's embed resolution ambiguous -- the Workload timeline (src/app/(app)/workload/page.tsx)
+// sidesteps the exact same ambiguity the same way, fetching `projects` separately and joining via
+// a Map.
+export async function fetchExpiringCredentials(supabase: Supabase) {
+  const { data } = await supabase
+    .from("credentials")
+    .select("id, name, expires_at, project_id")
+    .not("expires_at", "is", null)
+    .lte("expires_at", isoDaysFromNow(CREDENTIAL_HORIZON_DAYS))
+    .order("expires_at", { ascending: true })
+    .limit(8);
+  const rows = data ?? [];
+
+  const projectIds = [...new Set(rows.map((r) => r.project_id))];
+  const { data: projectRows } = projectIds.length
+    ? await supabase.from("projects").select("id, name").in("id", projectIds)
+    : { data: [] as { id: string; name: string }[] };
+  const nameById = new Map((projectRows ?? []).map((p) => [p.id, p.name]));
+
+  return rows.map((r) => ({ ...r, projectName: nameById.get(r.project_id) ?? null }));
+}
+
+// project_parts.estimated_hours (planned) rolled up per project -- RLS: "view parts" (view_project).
+export async function fetchEstimatedHoursByProject(supabase: Supabase) {
+  const { data } = await supabase.from("project_parts").select("project_id, estimated_hours");
+  const byProject = new Map<string, number>();
+  for (const row of data ?? []) {
+    byProject.set(row.project_id, (byProject.get(row.project_id) ?? 0) + Number(row.estimated_hours ?? 0));
+  }
+  return byProject;
+}
+
+// time_entries over the trailing HISTORY_MONTHS window -- RLS scopes this to the caller's own
+// logged rows plus any project they hold view_time on (same gating as the Workload timeline).
+// Feeds both "billable hours this month" and the planned-vs-actual chart's "actual" side.
+export async function fetchRecentTimeEntries(supabase: Supabase) {
+  const { data } = await supabase
+    .from("time_entries")
+    .select("project_id, hours, billable, entry_date")
+    .gte("entry_date", isoMonthsAgo(HISTORY_MONTHS));
+  return data ?? [];
+}
+
+// budget_items cost-type rows ('planned_cost' + 'actual_cost') over the trailing HISTORY_MONTHS
+// window, only ever called when the page has already confirmed the viewer has finance visibility
+// (project_budget_rows returned at least one non-null internal_cost) -- RLS on budget_items
+// itself additionally requires view_internal_cost for BOTH of these item types (see "view budget
+// items" policy, 20260715000005_budgets.sql), so a caller without it would get zero rows back
+// anyway; this is a belt-and-suspenders skip, not the only gate. Both item types are summed
+// together (not just 'actual_cost') because this dataset only ever logs one dated internal-cost
+// entry per project ('planned_cost', at project kickoff) -- 'actual_cost' rows never appear in
+// this schema's seed data, so a chart that only counted 'actual_cost' would always be empty even
+// for finance. Both types are equally internal/finance-gated money, so summing them is a faithful
+// "internal cost logged over time" trend, not a leak of anything client-facing.
+export async function fetchMonthlyActualCosts(supabase: Supabase) {
+  const { data: budgets } = await supabase.from("budgets").select("id");
+  const budgetIds = (budgets ?? []).map((b) => b.id);
+  if (budgetIds.length === 0) return lastNMonthKeys(HISTORY_MONTHS).map((month) => ({ month, cost: 0 }));
+
+  const { data: items } = await supabase
+    .from("budget_items")
+    .select("amount, occurred_on, budget_id")
+    .in("item_type", ["planned_cost", "actual_cost"])
+    .in("budget_id", budgetIds)
+    .gte("occurred_on", isoMonthsAgo(HISTORY_MONTHS));
+
+  const byMonth = new Map<string, number>();
+  for (const row of items ?? []) {
+    const key = monthKey(row.occurred_on);
+    byMonth.set(key, (byMonth.get(key) ?? 0) + Number(row.amount));
+  }
+  return lastNMonthKeys(HISTORY_MONTHS).map((month) => ({ month, cost: byMonth.get(month) ?? 0 }));
+}

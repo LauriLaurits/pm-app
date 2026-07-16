@@ -81,6 +81,23 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* ---- dataviz tokens (validated palette, see dataviz skill references/palette.md) ----
+     Categorical slots 1/2 (blue/aqua) for 2-series charts; a fixed status scale (never
+     themed, never reused for "series N") for severity-coded marks. Consumed by the Recharts
+     wrappers in src/components/charts/*.tsx via var(--viz-*) fill values -- CSS custom
+     properties resolve at paint time, so a single chart component works in both modes without
+     re-rendering. */
+  --viz-surface: #fcfcfb;
+  --viz-series-1: #2a78d6; /* categorical slot 1 -- blue */
+  --viz-series-2: #1baf7a; /* categorical slot 2 -- aqua */
+  --viz-track: #e1e0d9; /* unfilled meter/track, gridlines */
+  --viz-status-good: #0ca30c;
+  --viz-status-warning: #fab219;
+  --viz-status-serious: #ec835a;
+  --viz-status-critical: #d03b3b;
+  --viz-ink-secondary: #52514e;
+  --viz-ink-muted: #898781;
 }
 
 .dark {
@@ -115,6 +132,19 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* dataviz tokens, dark step -- status colors are fixed/unthemed (same 4 hex both modes per
+     the dataviz skill); only surface/series/track/ink shift for the dark chart surface. */
+  --viz-surface: #1a1a19;
+  --viz-series-1: #3987e5;
+  --viz-series-2: #199e70;
+  --viz-track: #2c2c2a;
+  --viz-status-good: #0ca30c;
+  --viz-status-warning: #fab219;
+  --viz-status-serious: #ec835a;
+  --viz-status-critical: #d03b3b;
+  --viz-ink-secondary: #c3c2b7;
+  --viz-ink-muted: #898781;
 }
 
 @layer base {
