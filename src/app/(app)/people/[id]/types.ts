@@ -1,0 +1,26 @@
+import type { Database } from "@/lib/database.types";
+
+export type AssignmentRow = Database["public"]["Tables"]["assignments"]["Row"];
+export type TimeEntryRow = Database["public"]["Tables"]["time_entries"]["Row"];
+export type TimeOffRow = Database["public"]["Tables"]["time_off"]["Row"];
+
+export type AssignmentWithProject = AssignmentRow & { project_name: string | null };
+export type TimeEntryWithProject = TimeEntryRow & { project_name: string | null };
+
+export type PersonSkillRow = {
+  level: number;
+  skills: { name: string; category: string | null } | null;
+};
+
+export function formatDate(date: string | null) {
+  if (!date) return "—";
+  return new Date(date).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+export function formatPeriod(startDate: string, endDate: string | null) {
+  return `${formatDate(startDate)} – ${endDate ? formatDate(endDate) : "ongoing"}`;
+}
