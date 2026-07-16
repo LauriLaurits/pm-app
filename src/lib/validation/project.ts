@@ -63,3 +63,38 @@ export const statusUpdateSchema = z
   });
 export type StatusUpdateInput = z.input<typeof statusUpdateSchema>;
 export type StatusUpdateOutput = z.output<typeof statusUpdateSchema>;
+
+export const PART_STATUS_OPTIONS = ["not_started", "in_progress", "blocked", "done"] as const;
+export const BILLING_MODEL_OPTIONS = ["fixed", "hourly"] as const;
+
+const nullableUuid = z
+  .string()
+  .optional()
+  .nullable()
+  .refine((v) => !v || z.uuid().safeParse(v).success, "Invalid person")
+  .transform((v) => (v && v.trim() !== "" ? v : null));
+
+/** Optional/nullable money-or-hours figure — used for estimated_hours and the three
+ * part_billing figures, all of which are plain non-negative numbers or absent. */
+const nullableAmount = z.number().min(0).max(10_000_000).optional().nullable();
+
+// part_billing fields (client_price/fixed_amount/hourly_rate) are bundled into the same
+// schema as project_parts fields for form convenience, but the action only ever writes
+// them to part_billing, and only when the caller holds view_budget -- see project-parts.ts.
+export const partSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(200),
+  description: nullableText(),
+  status: z.enum(PART_STATUS_OPTIONS),
+  responsible_person_id: nullableUuid,
+  billing_model: z.enum(BILLING_MODEL_OPTIONS),
+  estimated_hours: nullableAmount,
+  progress: z.number().int().min(0).max(100),
+  start_date: nullableDate,
+  end_date: nullableDate,
+  notes: nullableText(),
+  client_price: nullableAmount,
+  fixed_amount: nullableAmount,
+  hourly_rate: nullableAmount,
+});
+export type PartInput = z.input<typeof partSchema>;
+export type PartOutput = z.output<typeof partSchema>;

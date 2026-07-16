@@ -12,7 +12,9 @@ export type AuditAction =
   | "user.approved"
   | "user.status_changed"
   | "project.updated"
-  | "project.status_posted";
+  | "project.status_posted"
+  | "part.upserted"
+  | "part.deleted";
 
 export type AuditEntry = {
   action: AuditAction;

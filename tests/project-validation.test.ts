@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { editProjectSchema, statusUpdateSchema } from "@/lib/validation/project";
+import { editProjectSchema, partSchema, statusUpdateSchema } from "@/lib/validation/project";
 
 const validProject = {
   name: "Retail e-shop replatform",
@@ -139,5 +139,73 @@ describe("statusUpdateSchema", () => {
     });
     expect(parsed.in_progress).toBeNull();
     expect(parsed.blockers).toBeNull();
+  });
+});
+
+const validPart = {
+  name: "Backend",
+  description: "API + integrations",
+  status: "in_progress",
+  responsible_person_id: "50000003-0000-4000-8000-000000000003",
+  billing_model: "hourly",
+  estimated_hours: 400,
+  progress: 60,
+  start_date: "2026-01-01",
+  end_date: "2026-06-01",
+  notes: "On track",
+  client_price: 20000,
+  fixed_amount: null,
+  hourly_rate: 50,
+};
+
+describe("partSchema", () => {
+  it("accepts a fully populated valid part", () => {
+    expect(partSchema.safeParse(validPart).success).toBe(true);
+  });
+
+  it("rejects an empty name", () => {
+    expect(partSchema.safeParse({ ...validPart, name: "  " }).success).toBe(false);
+  });
+
+  it("rejects an unknown status/billing_model", () => {
+    expect(partSchema.safeParse({ ...validPart, status: "cancelled" }).success).toBe(false);
+    expect(partSchema.safeParse({ ...validPart, billing_model: "retainer" }).success).toBe(false);
+  });
+
+  it("rejects progress outside 0-100", () => {
+    expect(partSchema.safeParse({ ...validPart, progress: -1 }).success).toBe(false);
+    expect(partSchema.safeParse({ ...validPart, progress: 101 }).success).toBe(false);
+  });
+
+  it("rejects a negative billing figure", () => {
+    expect(partSchema.safeParse({ ...validPart, client_price: -1 }).success).toBe(false);
+    expect(partSchema.safeParse({ ...validPart, hourly_rate: -1 }).success).toBe(false);
+  });
+
+  it("rejects a malformed responsible_person_id", () => {
+    expect(
+      partSchema.safeParse({ ...validPart, responsible_person_id: "not-a-uuid" }).success
+    ).toBe(false);
+  });
+
+  it("allows a null/blank responsible_person_id and normalizes blank to null", () => {
+    const parsed = partSchema.parse({ ...validPart, responsible_person_id: "" });
+    expect(parsed.responsible_person_id).toBeNull();
+    expect(partSchema.safeParse({ ...validPart, responsible_person_id: null }).success).toBe(true);
+  });
+
+  it("allows omitted billing figures (non-view_budget caller never submits them)", () => {
+    const { client_price, fixed_amount, hourly_rate, ...rest } = validPart;
+    void client_price;
+    void fixed_amount;
+    void hourly_rate;
+    const parsed = partSchema.safeParse(rest);
+    expect(parsed.success).toBe(true);
+  });
+
+  it("normalizes blank optional text to null", () => {
+    const parsed = partSchema.parse({ ...validPart, description: "  ", notes: "" });
+    expect(parsed.description).toBeNull();
+    expect(parsed.notes).toBeNull();
   });
 });
