@@ -8,11 +8,17 @@ import { PartDeleteButton } from "./part-actions";
 import { PartFormDialog } from "./part-form-dialog";
 import type { PartRow, PersonOption } from "./types";
 
-const PART_STATUS_BADGE: Record<PartRow["status"], "default" | "secondary" | "destructive" | "outline"> = {
-  not_started: "outline",
-  in_progress: "default",
-  blocked: "destructive",
-  done: "secondary",
+// Each part_status gets a distinct, accessible color (not just variant) so e.g. "not_started"
+// and "done" never render visually identical -- text label stays in all cases, so color is a
+// reinforcing signal, not the only one.
+const PART_STATUS_BADGE_CLASS: Record<PartRow["status"], string> = {
+  not_started: "text-muted-foreground",
+  in_progress:
+    "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/15 dark:text-blue-400",
+  blocked:
+    "border-red-500/30 bg-red-500/10 text-red-700 dark:border-red-500/40 dark:bg-red-500/15 dark:text-red-400",
+  done:
+    "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-400",
 };
 
 export function PartsTable({
@@ -58,7 +64,9 @@ export function PartsTable({
               )}
             </TableCell>
             <TableCell>
-              <Badge variant={PART_STATUS_BADGE[part.status]}>{humanize(part.status)}</Badge>
+              <Badge variant="outline" className={PART_STATUS_BADGE_CLASS[part.status]}>
+                {humanize(part.status)}
+              </Badge>
             </TableCell>
             <TableCell>
               {part.responsible_person_id ? nameByPersonId.get(part.responsible_person_id) ?? "—" : "—"}

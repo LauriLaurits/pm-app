@@ -4,7 +4,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { StatusUpdateRow } from "./types";
 
@@ -30,22 +29,30 @@ function UpdateField({ label, value }: { label: string; value: string | null }) 
   );
 }
 
+const UPDATE_FIELDS: { name: keyof StatusUpdateRow; label: string }[] = [
+  { name: "completed", label: "Completed" },
+  { name: "in_progress", label: "In progress" },
+  { name: "blockers", label: "Blockers" },
+  { name: "decisions_needed", label: "Decisions needed" },
+  { name: "next_milestone", label: "Next milestone" },
+];
+
 function UpdateBody({ update }: { update: StatusUpdateRow }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {update.handover_info && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
-          <div className="mb-1 flex items-center gap-1.5 text-xs font-medium tracking-wide text-amber-700 uppercase dark:text-amber-400">
-            <Badge variant="destructive">Handover</Badge>
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 dark:border-amber-500/40 dark:bg-amber-500/15">
+          <div className="mb-1 text-xs font-semibold tracking-wide text-amber-700 uppercase dark:text-amber-400">
+            Handover
           </div>
           <p className="text-sm whitespace-pre-wrap">{update.handover_info}</p>
         </div>
       )}
-      <UpdateField label="Completed" value={update.completed} />
-      <UpdateField label="In progress" value={update.in_progress} />
-      <UpdateField label="Blockers" value={update.blockers} />
-      <UpdateField label="Decisions needed" value={update.decisions_needed} />
-      <UpdateField label="Next milestone" value={update.next_milestone} />
+      <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+        {UPDATE_FIELDS.map(({ name, label }) => (
+          <UpdateField key={name} label={label} value={update[name] as string | null} />
+        ))}
+      </div>
     </div>
   );
 }
