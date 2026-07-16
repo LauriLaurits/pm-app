@@ -80,6 +80,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "assignments_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "person_workload_rows"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "assignments_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -747,6 +754,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "person_skills_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "person_workload_rows"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "person_skills_skill_id_fkey"
             columns: ["skill_id"]
             isOneToOne: false
@@ -926,6 +940,13 @@ export type Database = {
             columns: ["responsible_person_id"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parts_responsible_fk"
+            columns: ["responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "person_workload_rows"
             referencedColumns: ["id"]
           },
           {
@@ -1135,6 +1156,13 @@ export type Database = {
             referencedRelation: "people"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "rates_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "person_workload_rows"
+            referencedColumns: ["id"]
+          },
         ]
       }
       role_permissions: {
@@ -1249,6 +1277,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "time_entries_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "person_workload_rows"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "time_entries_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -1302,6 +1337,13 @@ export type Database = {
             columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_off_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "person_workload_rows"
             referencedColumns: ["id"]
           },
         ]
@@ -1453,6 +1495,25 @@ export type Database = {
       }
     }
     Views: {
+      person_workload_rows: {
+        Row: {
+          active_project_count: number | null
+          avatar_url: string | null
+          billing_rate: number | null
+          current_allocation_pct: number | null
+          department: string | null
+          employment_type: Database["public"]["Enums"]["employment_type"] | null
+          full_name: string | null
+          id: string | null
+          internal_cost: number | null
+          on_vacation_now: boolean | null
+          role_title: string | null
+          skills: string[] | null
+          status: Database["public"]["Enums"]["person_status"] | null
+          weekly_capacity_hours: number | null
+        }
+        Relationships: []
+      }
       project_list_rows: {
         Row: {
           budget_remaining: number | null
