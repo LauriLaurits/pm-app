@@ -230,7 +230,21 @@ create policy "view links" on public.project_links for select using (
   and (visibility = 'project'
        or (visibility = 'pm_only' and public.has_permission(auth.uid(),'edit_project', project_id))
        or public.is_admin()));
-create policy "manage links" on public.project_links for all using (public.has_permission(auth.uid(),'manage_links', project_id)) with check (public.has_permission(auth.uid(),'manage_links', project_id));
+-- Write policies are split off SELECT (a FOR ALL policy would OR into SELECT and let a
+-- non-admin manage_links holder read/write admins_only links, bypassing the tier in
+-- "view links" above). Each write also carries the admins_only gate so only admins
+-- manage admins_only links. Mirrors the credentials policy split.
+create policy "insert links" on public.project_links for insert
+  with check (public.has_permission(auth.uid(),'manage_links', project_id)
+              and (visibility <> 'admins_only' or public.is_admin()));
+create policy "update links" on public.project_links for update
+  using (public.has_permission(auth.uid(),'manage_links', project_id)
+         and (visibility <> 'admins_only' or public.is_admin()))
+  with check (public.has_permission(auth.uid(),'manage_links', project_id)
+              and (visibility <> 'admins_only' or public.is_admin()));
+create policy "delete links" on public.project_links for delete
+  using (public.has_permission(auth.uid(),'manage_links', project_id)
+         and (visibility <> 'admins_only' or public.is_admin()));
 
 -- ---------- grants ----------
 grant select, insert, update, delete on public.clients, public.projects, public.project_members, public.project_parts, public.part_dependencies, public.project_links to authenticated;

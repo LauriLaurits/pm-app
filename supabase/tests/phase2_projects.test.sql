@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(19);
 
 -- fixtures: PM Anna (owns P1), PM Bella (owns P2), member Max (member of P1 only), finance Fia,
 -- admin Aida (for I3: only an admin may reassign a project's pm_id)
@@ -26,7 +26,8 @@ insert into public.project_members (project_id, user_id, role_on_project) values
   ('c2000000-0000-4000-8000-000000000001','c0000000-0000-4000-8000-000000000003','developer');
 insert into public.project_links (project_id, name, url, type, visibility) values
   ('c2000000-0000-4000-8000-000000000001','Repo','https://github.com/acme/p1','repo','project'),
-  ('c2000000-0000-4000-8000-000000000001','Prod DB','https://db.acme','db_dashboard','pm_only');
+  ('c2000000-0000-4000-8000-000000000001','Prod DB','https://db.acme','db_dashboard','pm_only'),
+  ('c2000000-0000-4000-8000-000000000001','Root creds','https://vault.acme','custom','admins_only');
 insert into public.project_parts (id, project_id, name, billing_model) values
   ('c3000000-0000-4000-8000-000000000001','c2000000-0000-4000-8000-000000000001','P1 Part','fixed'),
   ('c3000000-0000-4000-8000-000000000002','c2000000-0000-4000-8000-000000000002','P2 Part','fixed');
@@ -46,7 +47,11 @@ set local "request.jwt.claims" to '{"sub":"c0000000-0000-4000-8000-000000000001"
 select is((select count(*)::int from public.projects where id::text like 'c2000000-%'), 2, 'PM sees the whole portfolio');
 select is(public.has_permission(auth.uid(),'edit_project','c2000000-0000-4000-8000-000000000001'), true,  'PM edits own project');
 select is(public.has_permission(auth.uid(),'edit_project','c2000000-0000-4000-8000-000000000002'), false, 'PM cannot edit another PM''s project');
-select is((select count(*)::int from public.project_links where project_id = 'c2000000-0000-4000-8000-000000000001'), 2, 'PM sees pm_only links on own project');
+select is((select count(*)::int from public.project_links where project_id = 'c2000000-0000-4000-8000-000000000001'), 2, 'non-admin PM sees project + pm_only links but NOT the admins_only link');
+select throws_ok(
+  $$ insert into public.project_links (project_id, name, url, type, visibility)
+     values ('c2000000-0000-4000-8000-000000000001','Sneaky','https://x','custom','admins_only') $$,
+  '42501', null, 'non-admin PM cannot create an admins_only link');
 select lives_ok(
   $$ insert into public.project_status_updates (project_id, author_id, completed, in_progress) values ('c2000000-0000-4000-8000-000000000001', auth.uid(), 'API done','UI ongoing') $$,
   'PM posts status update on own project');
