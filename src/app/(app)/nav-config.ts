@@ -23,7 +23,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Projects", href: "/projects", icon: FolderKanban },
   { label: "People", href: "/people", icon: Users },
-  { label: "Workload", href: "/workload", icon: Gauge, comingSoon: true },
+  { label: "Workload", href: "/workload", icon: Gauge },
   { label: "Budgets", href: "/budgets", icon: Wallet, comingSoon: true },
   {
     label: "Credentials",

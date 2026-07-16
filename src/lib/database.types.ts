@@ -1571,6 +1571,20 @@ export type Database = {
         }[]
       }
       part_project: { Args: { p_part: string }; Returns: string }
+      person_current_allocation: {
+        Args: { p_person: string }
+        Returns: {
+          allocation_pct: number
+          project_count: number
+        }[]
+      }
+      person_weekly_allocation: {
+        Args: { p_from: string; p_person: string; p_weeks: number }
+        Returns: {
+          allocation_pct: number
+          week_start: string
+        }[]
+      }
       revoke_session: { Args: { session_id: string }; Returns: boolean }
     }
     Enums: {

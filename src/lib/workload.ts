@@ -34,3 +34,39 @@ export const UTILIZATION_BADGE_CLASS: Record<UtilizationClass, string> = {
 export function utilizationBadgeClasses(pct: number): string {
   return UTILIZATION_BADGE_CLASS[utilizationClass(pct)];
 }
+
+// Cell-background classes for the Workload timeline grid -- deliberately louder than the badge
+// tints above (solid-ish fills, not just a border) so an overallocated week reads as visually
+// loud at a glance, per the task brief. Free (0%) gets its own near-invisible treatment distinct
+// from "available" (1-49%) so truly empty weeks are the easiest thing on the screen to spot.
+export const UTILIZATION_CELL_CLASS: Record<UtilizationClass, string> = {
+  available: "bg-emerald-500/25 dark:bg-emerald-500/30",
+  partial: "bg-blue-500/40 dark:bg-blue-500/45",
+  full: "bg-amber-500/55 dark:bg-amber-500/55",
+  overallocated: "bg-red-600/80 dark:bg-red-500/80",
+};
+export const UTILIZATION_CELL_EMPTY_CLASS = "bg-muted/40 dark:bg-muted/20";
+
+export function utilizationCellClasses(pct: number): string {
+  if (pct <= 0) return UTILIZATION_CELL_EMPTY_CLASS;
+  return UTILIZATION_CELL_CLASS[utilizationClass(pct)];
+}
+
+// Monday-anchored week_start dates for the Workload timeline window, matching the SQL function
+// `public.person_weekly_allocation`'s `date_trunc('week', p_from)` anchoring so the header labels
+// line up exactly with the rows returned per-person. Pure + unit-tested (no DB round trip needed
+// just to lay out the grid header).
+export function weekStartsFrom(from: Date, weeks: number): string[] {
+  const monday = new Date(from);
+  const day = monday.getUTCDay(); // 0=Sun..6=Sat
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  monday.setUTCDate(monday.getUTCDate() + diffToMonday);
+  monday.setUTCHours(0, 0, 0, 0);
+
+  const count = Math.max(weeks, 1);
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(monday);
+    d.setUTCDate(d.getUTCDate() + i * 7);
+    return d.toISOString().slice(0, 10);
+  });
+}
