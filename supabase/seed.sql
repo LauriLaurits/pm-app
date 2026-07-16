@@ -223,10 +223,16 @@ insert into public.budget_items (budget_id, item_type, name, amount, occurred_on
   ('70000001-0000-4000-8000-000000000001','change','Scope: added loyalty hooks', 4500, current_date-20),
   ('70000002-0000-4000-8000-000000000002','planned_cost','Initial plan', 21000, current_date-60),
   ('70000002-0000-4000-8000-000000000002','invoice','Milestone 1', 18000, current_date-25),
+  -- pushes Warehouse scanner (client_amount 36000) to ~106% invoiced -- demonstrates the "over
+  -- budget" consumption severity on the portfolio dashboard (Phase 5, Task 1).
+  ('70000002-0000-4000-8000-000000000002','invoice','Milestone 2 (rush change order)', 20000, current_date-8),
   ('70000003-0000-4000-8000-000000000003','planned_cost','Initial plan', 45000, current_date-120),
   ('70000003-0000-4000-8000-000000000003','invoice','Phase 1', 30000, current_date-60),
   ('70000003-0000-4000-8000-000000000003','payment','Phase 1 paid', 30000, current_date-45),
-  ('70000003-0000-4000-8000-000000000003','change','Regulator scope change', 9000, current_date-15);
+  ('70000003-0000-4000-8000-000000000003','change','Regulator scope change', 9000, current_date-15),
+  -- pushes FinServ onboarding (client_amount 72000) to ~90% invoiced -- demonstrates the "high"
+  -- consumption severity tier on the portfolio dashboard (Phase 5, Task 1).
+  ('70000003-0000-4000-8000-000000000003','invoice','Phase 2', 35000, current_date-10);
 
 -- ===== 13. status updates (history: 2 per active project, newest includes handover info) =====
 insert into public.project_status_updates (project_id, author_id, completed, in_progress, blockers, decisions_needed, next_milestone, handover_info, created_at) values
