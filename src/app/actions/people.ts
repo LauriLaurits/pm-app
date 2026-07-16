@@ -86,11 +86,18 @@ export async function deletePersonAction(
 
   const supabase = await createClient();
 
-  const [{ count: assignmentCount }, { count: timeEntryCount }] = await Promise.all([
-    supabase.from("assignments").select("id", { count: "exact", head: true }).eq("person_id", personId),
-    supabase.from("time_entries").select("id", { count: "exact", head: true }).eq("person_id", personId),
-  ]);
-  if ((assignmentCount ?? 0) > 0 || (timeEntryCount ?? 0) > 0) {
+  // Capture the name before deletion for the audit trail (the row is gone afterward).
+  const { data: person } = await supabase
+    .from("people")
+    .select("full_name")
+    .eq("id", personId)
+    .single();
+
+  // Global history check (definer): accurate regardless of the caller's RLS scope.
+  const { data: hasHistory } = await supabase.rpc("person_has_history", {
+    p_person: personId,
+  });
+  if (hasHistory !== false) {
     return { error: "This person has assignments or logged time — set them inactive instead." };
   }
 
@@ -103,6 +110,7 @@ export async function deletePersonAction(
     actorEmail: current.profile.email,
     resourceType: "person",
     resourceId: personId,
+    metadata: { full_name: person?.full_name ?? null },
   });
 
   revalidatePath("/people");

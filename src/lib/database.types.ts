@@ -1578,6 +1578,7 @@ export type Database = {
           project_count: number
         }[]
       }
+      person_has_history: { Args: { p_person: string }; Returns: boolean }
       person_weekly_allocation: {
         Args: { p_from: string; p_person: string; p_weeks: number }
         Returns: {

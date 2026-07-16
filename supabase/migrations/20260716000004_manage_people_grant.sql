@@ -31,3 +31,17 @@ $$;
 create trigger people_prevent_delete_with_history
   before delete on public.people
   for each row execute function public.prevent_delete_person_with_history();
+
+-- The app-level pre-check that shows the friendly "set inactive instead" message must count
+-- history GLOBALLY: a PM's view_time is own_projects-scoped, so a plain RLS'd count would
+-- under-count time on another PM's project and let deletePersonAction fall through to a
+-- .delete() that the trigger above then blocks (right outcome, wrong reason). This definer
+-- function returns only a boolean (no row detail), keeping the pre-check accurate on its own.
+create or replace function public.person_has_history(p_person uuid)
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.assignments where person_id = p_person)
+      or exists (select 1 from public.time_entries where person_id = p_person);
+$$;
+revoke all on function public.person_has_history(uuid) from public, anon;
+grant execute on function public.person_has_history(uuid) to authenticated;
