@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  addMemberSchema, editProjectSchema, linkSchema, partSchema, statusUpdateSchema,
+  addMemberSchema, credentialSchema, editProjectSchema, linkSchema, partSchema, statusUpdateSchema,
 } from "@/lib/validation/project";
 
 const validProject = {
@@ -275,5 +275,59 @@ describe("linkSchema", () => {
     const parsed = linkSchema.parse({ ...validLink, environment: "", description: undefined });
     expect(parsed.environment).toBeNull();
     expect(parsed.description).toBeNull();
+  });
+});
+
+const validCredential = {
+  name: "Shop staging DB",
+  type: "db_login",
+  username: "shop_app",
+  secret: "St4g1ng-Pw!",
+  related_url: "https://staging.shop.balticretail.ee",
+  environment: "staging",
+  visibility: "project_members",
+  notes: "Rotate quarterly",
+  expires_at: "2026-12-01",
+};
+
+describe("credentialSchema", () => {
+  it("accepts a fully populated valid credential", () => {
+    expect(credentialSchema.safeParse(validCredential).success).toBe(true);
+  });
+
+  it("rejects an empty name", () => {
+    expect(credentialSchema.safeParse({ ...validCredential, name: "  " }).success).toBe(false);
+  });
+
+  it("rejects an empty secret", () => {
+    expect(credentialSchema.safeParse({ ...validCredential, secret: "" }).success).toBe(false);
+  });
+
+  it("rejects an unknown type/environment/visibility", () => {
+    expect(credentialSchema.safeParse({ ...validCredential, type: "wifi" }).success).toBe(false);
+    expect(credentialSchema.safeParse({ ...validCredential, environment: "qa" }).success).toBe(false);
+    expect(credentialSchema.safeParse({ ...validCredential, visibility: "pm_only" }).success).toBe(false);
+  });
+
+  it("rejects a malformed related_url", () => {
+    expect(credentialSchema.safeParse({ ...validCredential, related_url: "not-a-url" }).success).toBe(false);
+  });
+
+  it("allows omitted username/related_url/notes/expires_at and normalizes blank to null", () => {
+    const parsed = credentialSchema.parse({
+      ...validCredential,
+      username: "",
+      related_url: undefined,
+      notes: "",
+      expires_at: null,
+    });
+    expect(parsed.username).toBeNull();
+    expect(parsed.related_url).toBeNull();
+    expect(parsed.notes).toBeNull();
+    expect(parsed.expires_at).toBeNull();
+  });
+
+  it("rejects a malformed expires_at date", () => {
+    expect(credentialSchema.safeParse({ ...validCredential, expires_at: "12/01/2026" }).success).toBe(false);
   });
 });

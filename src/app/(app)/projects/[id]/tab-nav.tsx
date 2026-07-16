@@ -9,6 +9,7 @@ const TABS = [
   { label: "Parts", segment: "/parts" },
   { label: "People", segment: "/people" },
   { label: "Links", segment: "/links" },
+  { label: "Credentials", segment: "/credentials" },
 ];
 
 export function TabNav({ projectId }: { projectId: string }) {

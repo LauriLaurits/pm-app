@@ -1481,6 +1481,14 @@ export type Database = {
         Args: { target_user: string }
         Returns: number
       }
+      create_credential_secret: {
+        Args: {
+          secret: string
+          secret_description?: string
+          secret_name: string
+        }
+        Returns: string
+      }
       current_person_id: { Args: never; Returns: string }
       has_credential_access: {
         Args: { cred_id: string; uid?: string }

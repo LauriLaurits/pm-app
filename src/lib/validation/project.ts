@@ -131,3 +131,42 @@ export const linkSchema = z.object({
 });
 export type LinkInput = z.input<typeof linkSchema>;
 export type LinkOutput = z.output<typeof linkSchema>;
+
+// ---------- credentials ----------
+// Mirrors the DB enums from 20260715000006_credentials_delegations.sql exactly.
+
+export const CREDENTIAL_TYPE_OPTIONS = [
+  "server_login", "db_login", "api_key", "hosting",
+  "admin_panel", "third_party", "ssh", "client_provided",
+] as const;
+export const CREDENTIAL_ENVIRONMENT_OPTIONS = ["prod", "prelive", "staging", "dev", "other"] as const;
+// NOTE: DB enum is `pms_only` (not `pm_only` like project_links' visibility) -- matches
+// migration 20260715000006_credentials_delegations.sql.
+export const CREDENTIAL_VISIBILITY_OPTIONS = ["project_members", "pms_only", "admins_only"] as const;
+
+/** Optional URL: blank collapses to null (like nullableText), a non-blank value must parse
+ * as a URL. Kept separate from linkSchema's required `url` since related_url is optional here. */
+const nullableUrl = z
+  .string()
+  .max(2000)
+  .optional()
+  .nullable()
+  .transform((v) => (v && v.trim() !== "" ? v.trim() : null))
+  .refine((v) => !v || z.url().safeParse(v).success, "Enter a valid URL");
+
+// secret is required here: this schema only ever backs credential *creation* (there is no
+// edit/rotate flow yet -- see project-credentials.ts). It is write-only: it goes straight into
+// Vault via the admin client and is never read back or rendered, only ever masked in the UI.
+export const credentialSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(200),
+  type: z.enum(CREDENTIAL_TYPE_OPTIONS),
+  username: nullableText(200),
+  secret: z.string().min(1, "Secret is required").max(10_000),
+  related_url: nullableUrl,
+  environment: z.enum(CREDENTIAL_ENVIRONMENT_OPTIONS),
+  visibility: z.enum(CREDENTIAL_VISIBILITY_OPTIONS),
+  notes: nullableText(),
+  expires_at: nullableDate,
+});
+export type CredentialInput = z.input<typeof credentialSchema>;
+export type CredentialOutput = z.output<typeof credentialSchema>;

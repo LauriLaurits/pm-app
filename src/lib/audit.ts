@@ -18,7 +18,9 @@ export type AuditAction =
   | "member.added"
   | "member.removed"
   | "link.upserted"
-  | "link.deleted";
+  | "link.deleted"
+  | "credential.added"
+  | "credential.deleted";
 
 export type AuditEntry = {
   action: AuditAction;
