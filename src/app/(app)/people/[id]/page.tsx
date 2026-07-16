@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/session";
 import type { PersonWorkloadRow } from "../types";
 import { CapacitySummaryCard } from "./capacity-summary-card";
 import { CurrentProjectsCard } from "./current-projects-card";
@@ -15,6 +16,7 @@ import type {
   AssignmentWithProject,
   PartOption,
   PersonSkillRow,
+  SkillOption,
   TimeEntryWithProject,
   TimeOffRow,
 } from "./types";
@@ -68,11 +70,28 @@ export default async function PersonDetailPage({
       .order("starts_on", { ascending: false }),
     supabase
       .from("person_skills")
-      .select("level, skills(name, category)")
+      .select("skill_id, level, skills(name, category)")
       .eq("person_id", id),
     supabase.rpc("current_person_id"),
   ]);
   const isOwnPage = myPersonId === id;
+
+  // UX gating only -- the real security boundary is requirePermission("manage_people") inside
+  // addPersonSkillAction/removePersonSkillAction/setPersonSkillLevelAction/upsertTimeOffAction/
+  // deleteTimeOffAction, which re-checks has_permission server-side regardless of what's
+  // rendered here. Same pattern as the People list page's canManage.
+  const viewer = await getCurrentUser();
+  const { data: canManagePeople } = viewer
+    ? await supabase.rpc("has_permission", { uid: viewer.user.id, perm: "manage_people" })
+    : { data: false };
+  const canManage = !!canManagePeople;
+
+  // Full skills catalog for the "add skill" picker -- only needed by managers, so skip the
+  // query entirely for read-only viewers. "view skills" RLS scopes it the same as everywhere
+  // else regardless.
+  const { data: allSkillRows } = canManage
+    ? await supabase.from("skills").select("id, name, category").order("name")
+    : { data: [] as SkillOption[] };
 
   // Project names resolved via a separate `projects` query (RLS: "view project", scoped by
   // has_permission(..., 'view_project', id)) rather than a nested select on assignments/
@@ -136,8 +155,13 @@ export default async function PersonDetailPage({
         </div>
         <div className="space-y-4">
           <CapacitySummaryCard person={row} />
-          <SkillsCard skills={(skillRows ?? []) as PersonSkillRow[]} />
-          <TimeOffCard timeOff={(timeOffRows ?? []) as TimeOffRow[]} />
+          <SkillsCard
+            personId={id}
+            skills={(skillRows ?? []) as PersonSkillRow[]}
+            canManage={canManage}
+            allSkills={(allSkillRows ?? []) as SkillOption[]}
+          />
+          <TimeOffCard timeOff={(timeOffRows ?? []) as TimeOffRow[]} personId={id} canManage={canManage} />
           {showFinancials && <FinancialsCard person={row} />}
         </div>
       </div>

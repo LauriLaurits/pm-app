@@ -25,7 +25,11 @@ export type AuditAction =
   | "time.deleted"
   | "person.created"
   | "person.updated"
-  | "person.deleted";
+  | "person.deleted"
+  | "person_skill.added"
+  | "person_skill.removed"
+  | "time_off.upserted"
+  | "time_off.deleted";
 
 export type AuditEntry = {
   action: AuditAction;
