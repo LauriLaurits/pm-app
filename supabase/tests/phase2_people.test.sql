@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(13);
 
 -- fixtures: PM Paula (owns PX), member Milo (person + user, member of PX), finance Frank
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, raw_app_meta_data, encrypted_password, created_at, updated_at) values
@@ -40,13 +40,20 @@ insert into public.time_off (person_id, starts_on, ends_on, type, note) values
 set local role authenticated;
 set local "request.jwt.claims" to '{"sub":"d0000000-0000-4000-8000-000000000003","role":"authenticated"}';
 select is((select count(*)::int from public.rates where person_id = 'd4000000-0000-4000-8000-000000000001'), 2, 'finance sees rates');
+-- finance holds view_people but NOT manage_people -- sick leave stays hidden, only the
+-- vacation entry is visible (the "view time_off" vacation-only branch of the policy).
+select is((select count(*)::int from public.time_off where person_id = 'd4000000-0000-4000-8000-000000000001'), 1, 'sick leave hidden from a view_people-only caller');
 
 -- PM does NOT see rates (internal cost is finance-only per spec)
 set local "request.jwt.claims" to '{"sub":"d0000000-0000-4000-8000-000000000001","role":"authenticated"}';
 select is((select count(*)::int from public.rates where person_id = 'd4000000-0000-4000-8000-000000000001'), 0, 'PM cannot see rates');
 select is((select count(*)::int from public.people where id = 'd4000000-0000-4000-8000-000000000001'), 1, 'PM sees people directory');
 select is((select count(*)::int from public.assignments where project_id = 'd2000000-0000-4000-8000-000000000001'), 1, 'PM sees assignments (workload)');
-select is((select count(*)::int from public.time_off where person_id = 'd4000000-0000-4000-8000-000000000001'), 1, 'sick leave hidden from directory');
+-- Since 20260716000004 (manage_people granted to project_manager), a PM is a manage_people
+-- holder too and the "view time_off" policy's manage_people branch bypasses the vacation-only
+-- restriction for them -- same as it always has for admins. PMs now legitimately need full
+-- time-off visibility (sick included) to actually manage the people they're responsible for.
+select is((select count(*)::int from public.time_off where person_id = 'd4000000-0000-4000-8000-000000000001'), 2, 'PM (holds manage_people) sees full time_off incl. sick leave');
 
 -- member Milo: sees own person row, logs time on own assignment, cannot log for others
 set local "request.jwt.claims" to '{"sub":"d0000000-0000-4000-8000-000000000002","role":"authenticated"}';

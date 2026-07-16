@@ -22,7 +22,10 @@ export type AuditAction =
   | "credential.added"
   | "credential.deleted"
   | "time.logged"
-  | "time.deleted";
+  | "time.deleted"
+  | "person.created"
+  | "person.updated"
+  | "person.deleted";
 
 export type AuditEntry = {
   action: AuditAction;

@@ -4,6 +4,13 @@ import { utilizationClass, utilizationLabel, type UtilizationClass } from "@/lib
 export type PersonWorkloadRow = Database["public"]["Views"]["person_workload_rows"]["Row"];
 export type EmploymentType = Database["public"]["Enums"]["employment_type"];
 
+// person_workload_rows has no `email` column (see 20260716000002_workload_views.sql) -- the
+// page fetches it separately from `people` for managers only (needed as an edit-form default).
+// `id` is narrowed to non-null: it's the view's underlying primary key and never actually null;
+// the generated view type just marks every column nullable. page.tsx drops any (impossible) row
+// missing it before rows ever reach this type, so downstream components can rely on `string`.
+export type PersonListRow = Omit<PersonWorkloadRow, "id"> & { id: string; email: string | null };
+
 export const EMPLOYMENT_TYPE_OPTIONS: EmploymentType[] = ["employee", "contractor", "freelance"];
 
 export const AVAILABILITY_OPTIONS: UtilizationClass[] = [

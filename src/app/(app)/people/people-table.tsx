@@ -6,9 +6,10 @@ import {
 } from "@/components/ui/table";
 import { utilizationBadgeClasses, utilizationLabel } from "@/lib/workload";
 import { formatMoney, humanize, initials } from "./types";
-import type { PersonWorkloadRow } from "./types";
+import type { PersonListRow } from "./types";
+import { PersonRowActions } from "./person-row-actions";
 
-export function PeopleTable({ rows }: { rows: PersonWorkloadRow[] }) {
+export function PeopleTable({ rows, canManage }: { rows: PersonListRow[]; canManage: boolean }) {
   return (
     <Table>
       <TableHeader>
@@ -17,12 +18,14 @@ export function PeopleTable({ rows }: { rows: PersonWorkloadRow[] }) {
           <TableHead>Department</TableHead>
           <TableHead>Skills</TableHead>
           <TableHead>Type</TableHead>
+          <TableHead>Status</TableHead>
           <TableHead>Capacity</TableHead>
           <TableHead>Allocation</TableHead>
           <TableHead>Availability</TableHead>
           <TableHead>Projects</TableHead>
           <TableHead>Cost</TableHead>
           <TableHead>Billing</TableHead>
+          {canManage && <TableHead className="text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -49,6 +52,11 @@ export function PeopleTable({ rows }: { rows: PersonWorkloadRow[] }) {
             <TableCell className="text-sm text-muted-foreground">
               {row.employment_type ? humanize(row.employment_type) : "—"}
             </TableCell>
+            <TableCell>
+              <Badge variant={row.status === "inactive" ? "secondary" : "outline"}>
+                {row.status ? humanize(row.status) : "—"}
+              </Badge>
+            </TableCell>
             <TableCell className="text-sm">{row.weekly_capacity_hours}h/wk</TableCell>
             <TableCell>
               <Badge
@@ -64,6 +72,11 @@ export function PeopleTable({ rows }: { rows: PersonWorkloadRow[] }) {
             <TableCell className="text-center">{row.active_project_count ?? 0}</TableCell>
             <TableCell className="text-sm">{formatMoney(row.internal_cost)}</TableCell>
             <TableCell className="text-sm">{formatMoney(row.billing_rate)}</TableCell>
+            {canManage && (
+              <TableCell className="text-right">
+                <PersonRowActions person={row} />
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>
@@ -82,7 +95,7 @@ function SkillsCell({ skills }: { skills: string[] | null }) {
   );
 }
 
-function AvailabilityCell({ row }: { row: PersonWorkloadRow }) {
+function AvailabilityCell({ row }: { row: PersonListRow }) {
   if (row.on_vacation_now) {
     return (
       <Badge
