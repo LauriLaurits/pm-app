@@ -43,6 +43,7 @@ next-env.d.ts
 
 # workflow scratch (never committed)
 .superpowers/
+scratchpad/
 
 # IDE
 .idea/

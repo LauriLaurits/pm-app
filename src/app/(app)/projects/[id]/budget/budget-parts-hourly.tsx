@@ -3,13 +3,26 @@ import {
 } from "@/components/ui/table";
 import { formatMoney } from "@/lib/budget";
 import { sumOrNull, type PartBudgetRow } from "./types";
+import { PartBudgetEditDialog } from "./part-budget-edit-dialog";
 
 // Hourly parts: rate, estimated vs logged hours, client amount, internal cost + margin
 // (finance-only, "—" otherwise). Hours come straight off the view's logged_hours/billable_hours
-// (already RLS-scoped via time_entries), never recomputed here.
-export function BudgetPartsHourly({ parts }: { parts: PartBudgetRow[] }) {
+// (already RLS-scoped via time_entries), never recomputed here. The trailing Actions column
+// (edit billing/cost) only renders for a manage_budget/view_internal_cost holder.
+export function BudgetPartsHourly({
+  projectId,
+  parts,
+  canManageBudget,
+  canManageCost,
+}: {
+  projectId: string;
+  parts: PartBudgetRow[];
+  canManageBudget: boolean;
+  canManageCost: boolean;
+}) {
   if (parts.length === 0) return null;
 
+  const showActions = canManageBudget || canManageCost;
   const totalEstimated = sumOrNull(parts.map((p) => p.estimated_hours));
   const totalLogged = sumOrNull(parts.map((p) => p.logged_hours));
   const totalClient = sumOrNull(parts.map((p) => p.client_price));
@@ -29,6 +42,7 @@ export function BudgetPartsHourly({ parts }: { parts: PartBudgetRow[] }) {
             <TableHead>Client amount</TableHead>
             <TableHead>Internal cost</TableHead>
             <TableHead>Margin</TableHead>
+            {showActions && <TableHead />}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -61,6 +75,16 @@ export function BudgetPartsHourly({ parts }: { parts: PartBudgetRow[] }) {
                   </>
                 )}
               </TableCell>
+              {showActions && (
+                <TableCell>
+                  <PartBudgetEditDialog
+                    projectId={projectId}
+                    part={part}
+                    canManageBudget={canManageBudget}
+                    canManageCost={canManageCost}
+                  />
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>
@@ -73,6 +97,7 @@ export function BudgetPartsHourly({ parts }: { parts: PartBudgetRow[] }) {
             <TableCell>{formatMoney(totalClient)}</TableCell>
             <TableCell>{formatMoney(totalCost)}</TableCell>
             <TableCell>{formatMoney(totalMargin)}</TableCell>
+            {showActions && <TableCell />}
           </TableRow>
         </TableFooter>
       </Table>

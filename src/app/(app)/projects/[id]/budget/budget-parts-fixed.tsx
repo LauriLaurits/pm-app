@@ -3,13 +3,26 @@ import {
 } from "@/components/ui/table";
 import { formatMoney } from "@/lib/budget";
 import { sumOrNull, type PartBudgetRow } from "./types";
+import { PartBudgetEditDialog } from "./part-budget-edit-dialog";
 
 // Fixed-price parts: agreed price (client_price), planned/actual cost + profit (finance-only,
 // "—" otherwise), invoiced/paid/remaining. Every cell reads a column the view already null-gated
-// for this viewer -- nothing here is recomputed from a separately fetched cost.
-export function BudgetPartsFixed({ parts }: { parts: PartBudgetRow[] }) {
+// for this viewer -- nothing here is recomputed from a separately fetched cost. The trailing
+// Actions column (edit billing/cost) only renders for a manage_budget/view_internal_cost holder.
+export function BudgetPartsFixed({
+  projectId,
+  parts,
+  canManageBudget,
+  canManageCost,
+}: {
+  projectId: string;
+  parts: PartBudgetRow[];
+  canManageBudget: boolean;
+  canManageCost: boolean;
+}) {
   if (parts.length === 0) return null;
 
+  const showActions = canManageBudget || canManageCost;
   const totalPrice = sumOrNull(parts.map((p) => p.client_price));
   const totalPlanned = sumOrNull(parts.map((p) => p.planned_internal_cost));
   const totalActual = sumOrNull(parts.map((p) => p.actual_internal_cost));
@@ -32,6 +45,7 @@ export function BudgetPartsFixed({ parts }: { parts: PartBudgetRow[] }) {
             <TableHead>Invoiced</TableHead>
             <TableHead>Paid</TableHead>
             <TableHead>Remaining</TableHead>
+            {showActions && <TableHead />}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -58,6 +72,16 @@ export function BudgetPartsFixed({ parts }: { parts: PartBudgetRow[] }) {
               <TableCell>{formatMoney(part.invoiced)}</TableCell>
               <TableCell>{formatMoney(part.paid)}</TableCell>
               <TableCell>{formatMoney(part.remaining)}</TableCell>
+              {showActions && (
+                <TableCell>
+                  <PartBudgetEditDialog
+                    projectId={projectId}
+                    part={part}
+                    canManageBudget={canManageBudget}
+                    canManageCost={canManageCost}
+                  />
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>
@@ -71,6 +95,7 @@ export function BudgetPartsFixed({ parts }: { parts: PartBudgetRow[] }) {
             <TableCell>{formatMoney(totalInvoiced)}</TableCell>
             <TableCell>{formatMoney(totalPaid)}</TableCell>
             <TableCell>{formatMoney(totalRemaining)}</TableCell>
+            {showActions && <TableCell />}
           </TableRow>
         </TableFooter>
       </Table>

@@ -7,7 +7,17 @@ import { BudgetPartsHourly } from "./budget-parts-hourly";
 // Splits the part rows by billing_model and renders one table per model -- a "mixed" project
 // (e.g. Retail e-shop) has both, and both roll up (independently, then combined below) to
 // project totals. A project with only one billing model simply omits the other's table.
-export function BudgetPartsTable({ parts }: { parts: PartBudgetRow[] }) {
+export function BudgetPartsTable({
+  projectId,
+  parts,
+  canManageBudget,
+  canManageCost,
+}: {
+  projectId: string;
+  parts: PartBudgetRow[];
+  canManageBudget: boolean;
+  canManageCost: boolean;
+}) {
   if (parts.length === 0) {
     return (
       <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
@@ -26,8 +36,18 @@ export function BudgetPartsTable({ parts }: { parts: PartBudgetRow[] }) {
 
   return (
     <div className="space-y-6">
-      <BudgetPartsFixed parts={fixedParts} />
-      <BudgetPartsHourly parts={hourlyParts} />
+      <BudgetPartsFixed
+        projectId={projectId}
+        parts={fixedParts}
+        canManageBudget={canManageBudget}
+        canManageCost={canManageCost}
+      />
+      <BudgetPartsHourly
+        projectId={projectId}
+        parts={hourlyParts}
+        canManageBudget={canManageBudget}
+        canManageCost={canManageCost}
+      />
 
       {isMixed && (
         <Card size="sm">
