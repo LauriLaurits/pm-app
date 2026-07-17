@@ -125,10 +125,10 @@ export default async function PersonDetailPage({
   const upcoming = assignments.filter((a) => a.start_date > today);
   const past = assignments.filter((a) => a.end_date && a.end_date < today);
 
-  // Log-time picker data (own page only) -- see log-time-data.ts for why ALL assignments
-  // (not just current) are used, matching the RLS assignment guard exactly.
-  const { assignedProjects, partsByProject } = isOwnPage
-    ? await resolveLogTimeData(supabase, assignments, projectNameById)
+  // Log-time picker data (own page only) -- projects the viewer is a member of OR assigned to,
+  // matching the widened "log own time" RLS policy (see log-time-data.ts).
+  const { assignedProjects, partsByProject } = isOwnPage && viewer
+    ? await resolveLogTimeData(supabase, viewer.user.id, assignments, projectNameById)
     : { assignedProjects: [] as AssignedProjectOption[], partsByProject: {} as Record<string, PartOption[]> };
 
   // Finance gating lives entirely in `person_workload_rows` (security_invoker view whose LEFT
