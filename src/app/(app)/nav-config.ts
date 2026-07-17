@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   FolderKanban,
+  Building2,
   Users,
   Gauge,
   Wallet,
@@ -22,6 +23,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Projects", href: "/projects", icon: FolderKanban },
+  { label: "Clients", href: "/clients", icon: Building2 },
   { label: "People", href: "/people", icon: Users },
   { label: "Workload", href: "/workload", icon: Gauge },
   { label: "Budgets", href: "/budgets", icon: Wallet },

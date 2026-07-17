@@ -1,24 +1,31 @@
+import { useState } from "react";
 import type { Control } from "react-hook-form";
 import type { EditProjectInput } from "@/lib/validation/project";
+import { ClientQuickCreateDialog } from "@/app/(app)/clients/client-quick-create-dialog";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 
 const NO_CLIENT = "__none__";
+const NEW_CLIENT = "__new__";
 
 export type ClientOption = { id: string; name: string };
 export type PmOption = { user_id: string; full_name: string };
 
 /** Optional client picker -- same "No client" sentinel pattern as the create form's ClientField
- * (project-create-fields.tsx), just bound to EditProjectInput instead of CreateProjectInput. */
+ * (project-create-fields.tsx), just bound to EditProjectInput instead of CreateProjectInput.
+ * Also shares that field's "＋ New client…" inline quick-create entry. */
 export function ClientField({
   control,
-  clients,
+  clients: initialClients,
 }: {
   control: Control<EditProjectInput>;
   clients: ClientOption[];
 }) {
+  const [clients, setClients] = useState(initialClients);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   return (
     <FormField
       control={control}
@@ -28,7 +35,13 @@ export function ClientField({
           <FormLabel>Client</FormLabel>
           <Select
             value={field.value ?? NO_CLIENT}
-            onValueChange={(v) => field.onChange(v === NO_CLIENT ? null : v)}
+            onValueChange={(v) => {
+              if (v === NEW_CLIENT) {
+                setDialogOpen(true);
+                return;
+              }
+              field.onChange(v === NO_CLIENT ? null : v);
+            }}
           >
             <SelectTrigger className="w-full">
               <SelectValue>
@@ -40,9 +53,19 @@ export function ClientField({
               {clients.map((c) => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
               ))}
+              <SelectSeparator />
+              <SelectItem value={NEW_CLIENT}>＋ New client…</SelectItem>
             </SelectContent>
           </Select>
           <FormMessage />
+          <ClientQuickCreateDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            onCreated={(client) => {
+              setClients((prev) => [...prev, client].sort((a, b) => a.name.localeCompare(b.name)));
+              field.onChange(client.id);
+            }}
+          />
         </FormItem>
       )}
     />

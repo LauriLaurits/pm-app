@@ -39,7 +39,10 @@ export type AuditAction =
   | "person_skill.added"
   | "person_skill.removed"
   | "time_off.upserted"
-  | "time_off.deleted";
+  | "time_off.deleted"
+  | "client.created"
+  | "client.updated"
+  | "client.deleted";
 
 export type AuditEntry = {
   action: AuditAction;
