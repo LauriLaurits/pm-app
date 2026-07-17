@@ -1,4 +1,7 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/session";
+import { Button } from "@/components/ui/button";
 import { ProjectFilters } from "./project-filters";
 import { ProjectsCards } from "./projects-cards";
 import { ProjectsTable } from "./projects-table";
@@ -29,6 +32,14 @@ export default async function ProjectsPage({
 }) {
   const params = await searchParams;
   const supabase = await createClient();
+
+  // UX gating only -- the real security boundary is requirePermission() inside
+  // createProjectAction, which re-checks has_permission('create_project') server-side
+  // regardless of what's rendered here.
+  const current = await getCurrentUser();
+  const { data: canCreate } = current
+    ? await supabase.rpc("has_permission", { uid: current.user.id, perm: "create_project" })
+    : { data: false };
 
   // Unfiltered (RLS-only) pass -- just used to build the PM/client filter dropdown
   // options from whatever this caller can actually see.
@@ -65,7 +76,14 @@ export default async function ProjectsPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">Projects</h1>
-        <ViewToggle view={view} />
+        <div className="flex items-center gap-2">
+          <ViewToggle view={view} />
+          {canCreate && (
+            <Button size="sm" render={<Link href="/projects/new" />}>
+              New project
+            </Button>
+          )}
+        </div>
       </div>
 
       <ProjectFilters pmOptions={pmOptions} clientOptions={clientOptions} />
@@ -73,7 +91,7 @@ export default async function ProjectsPage({
       {error ? (
         <p className="text-destructive">Failed to load projects. Try again.</p>
       ) : !rows || rows.length === 0 ? (
-        <EmptyState hasFilters={hasFilters} />
+        <EmptyState hasFilters={hasFilters} canCreate={!!canCreate} />
       ) : view === "cards" ? (
         <ProjectsCards rows={rows as ProjectListRow[]} />
       ) : (
@@ -83,10 +101,15 @@ export default async function ProjectsPage({
   );
 }
 
-function EmptyState({ hasFilters }: { hasFilters: boolean }) {
+function EmptyState({ hasFilters, canCreate }: { hasFilters: boolean; canCreate: boolean }) {
   return (
-    <div className="rounded-xl border border-dashed p-12 text-center text-muted-foreground">
-      {hasFilters ? "No projects match your filters." : "No projects yet."}
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-12 text-center text-muted-foreground">
+      <p>{hasFilters ? "No projects match your filters." : "No projects yet."}</p>
+      {!hasFilters && canCreate && (
+        <Button size="sm" render={<Link href="/projects/new" />}>
+          Create your first project
+        </Button>
+      )}
     </div>
   );
 }

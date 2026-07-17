@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  addMemberSchema, credentialSchema, editProjectSchema, linkSchema, partSchema, statusUpdateSchema,
+  addMemberSchema, createProjectSchema, credentialSchema, editProjectSchema, linkSchema, partSchema,
+  statusUpdateSchema,
 } from "@/lib/validation/project";
 
 const validProject = {
@@ -89,6 +90,89 @@ describe("editProjectSchema", () => {
   it("rejects blank tags", () => {
     expect(
       editProjectSchema.safeParse({ ...validProject, tags: ["ok", ""] }).success
+    ).toBe(false);
+  });
+});
+
+describe("createProjectSchema", () => {
+  it("accepts just a name + budget_type -- everything else defaults", () => {
+    const parsed = createProjectSchema.parse({ name: "New project", budget_type: "fixed" });
+    expect(parsed).toMatchObject({
+      name: "New project",
+      budget_type: "fixed",
+      status: "planning",
+      health: "healthy",
+      priority: "medium",
+      client_id: null,
+      description: null,
+      start_date: null,
+      deadline: null,
+      tags: [],
+    });
+  });
+
+  it("rejects an empty/whitespace-only name", () => {
+    expect(createProjectSchema.safeParse({ name: "", budget_type: "fixed" }).success).toBe(false);
+    expect(createProjectSchema.safeParse({ name: "   ", budget_type: "fixed" }).success).toBe(false);
+  });
+
+  it("rejects a missing/unknown budget_type", () => {
+    expect(createProjectSchema.safeParse({ name: "New project" }).success).toBe(false);
+    expect(
+      createProjectSchema.safeParse({ name: "New project", budget_type: "retainer" }).success
+    ).toBe(false);
+  });
+
+  it("accepts a fully populated project", () => {
+    const parsed = createProjectSchema.safeParse({
+      name: "Retail e-shop replatform",
+      client_id: "20000001-0000-4000-8000-000000000001",
+      description: "Migrate legacy shop to Next.js.",
+      status: "active",
+      health: "warning",
+      priority: "high",
+      budget_type: "mixed",
+      start_date: "2026-01-01",
+      deadline: "2026-06-01",
+      tags: ["ecommerce", "nextjs"],
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects an unknown status/health/priority", () => {
+    expect(
+      createProjectSchema.safeParse({ name: "X", budget_type: "fixed", status: "cancelled" }).success
+    ).toBe(false);
+    expect(
+      createProjectSchema.safeParse({ name: "X", budget_type: "fixed", health: "bad" }).success
+    ).toBe(false);
+    expect(
+      createProjectSchema.safeParse({ name: "X", budget_type: "fixed", priority: "urgent" }).success
+    ).toBe(false);
+  });
+
+  it("rejects a malformed client_id and normalizes a blank one to null", () => {
+    expect(
+      createProjectSchema.safeParse({ name: "X", budget_type: "fixed", client_id: "not-a-uuid" }).success
+    ).toBe(false);
+    const parsed = createProjectSchema.parse({ name: "X", budget_type: "fixed", client_id: "" });
+    expect(parsed.client_id).toBeNull();
+  });
+
+  it("rejects a malformed date", () => {
+    expect(
+      createProjectSchema.safeParse({ name: "X", budget_type: "fixed", deadline: "06/01/2026" }).success
+    ).toBe(false);
+  });
+
+  it("normalizes blank optional text to null", () => {
+    const parsed = createProjectSchema.parse({ name: "X", budget_type: "fixed", description: "   " });
+    expect(parsed.description).toBeNull();
+  });
+
+  it("rejects blank tags", () => {
+    expect(
+      createProjectSchema.safeParse({ name: "X", budget_type: "fixed", tags: ["ok", ""] }).success
     ).toBe(false);
   });
 });

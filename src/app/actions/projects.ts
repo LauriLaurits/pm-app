@@ -1,16 +1,83 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import {
+  createProjectSchema,
   editProjectSchema,
   statusUpdateSchema,
+  type CreateProjectInput,
   type EditProjectInput,
   type StatusUpdateInput,
 } from "@/lib/validation/project";
+
+export async function createProjectAction(
+  input: CreateProjectInput
+): Promise<{ error: string }> {
+  // Security boundary: throws "Not authorized" if the caller lacks create_project globally.
+  // Must run before any validation/DB work.
+  const current = await requirePermission("create_project");
+
+  const parsed = createProjectSchema.safeParse(input);
+  if (!parsed.success) return { error: "Invalid project details." };
+
+  const supabase = await createClient();
+  // pm_id is server-derived from the session, never taken from the client -- the "create
+  // project" RLS policy requires pm_id = auth.uid() for every non-admin anyway, but this is
+  // the actual security boundary the client-side form never gets a chance to violate.
+  const { data: project, error } = await supabase
+    .from("projects")
+    .insert({ ...parsed.data, pm_id: current.user.id })
+    .select("id")
+    .single();
+  if (error) return { error: "Create failed. Try again." };
+
+  // Auto-add the creator to the new project so a PM is never locked out of their own
+  // project (the "PM isn't a member" gap): a project_members row for the People tab, and an
+  // assignments row because that -- not project_members -- is what the "log own time" RLS
+  // policy actually checks. Both are best-effort: a failure here must not fail the create,
+  // since the project itself was already committed successfully.
+  try {
+    const { error: memberError } = await supabase
+      .from("project_members")
+      .insert({ project_id: project.id, user_id: current.user.id, role_on_project: "Project Manager" });
+    if (memberError) console.error("auto-add PM as project member failed:", memberError.message);
+
+    const { data: person } = await supabase
+      .from("people")
+      .select("id")
+      .eq("user_id", current.user.id)
+      .maybeSingle();
+    if (person) {
+      const { error: assignError } = await supabase.from("assignments").insert({
+        project_id: project.id,
+        person_id: person.id,
+        role_on_project: "Project Manager",
+        allocation_pct: 100,
+        start_date: parsed.data.start_date ?? new Date().toISOString().slice(0, 10),
+      });
+      if (assignError) console.error("auto-assign PM failed:", assignError.message);
+    }
+  } catch (e) {
+    console.error("auto-add PM as member/assignment failed:", e);
+  }
+
+  await writeAudit({
+    action: "project.created",
+    actorId: current.user.id,
+    actorEmail: current.profile.email,
+    resourceType: "project",
+    resourceId: project.id,
+    metadata: { name: parsed.data.name },
+  });
+
+  revalidatePath("/projects");
+  redirect(`/projects/${project.id}`);
+}
 
 export async function editProjectAction(
   projectId: string,

@@ -9,6 +9,7 @@ export const PROJECT_STATUS_OPTIONS = [
 ] as const;
 export const PROJECT_HEALTH_OPTIONS = ["healthy", "warning", "critical"] as const;
 export const PROJECT_PRIORITY_OPTIONS = ["low", "medium", "high"] as const;
+export const BUDGET_TYPE_OPTIONS = ["fixed", "hourly", "mixed"] as const;
 
 /** Blank/whitespace-only optional text collapses to null so the DB never stores "". */
 function nullableText(max = 4000) {
@@ -26,6 +27,17 @@ const nullableDate = z
   .nullable()
   .refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), "Enter a valid date")
   .transform((v) => (v ? v : null));
+
+/** Optional/nullable uuid — blank collapses to null, a non-blank value must parse as a uuid.
+ * Shared by responsible_person_id (partSchema) and client_id (createProjectSchema). */
+function nullableUuidField(message: string) {
+  return z
+    .string()
+    .optional()
+    .nullable()
+    .refine((v) => !v || z.uuid().safeParse(v).success, message)
+    .transform((v) => (v && v.trim() !== "" ? v : null));
+}
 
 export const editProjectSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
@@ -48,6 +60,27 @@ export const editProjectSchema = z.object({
 export type EditProjectInput = z.input<typeof editProjectSchema>;
 export type EditProjectOutput = z.output<typeof editProjectSchema>;
 
+// Creation is deliberately minimal: only `name` has no usable default. Status/health/priority
+// all default to the same "healthy new project" values the form pre-fills, and budget_type
+// -- NOT NULL in the DB with no column default -- gets one here (the form always submits
+// 'fixed' unless the PM changes it). pm_id is NOT part of this schema: it's server-derived
+// from the caller's session in createProjectAction, never trusted from the client (see the
+// "create project" RLS policy, which requires pm_id = auth.uid() for non-admins anyway).
+export const createProjectSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(200),
+  client_id: nullableUuidField("Invalid client"),
+  description: nullableText(),
+  status: z.enum(PROJECT_STATUS_OPTIONS).default("planning"),
+  health: z.enum(PROJECT_HEALTH_OPTIONS).default("healthy"),
+  priority: z.enum(PROJECT_PRIORITY_OPTIONS).default("medium"),
+  budget_type: z.enum(BUDGET_TYPE_OPTIONS),
+  start_date: nullableDate,
+  deadline: nullableDate,
+  tags: z.array(z.string().trim().min(1)).max(20).default([]),
+});
+export type CreateProjectInput = z.input<typeof createProjectSchema>;
+export type CreateProjectOutput = z.output<typeof createProjectSchema>;
+
 export const statusUpdateSchema = z
   .object({
     completed: nullableText(),
@@ -67,12 +100,7 @@ export type StatusUpdateOutput = z.output<typeof statusUpdateSchema>;
 export const PART_STATUS_OPTIONS = ["not_started", "in_progress", "blocked", "done"] as const;
 export const BILLING_MODEL_OPTIONS = ["fixed", "hourly"] as const;
 
-const nullableUuid = z
-  .string()
-  .optional()
-  .nullable()
-  .refine((v) => !v || z.uuid().safeParse(v).success, "Invalid person")
-  .transform((v) => (v && v.trim() !== "" ? v : null));
+const nullableUuid = nullableUuidField("Invalid person");
 
 /** Optional/nullable money-or-hours figure — used for estimated_hours and the three
  * part_billing figures, all of which are plain non-negative numbers or absent. */
