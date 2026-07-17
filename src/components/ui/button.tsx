@@ -46,11 +46,16 @@ function Button({
   size = "default",
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  // When rendered as something other than a native <button> (e.g. a Next <Link> / <a>),
+  // Base UI warns unless nativeButton is false. Default it off whenever a custom render is
+  // supplied, so `<Button render={<Link .../>}>` works without accessibility warnings.
+  const nativeButton = props.nativeButton ?? (props.render ? false : undefined)
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
+      nativeButton={nativeButton}
     />
   )
 }
