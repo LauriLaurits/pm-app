@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
-import { AddMemberDialog } from "./add-member-dialog";
+import { ManageMembersDialog } from "./manage-members-dialog";
 import { MembersTable } from "./members-table";
-import type { MemberRow, PersonOption, ProjectMemberRow } from "./types";
+import type { CandidateOption, MemberRow, ProjectMemberRow } from "./types";
 
 export default async function ProjectPeoplePage({
   params,
@@ -72,26 +72,34 @@ export default async function ProjectPeoplePage({
     };
   });
 
-  // Candidates for the add-member picker -- only fetched for managers. A person needs a
-  // linked user_id (project_members.user_id -> user_profiles) to be addable at all.
-  let candidates: PersonOption[] = [];
+  // Candidates for the "Manage members" checklist -- every person with a linked user_id
+  // (project_members.user_id -> user_profiles, required to be addable at all), whether or not
+  // they're already a member: the checklist shows everyone with their current membership as the
+  // checkbox state, rather than only offering not-yet-added people like the old "Add member"
+  // picker did. Only fetched for managers.
+  let candidates: CandidateOption[] = [];
   if (canManageMembers) {
+    const memberIdByUserId = new Map((members ?? []).map((m) => [m.user_id, m.id]));
     const { data: allPeople } = await supabase
       .from("people")
-      .select("user_id, full_name")
+      .select("user_id, full_name, avatar_url")
       .not("user_id", "is", null)
       .order("full_name");
-    const existing = new Set(userIds);
     candidates = (allPeople ?? [])
-      .filter((p): p is { user_id: string; full_name: string } => !!p.user_id && !existing.has(p.user_id))
-      .map((p) => ({ user_id: p.user_id, full_name: p.full_name }));
+      .filter((p): p is { user_id: string; full_name: string; avatar_url: string | null } => !!p.user_id)
+      .map((p) => ({
+        user_id: p.user_id,
+        full_name: p.full_name,
+        avatar_url: p.avatar_url,
+        memberId: memberIdByUserId.get(p.user_id) ?? null,
+      }));
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">People</h2>
-        {canManageMembers && <AddMemberDialog projectId={id} candidates={candidates} />}
+        {canManageMembers && <ManageMembersDialog projectId={id} candidates={candidates} />}
       </div>
       <MembersTable members={memberRows} projectId={id} canManage={!!canManageMembers} />
     </div>

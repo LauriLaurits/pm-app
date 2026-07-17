@@ -10,6 +10,14 @@ export type MemberRow = ProjectMemberRow & {
   allocation_pct: number | null;
 };
 
-/** Candidate for the add-member picker -- a `people` row that has a linked user account
- * (project_members.user_id references user_profiles, so people without one can't be added). */
-export type PersonOption = { user_id: string; full_name: string };
+/** Row in the "Manage members" checklist -- a `people` row that has a linked user account
+ * (project_members.user_id references user_profiles, so people without one can't be added at
+ * all) plus whatever project_members.id it currently has, if it's already a member. `memberId`
+ * is what drives the checkbox: non-null = checked = on the project; removing calls
+ * removeMemberAction(memberId), adding calls addMemberAction(user_id). */
+export type CandidateOption = {
+  user_id: string;
+  full_name: string;
+  avatar_url: string | null;
+  memberId: number | null;
+};
