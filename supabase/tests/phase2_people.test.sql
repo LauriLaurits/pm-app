@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(14);
 
 -- fixtures: PM Paula (owns PX), member Milo (person + user, member of PX), finance Frank
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, raw_app_meta_data, encrypted_password, created_at, updated_at) values
@@ -27,9 +27,17 @@ insert into public.rates (person_id, rate_type, amount, valid_from) values
 insert into public.assignments (project_id, project_part_id, person_id, allocation_pct, start_date, end_date) values
   ('d2000000-0000-4000-8000-000000000001','d3000000-0000-4000-8000-000000000001','d4000000-0000-4000-8000-000000000001', 60, current_date - 10, current_date + 30);
 
--- second project: Milo has no assignment here (used to prove log_time requires an assignment)
+-- second project: Milo has NEITHER a membership NOR an assignment here (used to prove
+-- log_time requires a project relationship -- membership or assignment)
 insert into public.projects (id, name, pm_id, budget_type) values
   ('d2000000-0000-4000-8000-000000000002','PY',null,'hourly');
+
+-- third project: Milo is a project_members row here but has NO assignment (used to prove
+-- log_time now accepts membership alone, not just an assignment)
+insert into public.projects (id, name, pm_id, budget_type) values
+  ('d2000000-0000-4000-8000-000000000003','PZ',null,'hourly');
+insert into public.project_members (project_id, user_id) values
+  ('d2000000-0000-4000-8000-000000000003','d0000000-0000-4000-8000-000000000002');
 
 -- Milo's time_off: one sick (directory-hidden), one vacation (directory-visible)
 insert into public.time_off (person_id, starts_on, ends_on, type, note) values
@@ -62,7 +70,11 @@ select is((select count(*)::int from public.rates), 0, 'member sees no rates');
 select lives_ok(
   $$ insert into public.time_entries (person_id, project_id, project_part_id, entry_date, hours, billable)
      values ('d4000000-0000-4000-8000-000000000001','d2000000-0000-4000-8000-000000000001','d3000000-0000-4000-8000-000000000001', current_date, 6, true) $$,
-  'member logs own time');
+  'member logs own time (via assignment)');
+select lives_ok(
+  $$ insert into public.time_entries (person_id, project_id, project_part_id, entry_date, hours, billable)
+     values ('d4000000-0000-4000-8000-000000000001','d2000000-0000-4000-8000-000000000003',null, current_date, 4, true) $$,
+  'member logs own time on a project they are only a MEMBER of (no assignment)');
 select throws_ok(
   $$ insert into public.time_entries (person_id, project_id, project_part_id, entry_date, hours, billable)
      values (gen_random_uuid(),'d2000000-0000-4000-8000-000000000001','d3000000-0000-4000-8000-000000000001', current_date, 6, true) $$,
@@ -71,7 +83,7 @@ select is((select count(*)::int from public.time_entries where project_id = 'd20
 select throws_ok(
   $$ insert into public.time_entries (person_id, project_id, project_part_id, entry_date, hours, billable)
      values ('d4000000-0000-4000-8000-000000000001','d2000000-0000-4000-8000-000000000002',null, current_date, 6, true) $$,
-  '42501', null, 'cannot log time on a project without an assignment');
+  '42501', null, 'cannot log time on a project with neither membership nor assignment');
 select is((select count(*)::int from public.time_off where person_id = 'd4000000-0000-4000-8000-000000000001'), 2, 'member sees own time_off (sick + vacation)');
 
 select * from finish();

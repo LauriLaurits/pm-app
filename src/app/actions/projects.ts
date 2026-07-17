@@ -37,33 +37,18 @@ export async function createProjectAction(
   if (error) return { error: "Create failed. Try again." };
 
   // Auto-add the creator to the new project so a PM is never locked out of their own
-  // project (the "PM isn't a member" gap): a project_members row for the People tab, and an
-  // assignments row because that -- not project_members -- is what the "log own time" RLS
-  // policy actually checks. Both are best-effort: a failure here must not fail the create,
-  // since the project itself was already committed successfully.
+  // project (the "PM isn't a member" gap): a project_members row for the People tab, which is
+  // also what the "log own time" RLS policy now checks (membership-or-assignment). No synthetic
+  // `assignments` row is created here -- that previously inflated workload allocation (a PM
+  // managing N projects would show N*100% allocated). Best-effort: a failure here must not fail
+  // the create, since the project itself was already committed successfully.
   try {
     const { error: memberError } = await supabase
       .from("project_members")
       .insert({ project_id: project.id, user_id: current.user.id, role_on_project: "Project Manager" });
     if (memberError) console.error("auto-add PM as project member failed:", memberError.message);
-
-    const { data: person } = await supabase
-      .from("people")
-      .select("id")
-      .eq("user_id", current.user.id)
-      .maybeSingle();
-    if (person) {
-      const { error: assignError } = await supabase.from("assignments").insert({
-        project_id: project.id,
-        person_id: person.id,
-        role_on_project: "Project Manager",
-        allocation_pct: 100,
-        start_date: parsed.data.start_date ?? new Date().toISOString().slice(0, 10),
-      });
-      if (assignError) console.error("auto-assign PM failed:", assignError.message);
-    }
   } catch (e) {
-    console.error("auto-add PM as member/assignment failed:", e);
+    console.error("auto-add PM as project member failed:", e);
   }
 
   await writeAudit({

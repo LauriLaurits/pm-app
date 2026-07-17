@@ -132,13 +132,16 @@ create policy "manage assignments" on public.assignments for all using (public.h
 -- time entries: own rows always; project-wide with view_time; insert only as yourself with log_time
 create policy "read own time" on public.time_entries for select using (person_id = public.current_person_id());
 create policy "read project time" on public.time_entries for select using (public.has_permission(auth.uid(),'view_time', project_id));
+-- you can log time on a project you're a MEMBER of or ASSIGNED to
 create policy "log own time" on public.time_entries for insert with check (
   public.has_permission(auth.uid(),'log_time')
   and person_id = public.current_person_id()
-  and exists (
-    select 1 from public.assignments a
-    where a.person_id = time_entries.person_id
-      and a.project_id = time_entries.project_id));
+  and (
+    exists (select 1 from public.project_members pm
+            where pm.user_id = auth.uid() and pm.project_id = time_entries.project_id)
+    or exists (select 1 from public.assignments a
+               where a.person_id = time_entries.person_id and a.project_id = time_entries.project_id)
+  ));
 create policy "edit own time" on public.time_entries for update using (person_id = public.current_person_id()) with check (person_id = public.current_person_id());
 create policy "delete own time" on public.time_entries for delete using (person_id = public.current_person_id());
 
