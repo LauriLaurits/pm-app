@@ -142,7 +142,17 @@ create policy "log own time" on public.time_entries for insert with check (
     or exists (select 1 from public.assignments a
                where a.person_id = time_entries.person_id and a.project_id = time_entries.project_id)
   ));
-create policy "edit own time" on public.time_entries for update using (person_id = public.current_person_id()) with check (person_id = public.current_person_id());
+-- editing can't re-point an entry to a project you're not a member of / assigned to
+create policy "edit own time" on public.time_entries for update
+  using (person_id = public.current_person_id())
+  with check (
+    person_id = public.current_person_id()
+    and (
+      exists (select 1 from public.project_members pm
+              where pm.user_id = auth.uid() and pm.project_id = time_entries.project_id)
+      or exists (select 1 from public.assignments a
+                 where a.person_id = time_entries.person_id and a.project_id = time_entries.project_id)
+    ));
 create policy "delete own time" on public.time_entries for delete using (person_id = public.current_person_id());
 
 -- rates: FINANCE ONLY (spec: internal cost + billing rate need finance permission)

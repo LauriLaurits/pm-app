@@ -68,7 +68,10 @@ export async function logTimeAction(input: TimeEntryInput): Promise<ActionResult
 
 /** Edits an existing entry -- own entry only. The RLS "edit own time" policy
  * (person_id = current_person_id()) is the real backstop, applied here via the same
- * .eq("person_id", personId) defense-in-depth pattern as deleteTimeEntryAction below. */
+ * .eq("person_id", personId) defense-in-depth pattern as deleteTimeEntryAction below.
+ * Its WITH CHECK also requires the (possibly changed) project_id to be one the caller is
+ * a member of or assigned to -- same project relationship "log own time" requires on
+ * insert -- so re-pointing an entry at an arbitrary project is rejected at the DB layer. */
 export async function updateTimeEntryAction(
   entryId: number,
   input: TimeEntryInput
@@ -95,6 +98,12 @@ export async function updateTimeEntryAction(
     .eq("id", entryId)
     .eq("person_id", personId);
   if (error) {
+    // RLS "edit own time" WITH CHECK rejects re-pointing this entry to a project the
+    // caller has no membership/assignment on (Postgres code 42501) -- surface a friendly
+    // message instead of the raw policy-violation error.
+    if (error.code === "42501") {
+      return { error: "You can only log time on projects you're assigned to." };
+    }
     return { error: "Update failed. Try again." };
   }
 

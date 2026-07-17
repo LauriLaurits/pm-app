@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(17);
 
 -- fixtures: PM Paula (owns PX), member Milo (person + user, member of PX), finance Frank
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, raw_app_meta_data, encrypted_password, created_at, updated_at) values
@@ -85,6 +85,23 @@ select throws_ok(
      values ('d4000000-0000-4000-8000-000000000001','d2000000-0000-4000-8000-000000000002',null, current_date, 6, true) $$,
   '42501', null, 'cannot log time on a project with neither membership nor assignment');
 select is((select count(*)::int from public.time_off where person_id = 'd4000000-0000-4000-8000-000000000001'), 2, 'member sees own time_off (sick + vacation)');
+
+-- edit-own-time RLS: WITH CHECK must also enforce project membership/assignment on the
+-- (possibly changed) project_id, mirroring "log own time" -- otherwise a member could
+-- re-point their own entry onto a project they have no relationship to. PY (0002) is a
+-- project Milo has neither a membership nor an assignment on (see fixture above).
+select lives_ok(
+  $$ insert into public.time_entries (person_id, project_id, project_part_id, entry_date, hours, billable)
+     values ('d4000000-0000-4000-8000-000000000001','d2000000-0000-4000-8000-000000000001','d3000000-0000-4000-8000-000000000001', current_date, 3, true) $$,
+  'member logs a second own time entry on PX (for edit tests below)');
+select throws_ok(
+  $$ update public.time_entries set project_id = 'd2000000-0000-4000-8000-000000000002'
+     where person_id = 'd4000000-0000-4000-8000-000000000001' and project_id = 'd2000000-0000-4000-8000-000000000001' and hours = 3 $$,
+  '42501', null, 'cannot re-point time entry to a foreign project');
+select lives_ok(
+  $$ update public.time_entries set hours = 3.5, entry_date = current_date
+     where person_id = 'd4000000-0000-4000-8000-000000000001' and project_id = 'd2000000-0000-4000-8000-000000000001' and hours = 3 $$,
+  'member edits hours/date on the same (valid) project still succeeds');
 
 select * from finish();
 rollback;
