@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDate, humanize } from "../../types";
 import { CredentialDeleteButton } from "./credential-actions";
+import { CredentialFormDialog } from "./credential-form-dialog";
 import type { DisplayCredentialRow } from "./types";
 
 const VISIBILITY_BADGE: Record<DisplayCredentialRow["visibility"], "outline" | "secondary" | "destructive"> = {
@@ -74,6 +75,7 @@ export function CredentialsList({
                 </div>
                 {canManage && (
                   <div className="flex shrink-0 items-center gap-2">
+                    <CredentialFormDialog projectId={projectId} credential={credential} />
                     <CredentialDeleteButton projectId={projectId} credential={credential} />
                   </div>
                 )}

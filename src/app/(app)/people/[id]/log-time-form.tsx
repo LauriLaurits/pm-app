@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { logTimeAction } from "@/app/actions/time-entries";
+import { logTimeAction, updateTimeEntryAction } from "@/app/actions/time-entries";
 import { timeEntrySchema, type TimeEntryInput } from "@/lib/validation/time-entry";
-import type { AssignedProjectOption, PartOption } from "./types";
+import type { AssignedProjectOption, PartOption, TimeEntryWithProject } from "./types";
 import { BillableField, HoursDateFields, PartField, ProjectField } from "./log-time-form-fields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,17 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function defaults(projectId: string): TimeEntryInput {
+function defaults(projectId: string, entry?: TimeEntryWithProject): TimeEntryInput {
+  if (entry) {
+    return {
+      project_id: entry.project_id,
+      project_part_id: entry.project_part_id,
+      entry_date: entry.entry_date,
+      hours: entry.hours,
+      billable: entry.billable,
+      description: entry.description,
+    };
+  }
   return {
     project_id: projectId,
     project_part_id: null,
@@ -30,23 +40,27 @@ function defaults(projectId: string): TimeEntryInput {
 
 /** Log-time form -- only ever rendered on the VIEWING user's own person page (see page.tsx).
  * `projects`/`partsByProject` are the caller's own assigned projects/parts, resolved server-side
- * so the picker cannot even offer a project they're not assigned to; the RLS "log own time"
- * policy is the real backstop either way (see logTimeAction). person_id is never part of this
- * form -- it's derived server-side from the caller's own `people` row. */
+ * so the picker cannot even offer a project they're not assigned to; the RLS "log own time"/
+ * "edit own time" policies are the real backstop either way (see logTimeAction/
+ * updateTimeEntryAction). person_id is never part of this form -- it's derived server-side from
+ * the caller's own `people` row. Passing `entry` switches this into edit mode for that entry
+ * (updateTimeEntryAction) instead of logging a new one (logTimeAction). */
 export function LogTimeForm({
   projects,
   partsByProject,
+  entry,
   onSuccess,
 }: {
   projects: AssignedProjectOption[];
   partsByProject: Record<string, PartOption[]>;
+  entry?: TimeEntryWithProject;
   onSuccess: () => void;
 }) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const form = useForm<TimeEntryInput>({
     resolver: zodResolver(timeEntrySchema),
-    defaultValues: defaults(projects[0]?.id ?? ""),
+    defaultValues: defaults(projects[0]?.id ?? "", entry),
   });
   // useWatch (not form.watch -- React Compiler flags the latter as unmemoizable) must run
   // unconditionally, before the early return below, per rules of hooks.
@@ -66,10 +80,12 @@ export function LogTimeForm({
   function onSubmit(values: TimeEntryInput) {
     setServerError(null);
     startTransition(async () => {
-      const result = await logTimeAction(values);
+      const result = entry
+        ? await updateTimeEntryAction(entry.id, values)
+        : await logTimeAction(values);
       if ("error" in result) setServerError(result.error);
       else {
-        form.reset(defaults(values.project_id));
+        if (!entry) form.reset(defaults(values.project_id));
         onSuccess();
       }
     });
@@ -104,7 +120,7 @@ export function LogTimeForm({
         />
         <DialogFooter>
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Logging…" : "Log time"}
+            {isPending ? (entry ? "Saving…" : "Logging…") : entry ? "Save changes" : "Log time"}
           </Button>
         </DialogFooter>
       </form>

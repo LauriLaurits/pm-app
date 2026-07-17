@@ -41,10 +41,12 @@ function nullableUuidField(message: string) {
 
 export const editProjectSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
+  client_id: nullableUuidField("Invalid client"),
   description: nullableText(),
   status: z.enum(PROJECT_STATUS_OPTIONS),
   health: z.enum(PROJECT_HEALTH_OPTIONS),
   priority: z.enum(PROJECT_PRIORITY_OPTIONS),
+  budget_type: z.enum(BUDGET_TYPE_OPTIONS),
   start_date: nullableDate,
   deadline: nullableDate,
   progress: z.number().int().min(0).max(100),
@@ -54,6 +56,11 @@ export const editProjectSchema = z.object({
   internal_notes: nullableText(),
   client_notes: nullableText(),
   tags: z.array(z.string().trim().min(1)).max(20).default([]),
+  // pm_id is only ever writable by an admin -- the `protect_project_pm` DB trigger blocks any
+  // non-admin update to this column outright (raises an exception on distinct old/new values).
+  // Non-admin forms render this field read-only and simply round-trip the unchanged value, so
+  // including it here (rather than omitting it) lets one schema serve both cases.
+  pm_id: nullableUuidField("Invalid project manager"),
 });
 // `.input` (pre-transform shape) is what forms hold and what the action receives from the
 // client; `.output` (post-transform, e.g. "" -> null) is what safeParse hands back for the DB.
@@ -139,6 +146,12 @@ export const addMemberSchema = z.object({
 export type AddMemberInput = z.input<typeof addMemberSchema>;
 export type AddMemberOutput = z.output<typeof addMemberSchema>;
 
+/** Editing an existing membership can change role/dates but never which user it belongs to --
+ * that would just be a different membership, not an edit of this one. */
+export const updateMemberSchema = addMemberSchema.omit({ user_id: true });
+export type UpdateMemberInput = z.input<typeof updateMemberSchema>;
+export type UpdateMemberOutput = z.output<typeof updateMemberSchema>;
+
 // ---------- project links ----------
 
 export const LINK_TYPE_OPTIONS = [
@@ -198,3 +211,11 @@ export const credentialSchema = z.object({
 });
 export type CredentialInput = z.input<typeof credentialSchema>;
 export type CredentialOutput = z.output<typeof credentialSchema>;
+
+// Non-secret metadata edit -- the secret itself stays write-once (no reveal/rotate yet, see
+// project-credentials.ts) and `type` is left off the edit surface too (not asked for by the
+// audit fix; only what's listed there: name/username/related_url/environment/visibility/
+// notes/expires_at).
+export const credentialUpdateSchema = credentialSchema.omit({ secret: true, type: true });
+export type CredentialUpdateInput = z.input<typeof credentialUpdateSchema>;
+export type CredentialUpdateOutput = z.output<typeof credentialUpdateSchema>;

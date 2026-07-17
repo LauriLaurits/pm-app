@@ -4,6 +4,7 @@ import {
 } from "@/components/ui/table";
 import { formatDate, initials } from "../../types";
 import { MemberRemoveButton } from "./member-actions";
+import { MemberEditDialog } from "./member-edit-dialog";
 import type { MemberRow } from "./types";
 
 export function MembersTable({
@@ -49,7 +50,10 @@ export function MembersTable({
             <TableCell>{formatDate(member.ends_on)}</TableCell>
             {canManage && (
               <TableCell className="text-right">
-                <MemberRemoveButton projectId={projectId} member={member} />
+                <div className="flex items-center justify-end gap-2">
+                  <MemberEditDialog projectId={projectId} member={member} />
+                  <MemberRemoveButton projectId={projectId} member={member} />
+                </div>
               </TableCell>
             )}
           </TableRow>

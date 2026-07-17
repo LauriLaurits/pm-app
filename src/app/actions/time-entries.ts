@@ -66,6 +66,51 @@ export async function logTimeAction(input: TimeEntryInput): Promise<ActionResult
   return { success: true as const, id: entry.id };
 }
 
+/** Edits an existing entry -- own entry only. The RLS "edit own time" policy
+ * (person_id = current_person_id()) is the real backstop, applied here via the same
+ * .eq("person_id", personId) defense-in-depth pattern as deleteTimeEntryAction below. */
+export async function updateTimeEntryAction(
+  entryId: number,
+  input: TimeEntryInput
+): Promise<{ error: string } | { success: true }> {
+  if (!z.number().int().positive().safeParse(entryId).success) return { error: "Invalid entry." };
+
+  // Security boundary: throws "Not authorized" if the caller lacks log_time. Must run before
+  // any validation/DB work.
+  const current = await requirePermission("log_time");
+
+  const parsed = timeEntrySchema.safeParse(input);
+  if (!parsed.success) return { error: "Invalid time entry." };
+
+  const supabase = await createClient();
+  const { data: personId, error: personError } = await supabase.rpc("current_person_id");
+  if (personError || !personId) {
+    return { error: "Your account isn't linked to a person record — ask an admin." };
+  }
+
+  const { project_id, project_part_id, entry_date, hours, billable, description } = parsed.data;
+  const { error } = await supabase
+    .from("time_entries")
+    .update({ project_id, project_part_id, entry_date, hours, billable, description })
+    .eq("id", entryId)
+    .eq("person_id", personId);
+  if (error) {
+    return { error: "Update failed. Try again." };
+  }
+
+  await writeAudit({
+    action: "time.updated",
+    actorId: current.user.id,
+    actorEmail: current.profile.email,
+    resourceType: "time_entry",
+    resourceId: String(entryId),
+    metadata: { project_id, project_part_id, hours, billable },
+  });
+
+  revalidatePath(`/people/${personId}`);
+  return { success: true as const };
+}
+
 export async function deleteTimeEntryAction(
   entryId: number
 ): Promise<{ error: string } | { success: true }> {

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { deletePersonAction, setPersonStatusAction } from "@/app/actions/people";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PersonFormDialog } from "./person-form-dialog";
 import type { PersonListRow } from "./types";
 
@@ -23,15 +24,6 @@ export function PersonRowActions({ person }: { person: PersonListRow }) {
     });
   }
 
-  function onDelete() {
-    if (!window.confirm(`Permanently delete "${person.full_name}"? This cannot be undone.`)) return;
-    setError(null);
-    startTransition(async () => {
-      const result = await deletePersonAction(person.id);
-      if ("error" in result) setError(result.error);
-    });
-  }
-
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="flex items-center gap-2">
@@ -39,9 +31,15 @@ export function PersonRowActions({ person }: { person: PersonListRow }) {
         <Button size="sm" variant="outline" onClick={onToggleStatus} disabled={isPending}>
           {person.status === "active" ? "Deactivate" : "Activate"}
         </Button>
-        <Button size="sm" variant="ghost" onClick={onDelete} disabled={isPending}>
-          Delete
-        </Button>
+        <ConfirmDialog
+          trigger={<Button size="sm" variant="ghost" />}
+          triggerLabel="Delete"
+          title="Permanently delete this person?"
+          description={`Permanently delete "${person.full_name}"? This can't be undone. People with assignments or logged time can't be deleted -- deactivate them instead.`}
+          confirmLabel="Delete permanently"
+          pendingLabel="Deleting…"
+          onConfirm={() => deletePersonAction(person.id)}
+        />
       </div>
       {error && <span className="text-xs text-destructive">{error}</span>}
     </div>

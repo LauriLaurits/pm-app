@@ -1,15 +1,17 @@
 import { describe, it, expect } from "vitest";
 import {
-  addMemberSchema, createProjectSchema, credentialSchema, editProjectSchema, linkSchema, partSchema,
-  statusUpdateSchema,
+  addMemberSchema, createProjectSchema, credentialSchema, credentialUpdateSchema, editProjectSchema,
+  linkSchema, partSchema, statusUpdateSchema, updateMemberSchema,
 } from "@/lib/validation/project";
 
 const validProject = {
   name: "Retail e-shop replatform",
+  client_id: "20000001-0000-4000-8000-000000000001",
   description: "Migrate legacy shop to Next.js.",
   status: "active",
   health: "healthy",
   priority: "high",
+  budget_type: "hourly",
   start_date: "2026-01-01",
   deadline: "2026-06-01",
   progress: 55,
@@ -19,6 +21,7 @@ const validProject = {
   internal_notes: "Watch the API rate limits.",
   client_notes: "On track.",
   tags: ["ecommerce", "nextjs"],
+  pm_id: "10000005-0000-4000-8000-000000000005",
 };
 
 describe("editProjectSchema", () => {
@@ -91,6 +94,27 @@ describe("editProjectSchema", () => {
     expect(
       editProjectSchema.safeParse({ ...validProject, tags: ["ok", ""] }).success
     ).toBe(false);
+  });
+
+  it("rejects a missing/unknown budget_type", () => {
+    const { budget_type, ...rest } = validProject;
+    void budget_type;
+    expect(editProjectSchema.safeParse(rest).success).toBe(false);
+    expect(
+      editProjectSchema.safeParse({ ...validProject, budget_type: "retainer" }).success
+    ).toBe(false);
+  });
+
+  it("rejects a malformed client_id/pm_id and normalizes a blank one to null", () => {
+    expect(
+      editProjectSchema.safeParse({ ...validProject, client_id: "not-a-uuid" }).success
+    ).toBe(false);
+    expect(
+      editProjectSchema.safeParse({ ...validProject, pm_id: "not-a-uuid" }).success
+    ).toBe(false);
+    const parsed = editProjectSchema.parse({ ...validProject, client_id: "", pm_id: null });
+    expect(parsed.client_id).toBeNull();
+    expect(parsed.pm_id).toBeNull();
   });
 });
 
@@ -328,6 +352,28 @@ describe("addMemberSchema", () => {
   });
 });
 
+describe("updateMemberSchema", () => {
+  it("accepts role/date changes without a user_id", () => {
+    const { user_id, ...rest } = validMember;
+    void user_id;
+    expect(updateMemberSchema.safeParse(rest).success).toBe(true);
+  });
+
+  it("ignores a user_id if one is passed (not part of the schema)", () => {
+    const parsed = updateMemberSchema.safeParse(validMember);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data).not.toHaveProperty("user_id");
+    }
+  });
+
+  it("rejects a malformed date", () => {
+    const { user_id, ...rest } = validMember;
+    void user_id;
+    expect(updateMemberSchema.safeParse({ ...rest, ends_on: "06/01/2026" }).success).toBe(false);
+  });
+});
+
 const validLink = {
   name: "Prod monitoring",
   url: "https://grafana.acme.dev/shop",
@@ -413,5 +459,30 @@ describe("credentialSchema", () => {
 
   it("rejects a malformed expires_at date", () => {
     expect(credentialSchema.safeParse({ ...validCredential, expires_at: "12/01/2026" }).success).toBe(false);
+  });
+});
+
+describe("credentialUpdateSchema", () => {
+  it("accepts non-secret metadata without a secret or type", () => {
+    const { secret, type, ...rest } = validCredential;
+    void secret;
+    void type;
+    expect(credentialUpdateSchema.safeParse(rest).success).toBe(true);
+  });
+
+  it("strips secret/type if passed (not part of the schema)", () => {
+    const parsed = credentialUpdateSchema.safeParse(validCredential);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data).not.toHaveProperty("secret");
+      expect(parsed.data).not.toHaveProperty("type");
+    }
+  });
+
+  it("rejects an empty name", () => {
+    const { secret, type, ...rest } = validCredential;
+    void secret;
+    void type;
+    expect(credentialUpdateSchema.safeParse({ ...rest, name: "  " }).success).toBe(false);
   });
 });

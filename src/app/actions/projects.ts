@@ -78,11 +78,36 @@ export async function editProjectAction(
   if (!parsed.success) return { error: "Invalid project details." };
 
   const supabase = await createClient();
+
+  // Read the current pm_id BEFORE the update so we can detect a real change below. Only an
+  // admin can ever actually change it -- the `protect_project_pm` DB trigger raises for anyone
+  // else -- but a non-admin's form round-trips the same unchanged value, so this comparison
+  // only ever fires for an admin's deliberate reassignment.
+  const { data: before } = await supabase.from("projects").select("pm_id").eq("id", projectId).single();
+
   const { error } = await supabase
     .from("projects")
     .update(parsed.data)
     .eq("id", projectId);
   if (error) return { error: "Update failed. Try again." };
+
+  // Auto-add a newly-assigned PM as a project_member, mirroring createProjectAction's
+  // auto-add-self-as-member logic, so a reassigned PM isn't locked out of their own project
+  // (the "PM isn't a member" gap). Best-effort: a failure here must not fail the whole edit,
+  // since the project update itself already committed successfully. Ignores 23505 (already
+  // a member) silently.
+  if (parsed.data.pm_id && before && before.pm_id !== parsed.data.pm_id) {
+    try {
+      const { error: memberError } = await supabase
+        .from("project_members")
+        .insert({ project_id: projectId, user_id: parsed.data.pm_id, role_on_project: "Project Manager" });
+      if (memberError && memberError.code !== "23505") {
+        console.error("auto-add new PM as project member failed:", memberError.message);
+      }
+    } catch (e) {
+      console.error("auto-add new PM as project member failed:", e);
+    }
+  }
 
   await writeAudit({
     action: "project.updated",
@@ -94,7 +119,74 @@ export async function editProjectAction(
   });
 
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/people`);
   return { success: true as const };
+}
+
+/**
+ * The app's soft-delete path: sets status='archived'. Archived projects stay fully visible
+ * (the projects list/detail pages already render the "archived" status badge) -- this never
+ * removes data, just retires the project from active use. Reversible via the normal Edit
+ * project dialog (change status back).
+ */
+export async function archiveProjectAction(
+  projectId: string
+): Promise<{ error: string } | { success: true }> {
+  if (!z.uuid().safeParse(projectId).success) return { error: "Invalid project." };
+
+  // Security boundary: throws "Not authorized" if the caller lacks edit_project on this project.
+  const current = await requirePermission("edit_project", projectId);
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("projects").update({ status: "archived" }).eq("id", projectId);
+  if (error) return { error: "Archive failed. Try again." };
+
+  await writeAudit({
+    action: "project.archived",
+    actorId: current.user.id,
+    actorEmail: current.profile.email,
+    resourceType: "project",
+    resourceId: projectId,
+    metadata: {},
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
+  return { success: true as const };
+}
+
+/**
+ * Hard delete -- admin-only. `edit_project` alone (which a PM holds on their own project) must
+ * NOT be enough to permanently delete it; requirePermission establishes the caller holds at
+ * least edit_project (per convention, run first), and the explicit role check below is the
+ * real gate, mirroring the "admin delete project" RLS policy (`using (is_admin())`), which is
+ * the actual backstop regardless of what this check does. Cascades via ON DELETE CASCADE to
+ * project_members/project_parts/project_links/credentials/project_status_updates/budgets/etc --
+ * irreversible, hence the heavy confirm copy in the UI (see project-danger-zone.tsx).
+ */
+export async function deleteProjectAction(projectId: string): Promise<{ error: string }> {
+  if (!z.uuid().safeParse(projectId).success) return { error: "Invalid project." };
+
+  const current = await requirePermission("edit_project", projectId);
+  if (current.role !== "admin") {
+    return { error: "Only an admin can permanently delete a project." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("projects").delete().eq("id", projectId);
+  if (error) return { error: "Delete failed. Try again." };
+
+  await writeAudit({
+    action: "project.deleted",
+    actorId: current.user.id,
+    actorEmail: current.profile.email,
+    resourceType: "project",
+    resourceId: projectId,
+    metadata: {},
+  });
+
+  revalidatePath("/projects");
+  redirect("/projects");
 }
 
 export async function postStatusUpdateAction(

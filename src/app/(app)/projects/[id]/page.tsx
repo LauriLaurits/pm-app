@@ -3,8 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { OverviewDetailsCard } from "./overview-details";
 import { OverviewEditDialog } from "./overview-edit-dialog";
+import type { ClientOption, PmOption } from "./overview-edit-admin-fields";
 import { OverviewNotesCard } from "./overview-notes";
 import { OverviewPeopleCard } from "./overview-people";
+import { ProjectDangerZone } from "./project-danger-zone";
 import { StatusHistory } from "./status-history";
 import { StatusUpdateForm } from "./status-update-form";
 import type { PersonRef, ProjectRow, StatusUpdateRow } from "./types";
@@ -60,6 +62,28 @@ export default async function ProjectOverviewPage({
     const person = userId ? personByUserId.get(userId) : undefined;
     return person ? { full_name: person.full_name, avatar_url: person.avatar_url } : null;
   };
+  const currentPmName = toPersonRef(row.pm_id)?.full_name ?? "Unassigned";
+
+  // isAdmin gates both the pm_id field (the `protect_project_pm` trigger is the real backstop)
+  // and the hard-delete affordance (the "admin delete project" RLS policy is the real backstop
+  // there). UX gating only, same as canEdit/canEditStatus above.
+  const isAdmin = current?.role === "admin";
+
+  // "view clients" RLS (granted to project_manager/finance/admin) already limits this to
+  // whatever this caller can actually see -- same query as the New Project page.
+  const { data: clients } = canEdit
+    ? await supabase.from("clients").select("id, name").order("name")
+    : { data: [] as ClientOption[] };
+
+  // PM reassignment candidates -- only ever needed by an admin (non-admins get a read-only
+  // name instead, see PmField). Same "linked user account" precedent as the People tab's
+  // add-member candidates.
+  const { data: pmCandidateRows } = isAdmin
+    ? await supabase.from("people").select("user_id, full_name").not("user_id", "is", null).order("full_name")
+    : { data: [] as { user_id: string | null; full_name: string }[] };
+  const pmCandidates: PmOption[] = (pmCandidateRows ?? [])
+    .filter((p): p is { user_id: string; full_name: string } => !!p.user_id)
+    .map((p) => ({ user_id: p.user_id, full_name: p.full_name }));
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -71,9 +95,25 @@ export default async function ProjectOverviewPage({
       <div className="space-y-4">
         <OverviewDetailsCard
           project={row}
-          editAction={canEdit ? <OverviewEditDialog project={row} /> : null}
+          editAction={
+            canEdit ? (
+              <OverviewEditDialog
+                project={row}
+                clients={(clients ?? []) as ClientOption[]}
+                isAdmin={isAdmin}
+                pmCandidates={pmCandidates}
+                currentPmName={currentPmName}
+              />
+            ) : null
+          }
         />
         <OverviewPeopleCard pm={toPersonRef(row.pm_id)} owner={toPersonRef(row.owner_id)} />
+        <ProjectDangerZone
+          projectId={row.id}
+          status={row.status}
+          canArchive={!!canEdit}
+          canDelete={isAdmin}
+        />
       </div>
     </div>
   );

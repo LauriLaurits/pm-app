@@ -6,7 +6,9 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
-import { credentialSchema, type CredentialInput } from "@/lib/validation/project";
+import {
+  credentialSchema, credentialUpdateSchema, type CredentialInput, type CredentialUpdateInput,
+} from "@/lib/validation/project";
 
 type ActionResult = { error: string } | { success: true; id: string };
 
@@ -74,6 +76,58 @@ export async function addCredentialAction(
 
   revalidatePath(`/projects/${projectId}/credentials`);
   return { success: true as const, id: credential.id };
+}
+
+/**
+ * Edits non-secret metadata only (name/username/related_url/environment/visibility/notes/
+ * expires_at) -- the secret itself stays write-once (it's already in Vault; no reveal/rotate
+ * flow exists yet, see addCredentialAction). `type` is deliberately left out too -- only the
+ * fields the audit fix calls for are editable here.
+ */
+export async function updateCredentialAction(
+  projectId: string,
+  credentialId: string,
+  input: CredentialUpdateInput
+): Promise<{ error: string } | { success: true }> {
+  if (!z.uuid().safeParse(projectId).success) return { error: "Invalid project." };
+  if (!z.uuid().safeParse(credentialId).success) return { error: "Invalid credential." };
+
+  // Security boundary: throws "Not authorized" if the caller lacks manage_credentials on
+  // this project. Must run before any validation/DB work.
+  const current = await requirePermission("manage_credentials", projectId);
+
+  const parsed = credentialUpdateSchema.safeParse(input);
+  if (!parsed.success) return { error: "Invalid credential details." };
+
+  // Insert through the normal RLS'd client, never admin/service-role -- the "update credentials"
+  // policy re-checks manage_credentials AND the admins_only visibility gate itself (a non-admin
+  // manage_credentials holder cannot edit an admins_only credential even though they can edit
+  // every other tier). .select().single() turns a silent zero-row RLS-blocked update into a
+  // real error we can surface, rather than reporting success on a no-op.
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("credentials")
+    .update(parsed.data)
+    .eq("id", credentialId)
+    .eq("project_id", projectId)
+    .select("id")
+    .single();
+  if (error || !data) {
+    return { error: "You don't have access to edit this credential." };
+  }
+
+  await writeAudit({
+    action: "credential.updated",
+    actorId: current.user.id,
+    actorEmail: current.profile.email,
+    resourceType: "credential",
+    resourceId: credentialId,
+    // Never log the secret itself -- only non-sensitive metadata, same as addCredentialAction.
+    metadata: { project_id: projectId, environment: parsed.data.environment, visibility: parsed.data.visibility },
+  });
+
+  revalidatePath(`/projects/${projectId}/credentials`);
+  return { success: true as const };
 }
 
 export async function deleteCredentialAction(

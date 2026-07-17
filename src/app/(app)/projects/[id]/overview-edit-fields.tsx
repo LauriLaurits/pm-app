@@ -25,7 +25,7 @@ export function EnumSelectField({
   options,
 }: {
   control: Control<EditProjectInput>;
-  name: "status" | "health" | "priority";
+  name: "status" | "health" | "priority" | "budget_type";
   label: string;
   options: readonly string[];
 }) {

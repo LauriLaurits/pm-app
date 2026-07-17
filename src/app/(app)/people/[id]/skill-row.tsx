@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { removePersonSkillAction, setPersonSkillLevelAction } from "@/app/actions/person-skills";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SKILL_LEVEL_OPTIONS } from "@/lib/validation/person-skills";
 import type { PersonSkillRow } from "./types";
@@ -18,15 +19,6 @@ export function SkillRow({ personId, skill }: { personId: string; skill: PersonS
     setError(null);
     startTransition(async () => {
       const result = await setPersonSkillLevelAction(personId, skill.skill_id, level);
-      if ("error" in result) setError(result.error);
-    });
-  }
-
-  function onRemove() {
-    if (!window.confirm(`Remove "${skill.skills?.name ?? "this skill"}"?`)) return;
-    setError(null);
-    startTransition(async () => {
-      const result = await removePersonSkillAction(personId, skill.skill_id);
       if ("error" in result) setError(result.error);
     });
   }
@@ -51,9 +43,15 @@ export function SkillRow({ personId, skill }: { personId: string; skill: PersonS
             ))}
           </SelectContent>
         </Select>
-        <Button size="sm" variant="ghost" onClick={onRemove} disabled={isPending}>
-          Remove
-        </Button>
+        <ConfirmDialog
+          trigger={<Button size="sm" variant="ghost" />}
+          triggerLabel="Remove"
+          title="Remove this skill?"
+          description={`Remove "${skill.skills?.name ?? "this skill"}" from this person?`}
+          confirmLabel="Remove"
+          pendingLabel="Removing…"
+          onConfirm={() => removePersonSkillAction(personId, skill.skill_id)}
+        />
       </div>
     </div>
   );

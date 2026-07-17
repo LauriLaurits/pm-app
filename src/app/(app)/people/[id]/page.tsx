@@ -146,6 +146,8 @@ export default async function PersonDetailPage({
           <RecentHoursCard
             entries={timeEntries}
             canManage={isOwnPage}
+            projects={assignedProjects}
+            partsByProject={partsByProject}
             headerAction={
               isOwnPage ? (
                 <LogTimeDialog projects={assignedProjects} partsByProject={partsByProject} />

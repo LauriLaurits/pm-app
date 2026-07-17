@@ -1,7 +1,6 @@
-import type { Control, FieldPath } from "react-hook-form";
+import type { Control, FieldPath, FieldValues } from "react-hook-form";
 import {
   CREDENTIAL_ENVIRONMENT_OPTIONS, CREDENTIAL_TYPE_OPTIONS, CREDENTIAL_VISIBILITY_OPTIONS,
-  type CredentialInput,
 } from "@/lib/validation/project";
 import { humanize } from "../../types";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -11,16 +10,18 @@ import {
 } from "@/components/ui/select";
 
 /** name/username/related_url are plain nullable-text <Input>s bound the same way -- one
- * renderer for all three (secret and expires_at have their own types, so stay in credential-form). */
-export function CredentialTextField({
+ * renderer for all three (secret and expires_at have their own types, so stay in credential-form).
+ * Generic over TFieldValues so it's shared between CredentialForm (create, has `secret`/`type`)
+ * and CredentialEditForm (metadata-only, no `secret`/`type`). */
+export function CredentialTextField<TFieldValues extends FieldValues>({
   control,
   name,
   label,
   placeholder,
   nullable = true,
 }: {
-  control: Control<CredentialInput>;
-  name: FieldPath<CredentialInput>;
+  control: Control<TFieldValues>;
+  name: FieldPath<TFieldValues>;
   label: string;
   placeholder?: string;
   nullable?: boolean;
@@ -43,15 +44,16 @@ export function CredentialTextField({
 }
 
 /** type/environment/visibility are all enum <Select>s bound the same way -- one renderer
- * for all three, same pattern as LinkEnumSelectField / EnumSelectField (parts). */
-export function CredentialEnumSelectField({
+ * for all three, same pattern as LinkEnumSelectField / EnumSelectField (parts). Generic for the
+ * same reason as CredentialTextField above (shared between create and metadata-only edit). */
+export function CredentialEnumSelectField<TFieldValues extends FieldValues>({
   control,
   name,
   label,
   options,
 }: {
-  control: Control<CredentialInput>;
-  name: "type" | "environment" | "visibility";
+  control: Control<TFieldValues>;
+  name: FieldPath<TFieldValues>;
   label: string;
   options:
     | typeof CREDENTIAL_TYPE_OPTIONS
