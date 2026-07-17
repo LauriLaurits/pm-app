@@ -9,14 +9,11 @@ import { resolveLogTimeData } from "./log-time-data";
 import { LogTimeDialog } from "./log-time-dialog";
 import { PersonHeader } from "./person-header";
 import { RecentHoursCard } from "./recent-hours-card";
-import { SkillsCard } from "./skills-card";
 import { TimeOffCard } from "./time-off-card";
 import type {
   AssignedProjectOption,
   AssignmentWithProject,
   PartOption,
-  PersonSkillRow,
-  SkillOption,
   TimeEntryWithProject,
   TimeOffRow,
 } from "./types";
@@ -41,15 +38,14 @@ export default async function PersonDetailPage({
   if (!person) notFound();
   const row = person as PersonWorkloadRow;
 
-  // "view assignments" / "read own time" / "view time_off" / "view person_skills" RLS already
-  // scopes each of these to whatever the caller may see -- this page does not widen any of
-  // that. current_person_id() also tells us if the VIEWER is on their OWN page -- the log-time
-  // form/delete controls are only ever wired in for that case (everyone else gets a read-only list).
+  // "view assignments" / "read own time" / "view time_off" RLS already scopes each of these to
+  // whatever the caller may see -- this page does not widen any of that. current_person_id()
+  // also tells us if the VIEWER is on their OWN page -- the log-time form/delete controls are
+  // only ever wired in for that case (everyone else gets a read-only list).
   const [
     { data: assignmentRows },
     { data: timeEntryRows },
     { data: timeOffRows },
-    { data: skillRows },
     { data: myPersonId },
   ] = await Promise.all([
     supabase
@@ -68,30 +64,18 @@ export default async function PersonDetailPage({
       .select("*")
       .eq("person_id", id)
       .order("starts_on", { ascending: false }),
-    supabase
-      .from("person_skills")
-      .select("skill_id, level, skills(name, category)")
-      .eq("person_id", id),
     supabase.rpc("current_person_id"),
   ]);
   const isOwnPage = myPersonId === id;
 
   // UX gating only -- the real security boundary is requirePermission("manage_people") inside
-  // addPersonSkillAction/removePersonSkillAction/setPersonSkillLevelAction/upsertTimeOffAction/
-  // deleteTimeOffAction, which re-checks has_permission server-side regardless of what's
-  // rendered here. Same pattern as the People list page's canManage.
+  // upsertTimeOffAction/deleteTimeOffAction, which re-checks has_permission server-side
+  // regardless of what's rendered here. Same pattern as the People list page's canManage.
   const viewer = await getCurrentUser();
   const { data: canManagePeople } = viewer
     ? await supabase.rpc("has_permission", { uid: viewer.user.id, perm: "manage_people" })
     : { data: false };
   const canManage = !!canManagePeople;
-
-  // Full skills catalog for the "add skill" picker -- only needed by managers, so skip the
-  // query entirely for read-only viewers. "view skills" RLS scopes it the same as everywhere
-  // else regardless.
-  const { data: allSkillRows } = canManage
-    ? await supabase.from("skills").select("id, name, category").order("name")
-    : { data: [] as SkillOption[] };
 
   // Project names resolved via a separate `projects` query (RLS: "view project", scoped by
   // has_permission(..., 'view_project', id)) rather than a nested select on assignments/
@@ -157,12 +141,6 @@ export default async function PersonDetailPage({
         </div>
         <div className="space-y-4">
           <CapacitySummaryCard person={row} />
-          <SkillsCard
-            personId={id}
-            skills={(skillRows ?? []) as PersonSkillRow[]}
-            canManage={canManage}
-            allSkills={(allSkillRows ?? []) as SkillOption[]}
-          />
           <TimeOffCard timeOff={(timeOffRows ?? []) as TimeOffRow[]} personId={id} canManage={canManage} />
           {showFinancials && <FinancialsCard person={row} />}
         </div>

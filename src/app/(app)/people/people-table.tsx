@@ -16,7 +16,6 @@ export function PeopleTable({ rows, canManage }: { rows: PersonListRow[]; canMan
         <TableRow>
           <TableHead>Person</TableHead>
           <TableHead>Department</TableHead>
-          <TableHead>Skills</TableHead>
           <TableHead>Type</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Capacity</TableHead>
@@ -46,9 +45,6 @@ export function PeopleTable({ rows, canManage }: { rows: PersonListRow[]; canMan
               </div>
             </TableCell>
             <TableCell>{row.department ?? "—"}</TableCell>
-            <TableCell>
-              <SkillsCell skills={row.skills} />
-            </TableCell>
             <TableCell className="text-sm text-muted-foreground">
               {row.employment_type ? humanize(row.employment_type) : "—"}
             </TableCell>
@@ -81,17 +77,6 @@ export function PeopleTable({ rows, canManage }: { rows: PersonListRow[]; canMan
         ))}
       </TableBody>
     </Table>
-  );
-}
-
-function SkillsCell({ skills }: { skills: string[] | null }) {
-  if (!skills || skills.length === 0) return <span className="text-muted-foreground">—</span>;
-  return (
-    <div className="flex flex-wrap gap-1">
-      {skills.map((s) => (
-        <Badge key={s} variant="secondary">{s}</Badge>
-      ))}
-    </div>
   );
 }
 
