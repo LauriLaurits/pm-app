@@ -35,7 +35,7 @@ export const NAV_ITEMS: NavItem[] = [
     comingSoon: true,
   },
   { label: "Delegations", href: "/delegations", icon: ArrowRightLeft },
-  { label: "Activity", href: "/activity", icon: Activity, comingSoon: true },
+  { label: "Activity", href: "/activity", icon: Activity },
   {
     label: "User access",
     href: "/admin/users",
