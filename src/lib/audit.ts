@@ -58,6 +58,17 @@ export type AuditEntry = {
 
 /** Append to audit_logs via service role. Never throws — auditing must not break the flow. */
 export async function writeAudit(entry: AuditEntry): Promise<void> {
+  await writeAuditStrict(entry);
+}
+
+/**
+ * Same insert as writeAudit, but reports success/failure instead of swallowing it. For flows
+ * where "every action is audited" is a hard invariant (e.g. credential reveal), the caller must
+ * be able to withhold the sensitive result when the audit write itself fails -- writeAudit's
+ * fire-and-forget semantics can't support that, since a caller can never tell whether its insert
+ * actually landed.
+ */
+export async function writeAuditStrict(entry: AuditEntry): Promise<boolean> {
   try {
     const h = await headers();
     const admin = createAdminClient();
@@ -71,8 +82,13 @@ export async function writeAudit(entry: AuditEntry): Promise<void> {
       user_agent: h.get("user-agent") ?? null,
       metadata: (entry.metadata ?? {}) as never,
     });
-    if (error) console.error("audit write failed:", error.message);
+    if (error) {
+      console.error("audit write failed:", error.message);
+      return false;
+    }
+    return true;
   } catch (e) {
     console.error("audit write failed:", e);
+    return false;
   }
 }
