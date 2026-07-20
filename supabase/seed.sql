@@ -290,3 +290,43 @@ insert into public.delegation_permissions (delegation_id, project_id, permission
 select '80000001-0000-4000-8000-000000000001', p.project_id, perm
 from (values ('30000003-0000-4000-8000-000000000003'::uuid), ('30000004-0000-4000-8000-000000000004'::uuid)) as p(project_id)
 cross join unnest(array['view_project','edit_status','view_team','view_links','view_credentials']) as perm;
+
+-- ===== 17. audit log history =====
+-- audit_logs is append-only for authenticated (grant select only, see phase1_auth.sql) -- but
+-- this file runs as the migration/superuser role during `supabase db reset`, which can insert
+-- directly, same trick service-role app code (src/lib/audit.ts) relies on at runtime. Without
+-- this, a fresh reset leaves /activity empty (real audit rows only ever come from actions taken
+-- through the app), which makes an otherwise fully-seeded demo look broken on the one page an
+-- admin is most likely to check first. Timestamps span the last ~2 weeks so the trail reads as
+-- an ongoing history rather than a single batch import; metadata never carries a secret value,
+-- only ids/labels -- same rule src/lib/audit.ts's writeAudit call sites follow everywhere else.
+insert into public.audit_logs (actor_id, actor_email, action, resource_type, resource_id, metadata, created_at) values
+  ('10000001-0000-4000-8000-000000000001','admin.demo@pmcms.local','auth.login', null, null, '{}'::jsonb, now() - interval '14 days 1 hour'),
+  ('10000002-0000-4000-8000-000000000002','anna.pm@pmcms.local','auth.login', null, null, '{}'::jsonb, now() - interval '14 days'),
+  ('10000003-0000-4000-8000-000000000003','bella.pm@pmcms.local','auth.login', null, null, '{}'::jsonb, now() - interval '13 days 6 hours'),
+  ('10000001-0000-4000-8000-000000000001','admin.demo@pmcms.local','user.approved','user','10000005-0000-4000-8000-000000000005','{"email":"milo.dev@pmcms.local"}'::jsonb, now() - interval '13 days 23 hours'),
+  ('10000001-0000-4000-8000-000000000001','admin.demo@pmcms.local','user.approved','user','10000006-0000-4000-8000-000000000006','{"email":"vera.view@pmcms.local"}'::jsonb, now() - interval '13 days 22 hours'),
+  ('10000005-0000-4000-8000-000000000005','milo.dev@pmcms.local','auth.login', null, null, '{}'::jsonb, now() - interval '13 days'),
+  ('10000006-0000-4000-8000-000000000006','vera.view@pmcms.local','auth.login', null, null, '{}'::jsonb, now() - interval '12 days 4 hours'),
+  ('10000004-0000-4000-8000-000000000004','frank.fin@pmcms.local','auth.login', null, null, '{}'::jsonb, now() - interval '12 days'),
+  ('10000002-0000-4000-8000-000000000002','anna.pm@pmcms.local','project.created','project','30000001-0000-4000-8000-000000000001','{}'::jsonb, now() - interval '11 days 6 hours'),
+  ('10000003-0000-4000-8000-000000000003','bella.pm@pmcms.local','project.created','project','30000003-0000-4000-8000-000000000003','{}'::jsonb, now() - interval '11 days 3 hours'),
+  ('10000002-0000-4000-8000-000000000002','anna.pm@pmcms.local','member.added','project_member','30000001-0000-4000-8000-000000000001:10000005-0000-4000-8000-000000000005','{"project_id":"30000001-0000-4000-8000-000000000001","user_id":"10000005-0000-4000-8000-000000000005"}'::jsonb, now() - interval '10 days 5 hours'),
+  ('10000002-0000-4000-8000-000000000002','anna.pm@pmcms.local','project.updated','project','30000001-0000-4000-8000-000000000001','{"field":"health"}'::jsonb, now() - interval '10 days'),
+  ('10000003-0000-4000-8000-000000000003','bella.pm@pmcms.local','member.added','project_member','30000003-0000-4000-8000-000000000003:10000005-0000-4000-8000-000000000005','{"project_id":"30000003-0000-4000-8000-000000000003","user_id":"10000005-0000-4000-8000-000000000005"}'::jsonb, now() - interval '9 days 4 hours'),
+  ('10000001-0000-4000-8000-000000000001','admin.demo@pmcms.local','access.granted','user_project_permission','10000006-0000-4000-8000-000000000006','{"user_id":"10000006-0000-4000-8000-000000000006","project_id":"30000001-0000-4000-8000-000000000001","permission_keys":["view_project","view_links"]}'::jsonb, now() - interval '9 days'),
+  ('10000002-0000-4000-8000-000000000002','anna.pm@pmcms.local','credential.added','credential',(select id::text from public.credentials where name = 'Shop staging DB'),'{"project_id":"30000001-0000-4000-8000-000000000001"}'::jsonb, now() - interval '8 days 3 hours'),
+  ('10000002-0000-4000-8000-000000000002','anna.pm@pmcms.local','credential.added','credential',(select id::text from public.credentials where name = 'Payment API key'),'{"project_id":"30000001-0000-4000-8000-000000000001"}'::jsonb, now() - interval '8 days 2 hours'),
+  ('10000003-0000-4000-8000-000000000003','bella.pm@pmcms.local','credential.added','credential',(select id::text from public.credentials where name = 'Onboarding prod DB'),'{"project_id":"30000003-0000-4000-8000-000000000003"}'::jsonb, now() - interval '8 days'),
+  ('10000004-0000-4000-8000-000000000004','frank.fin@pmcms.local','budget_item.added','budget_item',(select id::text from public.budget_items where name = 'Discovery invoice'),'{"project_id":"30000001-0000-4000-8000-000000000001","item_type":"invoice"}'::jsonb, now() - interval '7 days 5 hours'),
+  ('10000004-0000-4000-8000-000000000004','frank.fin@pmcms.local','budget_item.added','budget_item',(select id::text from public.budget_items where name = 'Phase 2'),'{"project_id":"30000003-0000-4000-8000-000000000003","item_type":"invoice"}'::jsonb, now() - interval '7 days'),
+  ('10000005-0000-4000-8000-000000000005','milo.dev@pmcms.local','credential.revealed','credential',(select id::text from public.credentials where name = 'Shop staging DB'),'{"project_id":"30000001-0000-4000-8000-000000000001"}'::jsonb, now() - interval '6 days 4 hours'),
+  ('10000003-0000-4000-8000-000000000003','bella.pm@pmcms.local','credential.revealed','credential',(select id::text from public.credentials where name = 'Sanctions API'),'{"project_id":"30000003-0000-4000-8000-000000000003"}'::jsonb, now() - interval '6 days'),
+  ('10000003-0000-4000-8000-000000000003','bella.pm@pmcms.local','delegation.created','delegation','80000001-0000-4000-8000-000000000001','{"to_user":"10000005-0000-4000-8000-000000000005","project_ids":["30000003-0000-4000-8000-000000000003","30000004-0000-4000-8000-000000000004"]}'::jsonb, now() - interval '3 days 1 hour'),
+  ('10000002-0000-4000-8000-000000000002','anna.pm@pmcms.local','project.status_posted','project','30000001-0000-4000-8000-000000000001','{}'::jsonb, now() - interval '3 days'),
+  ('10000003-0000-4000-8000-000000000003','bella.pm@pmcms.local','project.status_posted','project','30000003-0000-4000-8000-000000000003','{}'::jsonb, now() - interval '2 days 6 hours'),
+  ('10000005-0000-4000-8000-000000000005','milo.dev@pmcms.local','time.logged','time_entry', null, '{"project_id":"30000001-0000-4000-8000-000000000001","hours":6.5,"billable":true}'::jsonb, now() - interval '2 days'),
+  ('10000005-0000-4000-8000-000000000005','milo.dev@pmcms.local','time.logged','time_entry', null, '{"project_id":"30000003-0000-4000-8000-000000000003","hours":5,"billable":true}'::jsonb, now() - interval '1 day 3 hours'),
+  ('10000001-0000-4000-8000-000000000001','admin.demo@pmcms.local','auth.login', null, null, '{}'::jsonb, now() - interval '1 day'),
+  ('10000002-0000-4000-8000-000000000002','anna.pm@pmcms.local','auth.login', null, null, '{}'::jsonb, now() - interval '18 hours'),
+  ('10000005-0000-4000-8000-000000000005','milo.dev@pmcms.local','auth.login', null, null, '{}'::jsonb, now() - interval '6 hours');

@@ -28,12 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "People", href: "/people", icon: Users },
   { label: "Workload", href: "/workload", icon: Gauge },
   { label: "Budgets", href: "/budgets", icon: Wallet },
-  {
-    label: "Credentials",
-    href: "/credentials",
-    icon: KeyRound,
-    comingSoon: true,
-  },
+  { label: "Credentials", href: "/credentials", icon: KeyRound },
   { label: "Delegations", href: "/delegations", icon: ArrowRightLeft },
   { label: "Activity", href: "/activity", icon: Activity },
   {

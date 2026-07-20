@@ -35,10 +35,16 @@ select is(public.has_permission('fc000000-0000-4000-8000-000000000002','view_aud
 select is(public.has_permission('fc000000-0000-4000-8000-000000000003','view_audit'), true,
   'viewer holds view_audit via an explicit global role_permissions grant (permission-keyed, not admin-only)');
 
+-- Counts below are scoped to this test's own 'fc000000-%' fixture rows (via actor_id), not an
+-- unfiltered table-wide count -- supabase/seed.sql now seeds ~30 historical audit_logs rows (so
+-- /activity isn't empty on a fresh `db reset`), so asserting a bare total would coincidentally
+-- break the moment seed data changes. The RLS behavior under test (who can see these 3 fixture
+-- rows) is unaffected either way.
+
 -- ===== as the admin: sees every row =====
 set local role authenticated;
 set local "request.jwt.claims" to '{"sub":"fc000000-0000-4000-8000-000000000001","role":"authenticated"}';
-select is((select count(*)::int from public.audit_logs), 3, 'admin reads all 3 fixture audit rows');
+select is((select count(*)::int from public.audit_logs where actor_id::text like 'fc000000-%'), 3, 'admin reads all 3 fixture audit rows');
 select throws_ok(
   $$ insert into public.audit_logs (action) values ('x') $$,
   '42501', null,
@@ -46,11 +52,11 @@ select throws_ok(
 
 -- ===== as the plain member: zero rows (RLS), not a crash =====
 set local "request.jwt.claims" to '{"sub":"fc000000-0000-4000-8000-000000000002","role":"authenticated"}';
-select is((select count(*)::int from public.audit_logs), 0, 'member with no view_audit reads zero audit rows');
+select is((select count(*)::int from public.audit_logs where actor_id::text like 'fc000000-%'), 0, 'member with no view_audit reads zero audit rows');
 
 -- ===== as the view_audit-holding viewer: sees every row via the new policy =====
 set local "request.jwt.claims" to '{"sub":"fc000000-0000-4000-8000-000000000003","role":"authenticated"}';
-select is((select count(*)::int from public.audit_logs), 3,
+select is((select count(*)::int from public.audit_logs where actor_id::text like 'fc000000-%'), 3,
   'non-admin view_audit holder reads all 3 fixture audit rows via the new policy');
 
 select * from finish();

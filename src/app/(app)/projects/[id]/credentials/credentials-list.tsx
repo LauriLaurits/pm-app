@@ -2,42 +2,11 @@ import { KeyRoundIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDate, humanize } from "../../types";
+import { MASK, VISIBILITY_BADGE, expiryStatus, groupByEnvironment } from "@/lib/credentials-display";
 import { CredentialDeleteButton } from "./credential-actions";
 import { CredentialFormDialog } from "./credential-form-dialog";
 import { CredentialRevealControl } from "./credential-reveal-control";
 import type { DisplayCredentialRow } from "./types";
-
-const VISIBILITY_BADGE: Record<DisplayCredentialRow["visibility"], "outline" | "secondary" | "destructive"> = {
-  project_members: "outline",
-  pms_only: "secondary",
-  admins_only: "destructive",
-};
-
-// The plain mask shown to everyone who lacks `reveal_credential` on this project -- the real
-// secret is never fetched for them at all (not even in a hidden field): CredentialRevealControl,
-// which is the only thing that ever holds plaintext client-side, is never mounted for these rows.
-const MASK = "••••••••••••";
-
-const EXPIRY_SOON_DAYS = 14;
-
-/** null = not near expiry; "soon" = within EXPIRY_SOON_DAYS; "expired" = already past. Display
- * only -- never gates access, RLS/has_permission already own that. */
-function expiryStatus(expiresAt: string | null): "soon" | "expired" | null {
-  if (!expiresAt) return null;
-  const days = (new Date(expiresAt).getTime() - Date.now()) / 86_400_000;
-  if (days < 0) return "expired";
-  if (days <= EXPIRY_SOON_DAYS) return "soon";
-  return null;
-}
-
-/** Grouped by environment -- RLS already narrowed `credentials` to what this caller may see
- * (project_members/pms_only/admins_only tiers, plus any explicit credential_access grant), so
- * grouping here is display-only, never a filter. */
-function groupByEnvironment(credentials: DisplayCredentialRow[]) {
-  const groups = new Map<DisplayCredentialRow["environment"], DisplayCredentialRow[]>();
-  for (const c of credentials) groups.set(c.environment, [...(groups.get(c.environment) ?? []), c]);
-  return [...groups.entries()];
-}
 
 export function CredentialsList({
   credentials,
