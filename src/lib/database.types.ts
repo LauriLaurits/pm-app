@@ -1731,6 +1731,17 @@ export type Database = {
         }
         Returns: string
       }
+      create_delegation: {
+        Args: {
+          p_ends_at: string
+          p_handover_notes?: string
+          p_permission_keys: string[]
+          p_project_ids: string[]
+          p_starts_at: string
+          p_to_user: string
+        }
+        Returns: string
+      }
       current_person_id: { Args: never; Returns: string }
       has_credential_access: {
         Args: { cred_id: string; uid?: string }

@@ -27,8 +27,16 @@ const CREATE_ERROR =
  * `from_user = auth.uid()` AND ownership of at least one project, and each `delegation_permissions`
  * insert is independently re-checked by `enforce_delegatable_permission` (rejects non-delegatable
  * keys) and `validate_delegation_project` (rejects projects the caller doesn't own) -- so even if
- * a caller somehow got a foreign project id or a non-delegatable key past the UI, the DB rejects
- * the whole delegation_permissions insert and this action rolls back the now-orphaned header.
+ * a caller somehow got a foreign project id or a non-delegatable key past the UI, the DB rejects it.
+ *
+ * The header insert and the permission-row inserts happen inside a single `create_delegation`
+ * SQL function (SECURITY INVOKER -- RLS and the two triggers above still apply exactly as they
+ * would to direct client inserts) so the whole thing is atomic: if any permission row is rejected,
+ * Postgres rolls back the header insert too. There used to be a two-step insert-header-then-
+ * insert-permissions dance here with a manual "delete the header if permissions failed" cleanup,
+ * but that cleanup silently no-op'd (there is no "delete own delegation" RLS policy, only
+ * admin-only delete), leaving a permanent permission-less phantom delegation behind. The RPC
+ * removes the possibility entirely instead of relying on cleanup code.
  */
 export async function createDelegationAction(input: CreateDelegationInput): Promise<ActionResult> {
   const rawProjectIds = (input as { project_ids?: unknown })?.project_ids;
@@ -47,34 +55,30 @@ export async function createDelegationAction(input: CreateDelegationInput): Prom
 
   const supabase = await createClient();
 
-  const { data: delegation, error: delegationError } = await supabase
-    .from("delegations")
-    .insert({ from_user: current.user.id, to_user, starts_at, ends_at, handover_notes })
-    .select("id")
-    .single();
-  if (delegationError || !delegation) return { error: "Could not create the delegation. Try again." };
-
-  const rows = project_ids.flatMap((project_id) =>
-    permission_keys.map((permission_key) => ({ delegation_id: delegation.id, project_id, permission_key }))
-  );
-  const { error: permsError } = await supabase.from("delegation_permissions").insert(rows);
-  if (permsError) {
-    // Never leave a permission-less delegation header behind when the triggers reject a row.
-    await supabase.from("delegations").delete().eq("id", delegation.id);
-    return { error: CREATE_ERROR };
-  }
+  const { data: delegationId, error: createError } = await supabase.rpc("create_delegation", {
+    p_to_user: to_user,
+    p_project_ids: project_ids,
+    p_permission_keys: permission_keys,
+    p_starts_at: starts_at,
+    p_ends_at: ends_at,
+    p_handover_notes: handover_notes ?? undefined,
+  });
+  // Trigger rejections (foreign project / non-delegatable permission) and any other failure
+  // surface here as a single RPC error -- the whole call rolled back atomically, so there is
+  // never a header left behind to clean up.
+  if (createError || !delegationId) return { error: CREATE_ERROR };
 
   await writeAudit({
     action: "delegation.created",
     actorId: current.user.id,
     actorEmail: current.profile.email,
     resourceType: "delegation",
-    resourceId: delegation.id,
+    resourceId: delegationId,
     metadata: { to_user, project_ids, permission_keys, starts_at, ends_at },
   });
 
   revalidatePath("/delegations");
-  return { success: true as const, id: delegation.id };
+  return { success: true as const, id: delegationId };
 }
 
 /**
