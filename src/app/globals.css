@@ -153,19 +153,8 @@
   }
   body {
     @apply bg-background text-foreground;
-    /* Slightly negative tracking + optical kerning reads more "SF/Apple" than the browser default. */
-    letter-spacing: -0.011em;
-    font-feature-settings: "cv11", "ss01";
-    text-rendering: optimizeLegibility;
   }
   html {
     @apply font-sans;
-  }
-  /* Headings: tighter tracking as size grows, with real weight for that bolder SaaS presence. */
-  h1,
-  h2,
-  h3 {
-    letter-spacing: -0.02em;
-    font-weight: 700;
   }
 }

@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
-// Plus Jakarta Sans: a crisp geometric sans with more weight and presence than Manrope -- the
-// bolder, modern-SaaS feel (à la appfigures) the owner asked for. Kept in the existing
-// --font-geist-sans CSS variable so globals.css (--font-sans -> --font-geist-sans) needs no change.
-const geistSans = Plus_Jakarta_Sans({
+const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
