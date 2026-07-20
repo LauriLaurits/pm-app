@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
-import { ManageMembersDialog } from "./manage-members-dialog";
+import { AddPersonDialog } from "./add-person-dialog";
 import { MembersTable } from "./members-table";
 import type { CandidateOption, MemberRow, ProjectMemberRow } from "./types";
 
@@ -99,7 +99,12 @@ export default async function ProjectPeoplePage({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">People</h2>
-        {canManageMembers && <ManageMembersDialog projectId={id} candidates={candidates} />}
+        {canManageMembers && (
+          <AddPersonDialog
+            projectId={id}
+            candidates={candidates.filter((c) => c.memberId === null)}
+          />
+        )}
       </div>
       <MembersTable members={memberRows} projectId={id} canManage={!!canManageMembers} />
     </div>

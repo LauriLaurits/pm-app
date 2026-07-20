@@ -1719,6 +1719,17 @@ export type Database = {
       }
     }
     Functions: {
+      add_project_person: {
+        Args: {
+          p_allocation: number
+          p_end: string
+          p_project: string
+          p_role: string
+          p_start: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       admin_revoke_user_sessions: {
         Args: { target_user: string }
         Returns: number
@@ -1778,6 +1789,10 @@ export type Database = {
           week_start: string
         }[]
       }
+      remove_project_person: {
+        Args: { p_project: string; p_user_id: string }
+        Returns: undefined
+      }
       reveal_credential_secret: {
         Args: { cred_id: string }
         Returns: {
@@ -1786,6 +1801,10 @@ export type Database = {
         }[]
       }
       revoke_session: { Args: { session_id: string }; Returns: boolean }
+      set_person_allocation: {
+        Args: { p_allocation: number; p_project: string; p_user_id: string }
+        Returns: undefined
+      }
       set_user_role: {
         Args: { new_role: string; target_user: string }
         Returns: undefined

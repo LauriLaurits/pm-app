@@ -185,6 +185,22 @@ export const updateMemberSchema = addMemberSchema.omit({ user_id: true });
 export type UpdateMemberInput = z.input<typeof updateMemberSchema>;
 export type UpdateMemberOutput = z.output<typeof updateMemberSchema>;
 
+/** Adds a person to a project WITH their allocation in one step (backed by add_project_person,
+ * which creates the access + allocation atomically). allocation_pct mirrors the DB bound
+ * (0 < pct <= 200). */
+export const addProjectPersonSchema = z.object({
+  user_id: z.uuid("Select a person"),
+  role_on_project: nullableText(200),
+  allocation_pct: z.number("Enter an allocation").min(1, "At least 1%").max(200, "At most 200%"),
+  starts_on: nullableDate,
+  ends_on: nullableDate,
+});
+export type AddProjectPersonInput = z.input<typeof addProjectPersonSchema>;
+export type AddProjectPersonOutput = z.output<typeof addProjectPersonSchema>;
+
+/** Single-field allocation edit (the members table's inline % cell). */
+export const allocationSchema = z.number().min(1, "At least 1%").max(200, "At most 200%");
+
 // ---------- project links ----------
 
 export const LINK_TYPE_OPTIONS = [

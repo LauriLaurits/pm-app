@@ -1,4 +1,5 @@
 import { updateMemberRoleAction } from "@/app/actions/project-members";
+import { setPersonAllocationAction } from "@/app/actions/project-people";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InlineEditText } from "@/components/inline-edit-text";
 import {
@@ -54,7 +55,18 @@ export function MembersTable({
                 onSave={updateMemberRoleAction.bind(null, projectId, member.id)}
               />
             </TableCell>
-            <TableCell>{member.allocation_pct != null ? `${member.allocation_pct}%` : "—"}</TableCell>
+            <TableCell>
+              <div className="flex items-center gap-0.5">
+                <InlineEditText
+                  value={member.allocation_pct != null ? String(member.allocation_pct) : ""}
+                  canEdit={canManage}
+                  ariaLabel="allocation percent"
+                  placeholder="—"
+                  onSave={setPersonAllocationAction.bind(null, projectId, member.user_id)}
+                />
+                {member.allocation_pct != null && <span className="text-muted-foreground">%</span>}
+              </div>
+            </TableCell>
             <TableCell>{formatDate(member.starts_on)}</TableCell>
             <TableCell>{formatDate(member.ends_on)}</TableCell>
             {canManage && (

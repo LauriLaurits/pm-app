@@ -161,10 +161,11 @@
   html {
     @apply font-sans;
   }
-  /* Apple-style headings: tighter tracking as size grows, medium (not heavy) weight. */
+  /* Headings: tighter tracking as size grows, with real weight for that bolder SaaS presence. */
   h1,
   h2,
   h3 {
     letter-spacing: -0.02em;
+    font-weight: 700;
   }
 }

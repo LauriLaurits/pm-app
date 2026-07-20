@@ -1,6 +1,6 @@
 "use client";
 
-import { removeMemberAction } from "@/app/actions/project-members";
+import { removeProjectPersonAction } from "@/app/actions/project-people";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { MemberRow } from "./types";
@@ -12,10 +12,10 @@ export function MemberRemoveButton({ projectId, member }: { projectId: string; m
       trigger={<Button size="sm" variant="ghost" />}
       triggerLabel="Remove"
       title="Remove this member?"
-      description={`Remove ${name} from this project? They can be re-added later.`}
+      description={`Remove ${name} from this project? This clears their access and allocation; they can be re-added later.`}
       confirmLabel="Remove"
       pendingLabel="Removing…"
-      onConfirm={() => removeMemberAction(projectId, member.id)}
+      onConfirm={() => removeProjectPersonAction(projectId, member.user_id)}
     />
   );
 }
