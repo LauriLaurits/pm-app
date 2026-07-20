@@ -45,7 +45,9 @@ export type AuditAction =
   | "time_off.deleted"
   | "client.created"
   | "client.updated"
-  | "client.deleted";
+  | "client.deleted"
+  | "delegation.created"
+  | "delegation.revoked";
 
 export type AuditEntry = {
   action: AuditAction;

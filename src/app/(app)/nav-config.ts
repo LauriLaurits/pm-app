@@ -6,6 +6,7 @@ import {
   Gauge,
   Wallet,
   KeyRound,
+  ArrowRightLeft,
   Activity,
   ShieldCheck,
   Settings,
@@ -33,6 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: KeyRound,
     comingSoon: true,
   },
+  { label: "Delegations", href: "/delegations", icon: ArrowRightLeft },
   { label: "Activity", href: "/activity", icon: Activity, comingSoon: true },
   {
     label: "User access",
