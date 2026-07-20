@@ -27,12 +27,13 @@ export const timeEntrySchema = z.object({
   entry_date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date"),
-  // DB check: `hours > 0 and hours <= 24` (20260715000004_people_workload.sql) — mirrored here
-  // so bad input is rejected before it ever reaches the RLS'd insert.
+  // DB check: `hours > 0 and hours <= 744` (raised so a monthly total logs as one entry —
+  // 20260720000006_person_allocation_and_monthly_time.sql). Mirrored here so bad input is rejected
+  // before it reaches the RLS'd insert.
   hours: z
     .number({ message: "Enter the hours worked" })
     .gt(0, "Hours must be greater than 0")
-    .lte(24, "Hours can't exceed 24 in a single entry"),
+    .lte(744, "That's more hours than a month has"),
   billable: z.boolean(),
   description: nullableText(),
 });

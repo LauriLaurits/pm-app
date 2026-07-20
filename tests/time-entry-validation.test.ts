@@ -50,12 +50,13 @@ describe("timeEntrySchema", () => {
     expect(timeEntrySchema.safeParse({ ...validEntry, hours: -2 }).success).toBe(false);
   });
 
-  it("accepts hours at the 24 boundary", () => {
-    expect(timeEntrySchema.safeParse({ ...validEntry, hours: 24 }).success).toBe(true);
+  it("accepts a full month's hours (monthly totals)", () => {
+    expect(timeEntrySchema.safeParse({ ...validEntry, hours: 160 }).success).toBe(true);
+    expect(timeEntrySchema.safeParse({ ...validEntry, hours: 744 }).success).toBe(true);
   });
 
-  it("rejects hours above 24", () => {
-    expect(timeEntrySchema.safeParse({ ...validEntry, hours: 24.01 }).success).toBe(false);
+  it("rejects hours above a month's worth", () => {
+    expect(timeEntrySchema.safeParse({ ...validEntry, hours: 744.01 }).success).toBe(false);
   });
 
   it("rejects a malformed entry_date", () => {

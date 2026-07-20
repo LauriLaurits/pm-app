@@ -83,6 +83,9 @@ export function PartField({ control, parts }: { control: Control<TimeEntryInput>
   );
 }
 
+// Time is logged as a monthly total per person/project (PMs don't fill in day-by-day). The month
+// picker maps to the first of that month (entry_date stays a real date, so every existing rollup
+// that filters/aggregates by entry_date keeps working); hours accepts a whole month's total.
 export function HoursDateFields({ control }: { control: Control<TimeEntryInput> }) {
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -91,8 +94,16 @@ export function HoursDateFields({ control }: { control: Control<TimeEntryInput> 
         name="entry_date"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Date</FormLabel>
-            <FormControl render={<Input type="date" {...field} />} />
+            <FormLabel>Month</FormLabel>
+            <FormControl
+              render={
+                <Input
+                  type="month"
+                  value={typeof field.value === "string" ? field.value.slice(0, 7) : ""}
+                  onChange={(e) => field.onChange(e.target.value ? `${e.target.value}-01` : "")}
+                />
+              }
+            />
             <FormMessage />
           </FormItem>
         )}
@@ -102,14 +113,14 @@ export function HoursDateFields({ control }: { control: Control<TimeEntryInput> 
         name="hours"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Hours</FormLabel>
+            <FormLabel>Hours this month</FormLabel>
             <FormControl
               render={
                 <Input
                   type="number"
                   min={0}
-                  max={24}
-                  step={0.25}
+                  max={744}
+                  step={0.5}
                   {...field}
                   value={field.value ?? ""}
                   onChange={(e) => field.onChange(e.target.valueAsNumber)}
