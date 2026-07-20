@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Manrope, Geist_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
-const geistSans = Geist({
+// Manrope: a clean humanist grotesque with a touch more warmth than Geist -- nudges the UI toward
+// the refined, SF-adjacent feel without being a novelty face. Kept in the existing --font-geist-sans
+// CSS variable so globals.css (which maps --font-sans -> --font-geist-sans) needs no change.
+const geistSans = Manrope({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });

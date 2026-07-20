@@ -153,8 +153,18 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Slightly negative tracking + optical kerning reads more "SF/Apple" than the browser default. */
+    letter-spacing: -0.011em;
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
   }
   html {
     @apply font-sans;
+  }
+  /* Apple-style headings: tighter tracking as size grows, medium (not heavy) weight. */
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
   }
 }

@@ -18,7 +18,9 @@ export function ChartsSection({
   capacity: CapacityRow[];
 }) {
   return (
-    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+    // items-start so a short chart (few bars) keeps its natural height instead of stretching to
+    // match a tall neighbour and leaving dead space.
+    <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
       {budgetSpent && (
         <ChartCard title="Budget spent vs remaining" description="Invoiced vs remaining, largest budgets first">
           {budgetSpent.length === 0 ? <ChartEmptyState /> : <BudgetSpentChart rows={budgetSpent} />}

@@ -21,7 +21,7 @@ export type BudgetSpentRow = { id: string; name: string; invoiced: number; remai
 // value text is the required relief -- never color-alone here).
 export function BudgetSpentChart({ rows }: { rows: BudgetSpentRow[] }) {
   const data = rows.map((r) => ({
-    name: r.name.length > 22 ? `${r.name.slice(0, 21)}…` : r.name,
+    name: r.name.length > 30 ? `${r.name.slice(0, 29)}…` : r.name,
     fullName: r.name,
     Invoiced: r.invoiced,
     Remaining: Math.max(r.remaining, 0),
@@ -42,7 +42,7 @@ export function BudgetSpentChart({ rows }: { rows: BudgetSpentRow[] }) {
         <YAxis
           type="category"
           dataKey="name"
-          width={140}
+          width={180}
           tick={{ fill: VIZ_INK_MUTED, fontSize: 11 }}
           axisLine={{ stroke: "var(--viz-track)" }}
           tickLine={false}
