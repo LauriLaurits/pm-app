@@ -1768,6 +1768,10 @@ export type Database = {
         }[]
       }
       revoke_session: { Args: { session_id: string }; Returns: boolean }
+      set_user_role: {
+        Args: { new_role: string; target_user: string }
+        Returns: undefined
+      }
     }
     Enums: {
       billing_model: "fixed" | "hourly"

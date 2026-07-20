@@ -99,26 +99,13 @@ export async function changeUserRoleAction(
 
   const supabase = await createClient();
 
-  // Delete-then-insert (not upsert): the new role_key may differ from every row the user
-  // currently holds, and user_roles' primary key is (user_id, role_key) -- an upsert on a
-  // different key would add a second role rather than replace the first. Two round-trips, not
-  // atomic, but if the insert fails after a successful delete the error below says so plainly
-  // rather than silently leaving the user roleless.
-  const { error: deleteError } = await supabase
-    .from("user_roles")
-    .delete()
-    .eq("user_id", parsed.data.userId);
-  if (deleteError) return { error: "Role change failed. Try again." };
-
-  const { error: insertError } = await supabase.from("user_roles").insert({
-    user_id: parsed.data.userId,
-    role_key: parsed.data.role,
-    granted_by: admin.user.id,
+  // Atomic single-role swap via a SECURITY DEFINER RPC (one transaction): replaces whatever
+  // role the user holds with the new one, or leaves them untouched on failure -- never roleless.
+  const { error: swapError } = await supabase.rpc("set_user_role", {
+    target_user: parsed.data.userId,
+    new_role: parsed.data.role,
   });
-  if (insertError)
-    return {
-      error: "Role change failed partway -- user now has no role. Retry immediately.",
-    };
+  if (swapError) return { error: "Role change failed. Try again." };
 
   await writeAudit({
     action: "user.role_changed",
