@@ -23,11 +23,16 @@ const DEFAULTS: GrantAccessInput = {
   expires_at: null,
 };
 
-/** Create-grant form: `projects` and `permissions` are the full catalogs (this screen is
- * admin-only -- manage_access has no role_permissions rows at all, so only is_admin() ever
- * satisfies it -- an admin may grant any permission on any project, unlike the delegations
- * screen's own-projects/delegatable-only bounds). grantProjectAccessAction re-checks
- * requirePermission('manage_access', project_id) server-side regardless of what's rendered here. */
+/** Create-grant form: `projects` is the full catalog; `permissions` is the catalog already
+ * filtered down to the grantable set (page.tsx excludes NON_GRANTABLE_PERMISSIONS --
+ * manage_access, manage_users, view_audit, create_project, export_data, reveal_credential --
+ * before it ever reaches this form, so those keys are never presented as options). This screen
+ * is admin-only -- manage_access has no role_permissions rows at all, so only is_admin() ever
+ * satisfies it -- an admin may grant any of the remaining permissions on any project, unlike the
+ * delegations screen's own-projects/delegatable-only bounds. grantProjectAccessAction re-checks
+ * requirePermission('manage_access', project_id) *and* the grantable denylist server-side
+ * regardless of what's rendered here; the DB trigger `user_project_permissions_grantable` is the
+ * final backstop for any caller. */
 export function GrantForm({
   users,
   projects,

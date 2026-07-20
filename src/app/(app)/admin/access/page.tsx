@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { requireActiveUser } from "@/lib/auth/session";
+import { NON_GRANTABLE_PERMISSIONS } from "@/lib/validation/access";
 import { AdminTabs } from "../admin-tabs";
 import { AccessFilters } from "./access-filters";
 import { GrantFormDialog } from "./grant-form-dialog";
@@ -53,7 +54,13 @@ export default async function AdminAccessPage({
     ]);
 
   const projects: ProjectOption[] = projectRows ?? [];
-  const permissions: PermissionOption[] = permissionRows ?? [];
+  // manage_access, manage_users, view_audit, create_project, export_data, and reveal_credential
+  // must never be offered as a per-project grant option (self-escalation / global-only -- see
+  // NON_GRANTABLE_PERMISSIONS) -- the grant form only ever renders the remaining, genuinely
+  // grantable set.
+  const permissions: PermissionOption[] = (permissionRows ?? []).filter(
+    (p) => !(NON_GRANTABLE_PERMISSIONS as readonly string[]).includes(p.key),
+  );
   const users: UserOption[] = (userRows ?? []).map((u) => ({
     user_id: u.id,
     full_name: u.full_name ?? u.email,

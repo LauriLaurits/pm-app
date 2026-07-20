@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
-import { grantAccessSchema, type GrantAccessInput } from "@/lib/validation/access";
+import { grantAccessSchema, isGrantablePermission, type GrantAccessInput } from "@/lib/validation/access";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -34,6 +34,17 @@ export async function grantProjectAccessAction(input: GrantAccessInput): Promise
   const parsed = grantAccessSchema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid grant." };
   const { user_id, project_id, permission_keys, expires_at } = parsed.data;
+
+  // Belt-and-suspenders: manage_access, manage_users, view_audit, create_project, export_data,
+  // and reveal_credential must never be handed out as a per-project grant (see
+  // NON_GRANTABLE_PERMISSIONS) -- manage_access in particular is a recursive self-escalation
+  // vector. The form never offers these as options, and the DB trigger
+  // `user_project_permissions_grantable` rejects them unconditionally regardless of this check,
+  // but failing fast here avoids a round trip and gives a friendlier error.
+  const nonGrantable = permission_keys.filter((key) => !isGrantablePermission(key));
+  if (nonGrantable.length > 0) {
+    return { error: `${nonGrantable.join(", ")} cannot be granted per-project.` };
+  }
 
   const supabase = await createClient();
 
