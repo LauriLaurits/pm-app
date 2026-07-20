@@ -90,27 +90,6 @@ export async function fetchExpiringCredentials(supabase: Supabase) {
   return rows.map((r) => ({ ...r, projectName: nameById.get(r.project_id) ?? null }));
 }
 
-// project_parts.estimated_hours (planned) rolled up per project -- RLS: "view parts" (view_project).
-export async function fetchEstimatedHoursByProject(supabase: Supabase) {
-  const { data } = await supabase.from("project_parts").select("project_id, estimated_hours");
-  const byProject = new Map<string, number>();
-  for (const row of data ?? []) {
-    byProject.set(row.project_id, (byProject.get(row.project_id) ?? 0) + Number(row.estimated_hours ?? 0));
-  }
-  return byProject;
-}
-
-// time_entries over the trailing HISTORY_MONTHS window -- RLS scopes this to the caller's own
-// logged rows plus any project they hold view_time on (same gating as the Workload timeline).
-// Feeds both "billable hours this month" and the planned-vs-actual chart's "actual" side.
-export async function fetchRecentTimeEntries(supabase: Supabase) {
-  const { data } = await supabase
-    .from("time_entries")
-    .select("project_id, hours, billable, entry_date")
-    .gte("entry_date", isoMonthsAgo(HISTORY_MONTHS));
-  return data ?? [];
-}
-
 // budget_items cost-type rows ('planned_cost' + 'actual_cost') over the trailing HISTORY_MONTHS
 // window, only ever called when the page has already confirmed the viewer has finance visibility
 // (project_budget_rows returned at least one non-null internal_cost) -- RLS on budget_items

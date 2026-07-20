@@ -2,11 +2,13 @@ import { AttentionList } from "./attention-list";
 import type { AttentionItem } from "./types";
 
 // Pure layout -- every list's items are already computed in page.tsx (it's the one holding all
-// the raw rows); this just arranges the up-to-seven sections in a responsive grid. The
-// over-budget section is entirely omitted (not rendered empty) when the viewer has no budget
-// visibility at all, per the same "omit, don't show an empty finance panel" rule as the charts.
+// the raw rows); this just arranges the action sections in a responsive grid. Each list is a
+// "go fix this" queue (health, expiring creds, over budget, overallocation, missing PM, stale
+// status), so they earn a spot even when empty -- an empty "No project is over budget" is
+// reassurance, not noise. The over-budget section is omitted entirely (not rendered empty) when
+// the viewer has no budget visibility, per the same "omit, don't show an empty finance panel" rule
+// as the charts.
 export function AttentionSections({
-  recentlyUpdated,
   needsAttention,
   expiringCredentials,
   overBudget,
@@ -14,7 +16,6 @@ export function AttentionSections({
   noPm,
   staleStatus,
 }: {
-  recentlyUpdated: AttentionItem[];
   needsAttention: AttentionItem[];
   expiringCredentials: AttentionItem[];
   overBudget: AttentionItem[] | null;
@@ -24,11 +25,6 @@ export function AttentionSections({
 }) {
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-      <AttentionList
-        title="Recently updated projects"
-        emptyMessage="No projects yet."
-        items={recentlyUpdated}
-      />
       <AttentionList
         title="Projects needing attention"
         emptyMessage="Nothing at risk right now."

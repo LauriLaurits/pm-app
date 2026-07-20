@@ -10,38 +10,25 @@ import {
   computeNoPm,
   computeOverBudget,
   computeOverallocatedPeople,
-  computePlannedActualChart,
-  computeRecentlyUpdated,
   computeStaleStatus,
-  computeStatusChart,
   computeSummary,
 } from "./compute";
 import {
   fetchDashboardBase,
-  fetchEstimatedHoursByProject,
   fetchExpiringCredentials,
   fetchLatestStatusUpdateByProject,
   fetchMonthlyActualCosts,
-  fetchRecentTimeEntries,
 } from "./queries";
 import { formatDate, type AttentionItem, type ProjectBudgetRow, type ProjectListRow } from "./types";
-
-function monthStartISO(): string {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
-}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const [base, latestStatusByProject, expiringCreds, estimatedHoursByProject, recentTimeEntries] =
-    await Promise.all([
-      fetchDashboardBase(supabase),
-      fetchLatestStatusUpdateByProject(supabase),
-      fetchExpiringCredentials(supabase),
-      fetchEstimatedHoursByProject(supabase),
-      fetchRecentTimeEntries(supabase),
-    ]);
+  const [base, latestStatusByProject, expiringCreds] = await Promise.all([
+    fetchDashboardBase(supabase),
+    fetchLatestStatusUpdateByProject(supabase),
+    fetchExpiringCredentials(supabase),
+  ]);
 
   const hasError = Boolean(base.projectsError || base.budgetError || base.workloadError);
 
@@ -61,15 +48,6 @@ export default async function DashboardPage() {
   );
 
   const summary = computeSummary(projects, budgetRows, people);
-
-  const actualHoursByProject = new Map<string, number>();
-  const monthStart = monthStartISO();
-  let billableHoursThisMonth = 0;
-  for (const entry of recentTimeEntries) {
-    actualHoursByProject.set(entry.project_id, (actualHoursByProject.get(entry.project_id) ?? 0) + Number(entry.hours));
-    if (entry.billable && entry.entry_date >= monthStart) billableHoursThisMonth += Number(entry.hours);
-  }
-  billableHoursThisMonth = Math.round(billableHoursThisMonth * 10) / 10;
 
   const monthlyCostRaw = summary.finance ? await fetchMonthlyActualCosts(supabase) : null;
   const monthlyCost = monthlyCostRaw?.map((p) => ({ month: monthLabel(p.month), cost: p.cost })) ?? null;
@@ -97,12 +75,10 @@ export default async function DashboardPage() {
           <SummaryCards
             activeProjects={summary.activeProjects}
             atRiskProjects={summary.atRiskProjects}
+            teamUtilizationPct={summary.teamUtilizationPct}
+            approachingDeadlines={summary.approachingDeadlines}
             totalActiveBudget={summary.totalActiveBudget}
             budgetRemaining={summary.budgetRemaining}
-            billableHoursThisMonth={billableHoursThisMonth}
-            teamUtilizationPct={summary.teamUtilizationPct}
-            overallocatedCount={summary.overallocatedCount}
-            approachingDeadlines={summary.approachingDeadlines}
             finance={summary.finance}
           />
 
@@ -110,12 +86,9 @@ export default async function DashboardPage() {
             budgetSpent={computeBudgetSpentChart(budgetRows, summary.hasBudgetVisibility)}
             monthlyCost={monthlyCost}
             capacity={computeCapacityChart(people)}
-            statusCounts={computeStatusChart(projects)}
-            plannedActual={computePlannedActualChart(projects, estimatedHoursByProject, actualHoursByProject)}
           />
 
           <AttentionSections
-            recentlyUpdated={computeRecentlyUpdated(projects)}
             needsAttention={computeNeedsAttention(projects)}
             expiringCredentials={expiringCredItems}
             overBudget={computeOverBudget(budgetRows, summary.hasBudgetVisibility)}

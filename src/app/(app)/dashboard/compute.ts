@@ -4,8 +4,6 @@ import { isApproachingDeadline, isStaleStatus } from "@/lib/dashboard";
 import { HEALTH_BADGE_CLASS } from "../projects/types";
 import type { BudgetSpentRow } from "@/components/charts/budget-spent-chart";
 import type { CapacityRow } from "@/components/charts/capacity-chart";
-import type { ProjectStatusCount } from "@/components/charts/project-status-chart";
-import type { PlannedActualRow } from "@/components/charts/planned-actual-hours-chart";
 import type { FinanceSummary } from "./summary-cards";
 import { formatDate, humanize, type AttentionItem, type ProjectBudgetRow, type ProjectListRow } from "./types";
 
@@ -14,7 +12,6 @@ const STALE_DAYS = 14;
 const ATTENTION_LIMIT = 8;
 const CHART_TOP_N = 6;
 const CAPACITY_TOP_N = 8;
-const STATUS_ORDER = ["planning", "active", "on_hold", "completed", "archived"] as const;
 
 type ValidProject = ProjectListRow & { id: string; name: string };
 type ValidBudgetRow = ProjectBudgetRow & { id: string; name: string };
@@ -43,18 +40,20 @@ export function computeSummary(
     ? activeBudgetRows.reduce((sum, r) => sum + (r.remaining ?? 0), 0)
     : null;
 
-  const costRows = budgetRows.filter((r) => r.internal_cost !== null);
-  const hasFinanceVisibility = costRows.length > 0;
-  const totalInternalCost = hasFinanceVisibility
-    ? costRows.reduce((sum, r) => sum + (r.internal_cost ?? 0), 0)
-    : null;
-  const marginRows = budgetRows.filter((r) => r.margin !== null && r.client_amount !== null);
+  // Finance visibility is gated on internal_cost being present; the margin headline itself is
+  // scoped to ACTIVE projects so it reconciles with the active-only budget tiles above (previously
+  // margin summed every project while budget summed active ones, so the two tiles looked wrong side
+  // by side).
+  const hasFinanceVisibility = budgetRows.some((r) => r.internal_cost !== null);
+  const marginRows = budgetRows.filter(
+    (r) => r.margin !== null && r.client_amount !== null && statusById.get(r.id) === "active"
+  );
   const totalMargin = marginRows.length ? marginRows.reduce((s, r) => s + (r.margin ?? 0), 0) : null;
   const totalClientForMargin = marginRows.length
     ? marginRows.reduce((s, r) => s + (r.client_amount ?? 0), 0)
     : null;
   const finance: FinanceSummary | null = hasFinanceVisibility
-    ? { totalInternalCost, totalMargin, blendedMarginPct: marginPct(totalMargin, totalClientForMargin) }
+    ? { totalMargin, blendedMarginPct: marginPct(totalMargin, totalClientForMargin) }
     : null;
 
   const activeProjects = projects.filter((p) => p.status === "active").length;
@@ -65,7 +64,6 @@ export function computeSummary(
       p.status !== "archived" &&
       isApproachingDeadline(p.deadline, DEADLINE_DAYS)
   ).length;
-  const overallocatedCount = people.filter((p) => (p.current_allocation_pct ?? 0) > 100).length;
   const teamUtilizationPct = people.length
     ? people.reduce((s, p) => s + (p.current_allocation_pct ?? 0), 0) / people.length
     : null;
@@ -76,7 +74,6 @@ export function computeSummary(
     totalActiveBudget,
     budgetRemaining,
     teamUtilizationPct,
-    overallocatedCount,
     approachingDeadlines,
     finance,
     hasBudgetVisibility,
@@ -104,44 +101,7 @@ export function computeCapacityChart(people: ValidPerson[]): CapacityRow[] {
     });
 }
 
-export function computeStatusChart(projects: ValidProject[]): ProjectStatusCount[] {
-  return STATUS_ORDER.map((status) => ({
-    status,
-    label: humanize(status),
-    count: projects.filter((p) => p.status === status).length,
-  }));
-}
-
-export function computePlannedActualChart(
-  projects: ValidProject[],
-  estimatedByProject: Map<string, number>,
-  actualByProject: Map<string, number>
-): PlannedActualRow[] {
-  return projects
-    .filter((p) => (estimatedByProject.get(p.id) ?? 0) > 0 || (actualByProject.get(p.id) ?? 0) > 0)
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      planned: Math.round((estimatedByProject.get(p.id) ?? 0) * 10) / 10,
-      actual: Math.round((actualByProject.get(p.id) ?? 0) * 10) / 10,
-    }))
-    .sort((a, b) => b.planned - a.planned)
-    .slice(0, CHART_TOP_N);
-}
-
 // ---- attention sections ----
-export function computeRecentlyUpdated(projects: ValidProject[]): AttentionItem[] {
-  return [...projects]
-    .sort((a, b) => new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime())
-    .slice(0, ATTENTION_LIMIT)
-    .map((p) => ({
-      id: p.id,
-      href: `/projects/${p.id}`,
-      primary: p.name,
-      secondary: `Updated ${formatDate(p.updated_at)}`,
-    }));
-}
-
 export function computeNeedsAttention(projects: ValidProject[]): AttentionItem[] {
   return projects
     .filter((p) => p.health === "warning" || p.health === "critical")

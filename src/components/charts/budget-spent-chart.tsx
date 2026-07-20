@@ -48,6 +48,7 @@ export function BudgetSpentChart({ rows }: { rows: BudgetSpentRow[] }) {
           tickLine={false}
         />
         <Tooltip
+          cursor={{ fill: "var(--foreground)", fillOpacity: 0.04 }}
           contentStyle={TOOLTIP_CONTENT_STYLE}
           labelStyle={TOOLTIP_LABEL_STYLE}
           formatter={(value) => formatMoney(Number(value))}

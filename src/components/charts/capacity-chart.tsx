@@ -72,7 +72,7 @@ export function CapacityChart({ rows }: { rows: CapacityRow[] }) {
           axisLine={false}
           tickLine={false}
         />
-        <Tooltip content={<CapacityTooltip />} />
+        <Tooltip cursor={{ fill: "var(--foreground)", fillOpacity: 0.04 }} content={<CapacityTooltip />} />
         <Bar dataKey="filled" stackId="meter" radius={[4, 0, 0, 4]} maxBarSize={16}>
           {data.map((d) => (
             <Cell key={d.name} fill={UTILIZATION_STATUS_COLOR[d.cls]} />

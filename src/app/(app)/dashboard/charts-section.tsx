@@ -2,29 +2,20 @@ import { ChartCard, ChartEmptyState } from "@/components/charts/chart-card";
 import { BudgetSpentChart, type BudgetSpentRow } from "@/components/charts/budget-spent-chart";
 import { MonthlyCostChart, type MonthlyCostPoint } from "@/components/charts/monthly-cost-chart";
 import { CapacityChart, type CapacityRow } from "@/components/charts/capacity-chart";
-import { ProjectStatusChart, type ProjectStatusCount } from "@/components/charts/project-status-chart";
-import {
-  PlannedActualHoursChart,
-  type PlannedActualRow,
-} from "@/components/charts/planned-actual-hours-chart";
 
-// Gating lives entirely in what page.tsx passes in: `budgetSpent`/`monthlyCost` are `null` when
-// the viewer has no view_budget / view_internal_cost visibility at all, and the whole panel is
-// omitted -- never rendered with an empty/zeroed chart implying "$0 budget" or "no cost". The
-// other three charts (capacity, project status, planned-vs-actual hours) aren't finance-sensitive
-// so they always render, falling back to an empty state only when there's literally no data.
+// Three charts, each showing something a number can't: money split per project, the internal-cost
+// trend over time (finance only), and who is over/under capacity. Gating lives in what page.tsx
+// passes: the two finance charts are `null` for a viewer without budget/cost visibility and the
+// whole card is omitted -- never rendered zeroed (which would read as "$0 budget"). Capacity always
+// renders, falling back to an empty state only when there's literally no one to show.
 export function ChartsSection({
   budgetSpent,
   monthlyCost,
   capacity,
-  statusCounts,
-  plannedActual,
 }: {
   budgetSpent: BudgetSpentRow[] | null;
   monthlyCost: MonthlyCostPoint[] | null;
   capacity: CapacityRow[];
-  statusCounts: ProjectStatusCount[];
-  plannedActual: PlannedActualRow[];
 }) {
   return (
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -44,19 +35,6 @@ export function ChartsSection({
       )}
       <ChartCard title="Capacity vs allocation" description="Allocated hours against weekly capacity, most booked first">
         {capacity.length === 0 ? <ChartEmptyState /> : <CapacityChart rows={capacity} />}
-      </ChartCard>
-      <ChartCard title="Project status distribution" description="Count of projects per lifecycle status">
-        {statusCounts.every((s) => s.count === 0) ? (
-          <ChartEmptyState />
-        ) : (
-          <ProjectStatusChart data={statusCounts} />
-        )}
-      </ChartCard>
-      <ChartCard
-        title="Planned vs actual hours"
-        description="Estimated hours vs logged hours, last 6 months, largest first"
-      >
-        {plannedActual.length === 0 ? <ChartEmptyState /> : <PlannedActualHoursChart rows={plannedActual} />}
       </ChartCard>
     </div>
   );
