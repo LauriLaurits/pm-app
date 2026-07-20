@@ -18,10 +18,21 @@ import {
   fetchExpiringCredentials,
   fetchLatestStatusUpdateByProject,
   fetchMonthlyActualCosts,
+  fetchMonthlyHours,
 } from "./queries";
+import { PERIOD_OPTIONS, type PeriodMonths } from "./period-selector";
 import { formatDate, type AttentionItem, type ProjectBudgetRow, type ProjectListRow } from "./types";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ months?: string }>;
+}) {
+  const { months: monthsParam } = await searchParams;
+  const months: PeriodMonths = (PERIOD_OPTIONS as readonly number[]).includes(Number(monthsParam))
+    ? (Number(monthsParam) as PeriodMonths)
+    : 6;
+
   const supabase = await createClient();
 
   const [base, latestStatusByProject, expiringCreds] = await Promise.all([
@@ -49,8 +60,16 @@ export default async function DashboardPage() {
 
   const summary = computeSummary(projects, budgetRows, people);
 
-  const monthlyCostRaw = summary.finance ? await fetchMonthlyActualCosts(supabase) : null;
+  const [monthlyCostRaw, monthlyHoursRaw] = await Promise.all([
+    summary.finance ? fetchMonthlyActualCosts(supabase, months) : Promise.resolve(null),
+    fetchMonthlyHours(supabase, months),
+  ]);
   const monthlyCost = monthlyCostRaw?.map((p) => ({ month: monthLabel(p.month), cost: p.cost })) ?? null;
+  const monthlyHours = monthlyHoursRaw.map((p) => ({
+    month: monthLabel(p.month),
+    billable: p.billable,
+    nonBillable: p.nonBillable,
+  }));
 
   const expiringCredItems: AttentionItem[] = expiringCreds.map((c) => ({
     id: c.id,
@@ -89,8 +108,10 @@ export default async function DashboardPage() {
           />
 
           <ChartsSection
-            budgetSpent={computeBudgetSpentChart(budgetRows, summary.hasBudgetVisibility)}
+            months={months}
+            monthlyHours={monthlyHours}
             monthlyCost={monthlyCost}
+            budgetSpent={computeBudgetSpentChart(budgetRows, summary.hasBudgetVisibility)}
             capacity={computeCapacityChart(people)}
           />
 
