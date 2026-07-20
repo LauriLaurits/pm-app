@@ -5,16 +5,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createDelegationAction } from "@/app/actions/delegations";
 import { createDelegationSchema, type CreateDelegationInput } from "@/lib/validation/delegation";
-import { MultiSelectToggle } from "@/components/multi-select-toggle";
+import { FormSection } from "@/components/form-section";
 import { PersonPickerField } from "./person-picker-field";
-import { humanize } from "./types";
+import { DateRangeFields, NotesField, PermissionsField, ProjectsField } from "./delegation-form-fields";
 import type { PermissionOption, PersonOption, ProjectOption } from "./types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -66,100 +64,53 @@ export function DelegationForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
         {serverError && (
           <Alert variant="destructive">
             <AlertDescription>{serverError}</AlertDescription>
           </Alert>
         )}
-        <FormField
-          control={form.control}
-          name="to_user"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Hand over to</FormLabel>
-              <FormControl
-                render={
-                  <PersonPickerField value={field.value || null} onChange={field.onChange} options={people} />
-                }
-              />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="project_ids"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Your projects to cover</FormLabel>
-              <MultiSelectToggle
-                options={projects.map((p) => ({ value: p.id, label: p.name }))}
-                value={field.value}
-                onValueChange={field.onChange}
-                emptyMessage="You aren't the PM on any project."
-                aria-label="Projects to delegate"
-              />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="permission_keys"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Permissions to hand over</FormLabel>
-              <MultiSelectToggle
-                options={permissions.map((p) => ({ value: p.key, label: humanize(p.key) }))}
-                value={field.value}
-                onValueChange={field.onChange}
-                emptyMessage="No delegatable permissions configured."
-                aria-label="Permissions to delegate"
-              />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="grid grid-cols-2 gap-3">
+
+        <FormSection first title="Who covers for you" description="Pick the person who'll act on your behalf while you're away.">
           <FormField
             control={form.control}
-            name="starts_at"
+            name="to_user"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Starts</FormLabel>
-                <FormControl render={<Input type="date" {...field} />} />
+                <FormLabel>Hand over to</FormLabel>
+                <FormControl
+                  render={
+                    <PersonPickerField value={field.value || null} onChange={field.onChange} options={people} />
+                  }
+                />
                 <FormMessage />
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="ends_at"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Ends</FormLabel>
-                <FormControl render={<Input type="date" {...field} />} />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        <FormField
-          control={form.control}
-          name="handover_notes"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Handover notes (optional)</FormLabel>
-              <FormControl
-                render={
-                  <Textarea rows={3} placeholder="What should they know?" {...field} value={field.value ?? ""} />
-                }
-              />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        </FormSection>
+
+        <FormSection
+          title="Which projects"
+          description="Only projects you manage are shown. Toggle the ones the stand-in should cover."
+        >
+          <ProjectsField control={form.control} projects={projects} />
+        </FormSection>
+
+        <FormSection
+          title="What they can do"
+          description="Only permissions that are safe to hand over are available."
+        >
+          <PermissionsField control={form.control} permissions={permissions} />
+        </FormSection>
+
+        <FormSection title="When" description="The stand-in's access is only active during this window.">
+          <DateRangeFields control={form.control} />
+        </FormSection>
+
+        <FormSection title="Handover notes" description="Optional context for whoever is covering for you.">
+          <NotesField control={form.control} />
+        </FormSection>
+
         <DialogFooter>
           <Button type="submit" disabled={isPending}>
             {isPending ? "Creating…" : "Create delegation"}

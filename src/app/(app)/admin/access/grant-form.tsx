@@ -5,16 +5,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { grantProjectAccessAction } from "@/app/actions/access";
 import { grantAccessSchema, type GrantAccessInput } from "@/lib/validation/access";
-import { MultiSelectToggle } from "@/components/multi-select-toggle";
+import { FormSection } from "@/components/form-section";
 import { UserPickerField } from "./user-picker-field";
-import { humanize } from "./types";
+import { ExpiresField, PermissionsField, ProjectSelectField } from "./grant-form-fields";
 import type { PermissionOption, ProjectOption, UserOption } from "./types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const DEFAULTS: GrantAccessInput = {
   user_id: "",
@@ -65,77 +63,44 @@ export function GrantForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
         {serverError && (
           <Alert variant="destructive">
             <AlertDescription>{serverError}</AlertDescription>
           </Alert>
         )}
-        <FormField
-          control={form.control}
-          name="user_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Grant to</FormLabel>
-              <FormControl
-                render={<UserPickerField value={field.value || null} onChange={field.onChange} options={users} />}
-              />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="project_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Project</FormLabel>
-              <Select value={field.value ?? ""} onValueChange={(v) => v && field.onChange(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue>
-                    {() => projects.find((p) => p.id === field.value)?.name ?? "Select a project"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="permission_keys"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Permissions to grant</FormLabel>
-              <MultiSelectToggle
-                options={permissions.map((p) => ({ value: p.key, label: humanize(p.key) }))}
-                value={field.value}
-                onValueChange={field.onChange}
-                emptyMessage="No permissions configured."
-                aria-label="Permissions to grant"
-              />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="expires_at"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Expires (optional)</FormLabel>
-              <FormControl render={<Input type="date" {...field} value={field.value ?? ""} />} />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+
+        <FormSection first title="Who gets access" description="Pick the user who should gain access to a project.">
+          <FormField
+            control={form.control}
+            name="user_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Grant to</FormLabel>
+                <FormControl
+                  render={<UserPickerField value={field.value || null} onChange={field.onChange} options={users} />}
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </FormSection>
+
+        <FormSection title="Which project" description="The permissions below apply to this project only.">
+          <ProjectSelectField control={form.control} projects={projects} />
+        </FormSection>
+
+        <FormSection
+          title="What they can do"
+          description="Only permissions that are safe to grant directly are available."
+        >
+          <PermissionsField control={form.control} permissions={permissions} />
+        </FormSection>
+
+        <FormSection title="When it ends" description="Leave blank for access that doesn't expire on its own.">
+          <ExpiresField control={form.control} />
+        </FormSection>
+
         <DialogFooter>
           <Button type="submit" disabled={isPending}>
             {isPending ? "Granting…" : "Grant access"}

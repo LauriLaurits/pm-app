@@ -15,6 +15,7 @@ import {
 import {
   ClientField, DateField, EnumSelectField, TagsField, type ClientOption,
 } from "./project-create-fields";
+import { FormSection } from "@/components/form-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -65,50 +66,66 @@ export function ProjectCreateForm({
     <Card className="max-w-2xl">
       <CardContent className="pt-6">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             {serverError && (
               <Alert variant="destructive">
                 <AlertDescription>{serverError}</AlertDescription>
               </Alert>
             )}
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl render={<Input autoFocus placeholder="e.g. Retail e-shop replatform" {...field} />} />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div>
-              <p className="mb-1.5 text-sm font-medium">Project manager</p>
-              <p className="text-sm text-muted-foreground">You ({currentUserLabel})</p>
-            </div>
-            <ClientField control={form.control} clients={clients} />
-            <div className="grid grid-cols-2 gap-3">
-              <EnumSelectField control={form.control} name="status" label="Status" options={PROJECT_STATUS_OPTIONS} />
-              <EnumSelectField control={form.control} name="health" label="Health" options={PROJECT_HEALTH_OPTIONS} />
-              <EnumSelectField control={form.control} name="priority" label="Priority" options={PROJECT_PRIORITY_OPTIONS} />
-              <EnumSelectField control={form.control} name="budget_type" label="Budget type" options={BUDGET_TYPE_OPTIONS} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <DateField control={form.control} name="start_date" label="Start date" />
-              <DateField control={form.control} name="deadline" label="Deadline" />
-            </div>
-            <TagsField control={form.control} />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl render={<Textarea rows={3} {...field} value={field.value ?? ""} />} />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
+            <FormSection first title="Project details" description="The name and client this project belongs to.">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl render={<Input autoFocus placeholder="e.g. Retail e-shop replatform" {...field} />} />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div>
+                <p className="mb-1.5 text-sm font-medium">Project manager</p>
+                <p className="text-sm text-muted-foreground">You ({currentUserLabel})</p>
+              </div>
+              <ClientField control={form.control} clients={clients} />
+            </FormSection>
+
+            <FormSection
+              title="Status & priority"
+              description="A reasonable starting point — you can change all of these later."
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <EnumSelectField control={form.control} name="status" label="Status" options={PROJECT_STATUS_OPTIONS} />
+                <EnumSelectField control={form.control} name="health" label="Health" options={PROJECT_HEALTH_OPTIONS} />
+                <EnumSelectField control={form.control} name="priority" label="Priority" options={PROJECT_PRIORITY_OPTIONS} />
+                <EnumSelectField control={form.control} name="budget_type" label="Budget type" options={BUDGET_TYPE_OPTIONS} />
+              </div>
+            </FormSection>
+
+            <FormSection title="Timeline" description="Optional — set these now or fill them in later.">
+              <div className="grid grid-cols-2 gap-3">
+                <DateField control={form.control} name="start_date" label="Start date" />
+                <DateField control={form.control} name="deadline" label="Deadline" />
+              </div>
+            </FormSection>
+
+            <FormSection title="Tags & description" description="Help teammates find and understand this project.">
+              <TagsField control={form.control} />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl render={<Textarea rows={3} {...field} value={field.value ?? ""} />} />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </FormSection>
+
             <div className="flex justify-end">
               <Button type="submit" disabled={isPending}>
                 {isPending ? "Creating…" : "Create project"}
