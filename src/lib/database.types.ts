@@ -1767,6 +1767,7 @@ export type Database = {
           week_start: string
         }[]
       }
+      reveal_credential_secret: { Args: { cred_id: string }; Returns: string }
       revoke_session: { Args: { session_id: string }; Returns: boolean }
       set_user_role: {
         Args: { new_role: string; target_user: string }

@@ -31,6 +31,8 @@ export type AuditAction =
   | "credential.added"
   | "credential.updated"
   | "credential.deleted"
+  | "credential.revealed"
+  | "credential.copied"
   | "time.logged"
   | "time.updated"
   | "time.deleted"

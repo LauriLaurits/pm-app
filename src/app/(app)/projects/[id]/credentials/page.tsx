@@ -20,11 +20,16 @@ export default async function ProjectCredentialsPage({
   if (!project) notFound();
 
   // UX gating only -- the real security boundary is requirePermission() inside
-  // addCredentialAction/deleteCredentialAction, which re-checks has_permission server-side
-  // regardless of what's rendered here.
+  // addCredentialAction/deleteCredentialAction/revealCredentialAction, which re-checks
+  // has_permission server-side regardless of what's rendered here. canReveal in particular also
+  // decides whether CredentialRevealControl (the only place a secret is ever fetched
+  // client-side) is mounted at all -- a non-holder never even gets the option to try.
   const current = await getCurrentUser();
   const { data: canManageCredentials } = current
     ? await supabase.rpc("has_permission", { uid: current.user.id, perm: "manage_credentials", project: id })
+    : { data: false };
+  const { data: canRevealCredentials } = current
+    ? await supabase.rpc("has_permission", { uid: current.user.id, perm: "reveal_credential", project: id })
     : { data: false };
 
   // "view credential metadata" RLS already restricts pms_only/admins_only rows (and rows
@@ -57,7 +62,12 @@ export default async function ProjectCredentialsPage({
         <h2 className="text-lg font-semibold">Credentials</h2>
         {canManageCredentials && <CredentialFormDialog projectId={id} />}
       </div>
-      <CredentialsList credentials={rows} projectId={id} canManage={!!canManageCredentials} />
+      <CredentialsList
+        credentials={rows}
+        projectId={id}
+        canManage={!!canManageCredentials}
+        canReveal={!!canRevealCredentials}
+      />
     </div>
   );
 }
