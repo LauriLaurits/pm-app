@@ -1,6 +1,6 @@
 import { consumptionBadgeClasses, consumptionSeverity, formatMoney, marginPct } from "@/lib/budget";
 import { utilizationBadgeClasses } from "@/lib/workload";
-import { isApproachingDeadline, isStaleStatus } from "@/lib/dashboard";
+import { daysUntil, isApproachingDeadline, isStaleStatus } from "@/lib/dashboard";
 import { HEALTH_BADGE_CLASS } from "../projects/types";
 import type { BudgetSpentRow } from "@/components/charts/budget-spent-chart";
 import type { CapacityRow } from "@/components/charts/capacity-chart";
@@ -57,24 +57,45 @@ export function computeSummary(
     : null;
 
   const activeProjects = projects.filter((p) => p.status === "active").length;
-  const atRiskProjects = projects.filter((p) => p.health === "warning" || p.health === "critical").length;
+  const planningProjects = projects.filter((p) => p.status === "planning").length;
+  const criticalProjects = projects.filter((p) => p.health === "critical").length;
+  const warningProjects = projects.filter((p) => p.health === "warning").length;
+  const atRiskProjects = criticalProjects + warningProjects;
   const approachingDeadlines = projects.filter(
     (p) =>
       p.status !== "completed" &&
       p.status !== "archived" &&
       isApproachingDeadline(p.deadline, DEADLINE_DAYS)
   ).length;
+
+  // Soonest still-open deadline (for the "next: X in Nd" subline), regardless of the 14-day window.
+  const nextDeadline =
+    projects
+      .filter(
+        (p): p is ValidProject & { deadline: string } =>
+          p.status !== "completed" && p.status !== "archived" && !!p.deadline && daysUntil(p.deadline) >= 0
+      )
+      .map((p) => ({ name: p.name, days: daysUntil(p.deadline) }))
+      .sort((a, b) => a.days - b.days)[0] ?? null;
+
+  const overallocatedCount = people.filter((p) => (p.current_allocation_pct ?? 0) > 100).length;
   const teamUtilizationPct = people.length
     ? people.reduce((s, p) => s + (p.current_allocation_pct ?? 0), 0) / people.length
     : null;
 
   return {
     activeProjects,
+    planningProjects,
+    totalProjects: projects.length,
     atRiskProjects,
+    criticalProjects,
+    warningProjects,
     totalActiveBudget,
     budgetRemaining,
     teamUtilizationPct,
+    overallocatedCount,
     approachingDeadlines,
+    nextDeadline,
     finance,
     hasBudgetVisibility,
   };

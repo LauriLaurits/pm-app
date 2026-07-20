@@ -4,7 +4,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { StatusUpdateRow } from "./types";
 
 function formatDateTime(value: string) {
@@ -57,15 +57,24 @@ function UpdateBody({ update }: { update: StatusUpdateRow }) {
   );
 }
 
-export function StatusHistory({ updates }: { updates: StatusUpdateRow[] }) {
+export function StatusHistory({
+  updates,
+  postAction,
+}: {
+  updates: StatusUpdateRow[];
+  postAction?: React.ReactNode;
+}) {
   if (updates.length === 0) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Status updates</CardTitle>
+          {postAction && <CardAction>{postAction}</CardAction>}
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No status updates yet.</p>
+          <p className="text-sm text-muted-foreground">
+            No status updates yet.{postAction ? " Post the first one to record where things stand." : ""}
+          </p>
         </CardContent>
       </Card>
     );
@@ -78,6 +87,7 @@ export function StatusHistory({ updates }: { updates: StatusUpdateRow[] }) {
       <CardHeader>
         <CardTitle>Latest status update</CardTitle>
         <p className="text-xs text-muted-foreground">{formatDateTime(latest.created_at)}</p>
+        {postAction && <CardAction>{postAction}</CardAction>}
       </CardHeader>
       <CardContent className="space-y-4">
         <UpdateBody update={latest} />

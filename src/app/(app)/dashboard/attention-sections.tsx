@@ -25,11 +25,14 @@ export function AttentionSections({
 }) {
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-      <AttentionList
-        title="Projects needing attention"
-        emptyMessage="Nothing at risk right now."
-        items={needsAttention}
-      />
+      {/* id anchor: the dashboard's "Needs attention" KPI tile links to #needs-attention */}
+      <div id="needs-attention" className="scroll-mt-20">
+        <AttentionList
+          title="Projects needing attention"
+          emptyMessage="Nothing at risk right now."
+          items={needsAttention}
+        />
+      </div>
       <AttentionList
         title="Expiring credentials"
         emptyMessage="No credentials expiring soon."

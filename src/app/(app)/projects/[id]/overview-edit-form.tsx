@@ -14,7 +14,7 @@ import {
 } from "@/lib/validation/project";
 import type { ProjectRow } from "./types";
 import {
-  DateField, EnumSelectField, ProgressField, TagsField, TextAreaField, TEXT_FIELDS,
+  DateField, EnumSelectField, TagsField, TextAreaField, TEXT_FIELDS,
 } from "./overview-edit-fields";
 import { ClientField, PmField, type ClientOption, type PmOption } from "./overview-edit-admin-fields";
 import { FormSection } from "@/components/form-section";
@@ -113,11 +113,10 @@ export function OverviewEditForm({
           </div>
         </FormSection>
 
-        <FormSection title="Timeline & progress" description="Dates and completion, shown on the project overview.">
-          <div className="grid grid-cols-3 gap-3">
+        <FormSection title="Timeline" description="Dates shown on the project overview. Progress is derived from part statuses, not typed.">
+          <div className="grid grid-cols-2 gap-3">
             <DateField control={form.control} name="start_date" label="Start date" />
             <DateField control={form.control} name="deadline" label="Deadline" />
-            <ProgressField control={form.control} />
           </div>
         </FormSection>
 
@@ -125,7 +124,7 @@ export function OverviewEditForm({
           <TagsField control={form.control} />
         </FormSection>
 
-        <FormSection title="Notes" description="Free-text context — risks, blockers, next steps, and internal/client notes.">
+        <FormSection title="Notes" description="Standing context — risks and internal/client notes. Point-in-time blockers and next steps go in a status update.">
           {TEXT_FIELDS.map(({ name, label }) => (
             <TextAreaField key={name} control={form.control} name={name} label={label} />
           ))}

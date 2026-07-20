@@ -8,11 +8,12 @@ import {
 } from "@/components/ui/select";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
+// `blockers` and `next_steps` are intentionally NOT here: point-in-time blockers/next-milestone
+// live in status updates now, so asking for them again on the project record was double entry.
+// The columns still exist and their values round-trip via the form defaults, untouched.
 export const TEXT_FIELDS: { name: FieldPath<EditProjectInput>; label: string }[] = [
   { name: "description", label: "Description" },
   { name: "risks", label: "Risks" },
-  { name: "blockers", label: "Blockers" },
-  { name: "next_steps", label: "Next steps" },
   { name: "internal_notes", label: "Internal notes" },
   { name: "client_notes", label: "Client notes" },
 ];
@@ -73,32 +74,6 @@ export function DateField({
         <FormItem>
           <FormLabel>{label}</FormLabel>
           <FormControl render={<Input type="date" {...field} value={field.value ?? ""} />} />
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-  );
-}
-
-export function ProgressField({ control }: { control: Control<EditProjectInput> }) {
-  return (
-    <FormField
-      control={control}
-      name="progress"
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>Progress %</FormLabel>
-          <FormControl
-            render={
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                {...field}
-                onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
-              />
-            }
-          />
           <FormMessage />
         </FormItem>
       )}

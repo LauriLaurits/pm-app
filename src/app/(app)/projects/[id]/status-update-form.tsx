@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { postStatusUpdateAction } from "@/app/actions/projects";
 import { statusUpdateSchema, type StatusUpdateInput } from "@/lib/validation/project";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -31,7 +30,13 @@ const emptyValues: StatusUpdateInput = {
   handover_info: null,
 };
 
-export function StatusUpdateForm({ projectId }: { projectId: string }) {
+export function StatusUpdateForm({
+  projectId,
+  onSuccess,
+}: {
+  projectId: string;
+  onSuccess?: () => void;
+}) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [posted, setPosted] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -49,17 +54,14 @@ export function StatusUpdateForm({ projectId }: { projectId: string }) {
       else {
         setPosted(true);
         form.reset(emptyValues);
+        onSuccess?.();
       }
     });
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Post a status update</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
+    <div>
+      <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {serverError && (
               <Alert variant="destructive">
@@ -94,7 +96,6 @@ export function StatusUpdateForm({ projectId }: { projectId: string }) {
             </Button>
           </form>
         </Form>
-      </CardContent>
-    </Card>
+    </div>
   );
 }

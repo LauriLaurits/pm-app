@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   AlertTriangle,
   CalendarClock,
@@ -17,8 +18,6 @@ export type FinanceSummary = {
 
 type Tone = "neutral" | "info" | "good" | "warn" | "critical";
 
-// Value text color -- tone always MEANS something (a state), never decoration. "neutral" is the
-// plain foreground for counts that carry no good/bad reading (e.g. active-project count).
 const VALUE_TONE: Record<Tone, string> = {
   neutral: "",
   info: "text-blue-700 dark:text-blue-400",
@@ -27,8 +26,6 @@ const VALUE_TONE: Record<Tone, string> = {
   critical: "text-red-700 dark:text-red-400",
 };
 
-// Icon chip background/foreground, keyed to the same tone so a card's icon and its number read as
-// one signal. Full static class strings (Tailwind can't compose `bg-${c}` at build time).
 const ICON_TONE: Record<Tone, string> = {
   neutral: "bg-foreground/5 text-foreground/60",
   info: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
@@ -37,46 +34,41 @@ const ICON_TONE: Record<Tone, string> = {
   critical: "bg-red-500/10 text-red-600 dark:text-red-400",
 };
 
-// Six focused KPIs, each a distinct actionable signal (see the dashboard usability pass): four core
-// tiles always render as one row, the two finance tiles add a short second row only when `finance`
-// is non-null -- never a wall of "—" for a non-finance viewer. Workload appears here once (team
-// utilization); the per-person breakdown is the capacity chart and the overallocated list, not a
-// third tile. Budget is one "remaining of total" tile, not two.
-export function SummaryCards({
-  activeProjects,
-  atRiskProjects,
-  teamUtilizationPct,
-  approachingDeadlines,
-  totalActiveBudget,
-  budgetRemaining,
-  finance,
-}: {
+// Six focused KPIs. Every tile pairs its number with a one-line interpretation (a bare "6" is
+// noise) and links to the place that answers "which exactly" -- the tile is the glance, the target
+// is the detail. Four core tiles always render; the two finance tiles are added only when the
+// viewer has finance visibility.
+export function SummaryCards(props: {
   activeProjects: number;
+  planningProjects: number;
+  totalProjects: number;
   atRiskProjects: number;
+  criticalProjects: number;
+  warningProjects: number;
   teamUtilizationPct: number | null;
+  overallocatedCount: number;
   approachingDeadlines: number;
+  nextDeadline: { name: string; days: number } | null;
   totalActiveBudget: number | null;
   budgetRemaining: number | null;
   finance: FinanceSummary | null;
 }) {
-  const util = teamUtilizationPct;
+  const util = props.teamUtilizationPct;
   const utilTone: Tone =
     util === null ? "neutral" : util > 100 ? "critical" : util >= 90 ? "warn" : "info";
 
   const remainingRatio =
-    totalActiveBudget && totalActiveBudget > 0 && budgetRemaining !== null
-      ? budgetRemaining / totalActiveBudget
+    props.totalActiveBudget && props.totalActiveBudget > 0 && props.budgetRemaining !== null
+      ? props.budgetRemaining / props.totalActiveBudget
       : null;
   const budgetTone: Tone =
-    remainingRatio === null
-      ? "neutral"
-      : remainingRatio < 0.1
-        ? "critical"
-        : remainingRatio < 0.25
-          ? "warn"
-          : "info";
+    remainingRatio === null ? "neutral" : remainingRatio < 0.1 ? "critical" : remainingRatio < 0.25 ? "warn" : "info";
+  const spentPct =
+    props.totalActiveBudget && props.totalActiveBudget > 0 && props.budgetRemaining !== null
+      ? Math.round(((props.totalActiveBudget - props.budgetRemaining) / props.totalActiveBudget) * 100)
+      : null;
 
-  const marginPctVal = finance?.blendedMarginPct ?? null;
+  const marginPctVal = props.finance?.blendedMarginPct ?? null;
   const marginTone: Tone =
     marginPctVal === null ? "neutral" : marginPctVal < 15 ? "critical" : marginPctVal < 25 ? "warn" : "good";
 
@@ -85,42 +77,68 @@ export function SummaryCards({
       <StatTile
         icon={FolderKanban}
         label="Active projects"
-        value={String(activeProjects)}
+        value={String(props.activeProjects)}
+        context={`of ${props.totalProjects} · ${props.planningProjects} in planning`}
         tone="info"
+        href="/projects?status=active"
       />
       <StatTile
         icon={AlertTriangle}
-        label="Projects at risk"
-        value={String(atRiskProjects)}
-        tone={atRiskProjects > 0 ? "warn" : "good"}
+        label="Needs attention"
+        value={String(props.atRiskProjects)}
+        context={
+          props.atRiskProjects === 0
+            ? "all projects healthy"
+            : `${props.criticalProjects} critical, ${props.warningProjects} warning`
+        }
+        tone={props.atRiskProjects > 0 ? "warn" : "good"}
+        href="#needs-attention"
       />
       <StatTile
         icon={Gauge}
-        label="Team utilization"
+        label="Team load"
         value={util === null ? "—" : `${util.toFixed(0)}%`}
+        context={
+          props.overallocatedCount > 0
+            ? `avg · ${props.overallocatedCount} over capacity`
+            : "avg · all within capacity"
+        }
         tone={utilTone}
+        href="/workload"
       />
       <StatTile
         icon={CalendarClock}
-        label="Deadlines within 14 days"
-        value={String(approachingDeadlines)}
-        tone={approachingDeadlines > 0 ? "warn" : "neutral"}
+        label="Deadlines (14d)"
+        value={String(props.approachingDeadlines)}
+        context={
+          props.nextDeadline
+            ? `next: ${truncate(props.nextDeadline.name, 18)} in ${props.nextDeadline.days}d`
+            : "none scheduled"
+        }
+        tone={props.approachingDeadlines > 0 ? "warn" : "neutral"}
+        href="/projects"
       />
-      {finance && (
+      {props.finance && (
         <>
           <StatTile
             icon={Wallet}
             label="Budget remaining"
-            value={formatMoney(budgetRemaining)}
-            sub={totalActiveBudget !== null ? `of ${formatMoney(totalActiveBudget)}` : undefined}
+            value={formatMoney(props.budgetRemaining)}
+            context={
+              props.totalActiveBudget !== null
+                ? `of ${formatMoney(props.totalActiveBudget)}${spentPct !== null ? ` · ${spentPct}% spent` : ""}`
+                : "active projects"
+            }
             tone={budgetTone}
+            href="/budgets"
           />
           <StatTile
             icon={TrendingUp}
             label="Blended margin"
-            value={formatMoney(finance.totalMargin)}
-            sub={marginPctVal === null ? undefined : `${marginPctVal.toFixed(1)}%`}
+            value={formatMoney(props.finance.totalMargin)}
+            context={marginPctVal === null ? "active projects" : `${marginPctVal.toFixed(1)}% of client value`}
             tone={marginTone}
+            href="/budgets"
           />
         </>
       )}
@@ -128,33 +146,39 @@ export function SummaryCards({
   );
 }
 
+function truncate(s: string, n: number): string {
+  return s.length > n ? `${s.slice(0, n - 1)}…` : s;
+}
+
 function StatTile({
   icon: Icon,
   label,
   value,
-  sub,
+  context,
   tone,
+  href,
 }: {
   icon: LucideIcon;
   label: string;
   value: string;
-  sub?: string;
+  context: string;
   tone: Tone;
+  href: string;
 }) {
   return (
-    <Card size="sm">
-      <CardContent className="flex items-start gap-3">
-        <span className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg ${ICON_TONE[tone]}`}>
-          <Icon className="size-4" />
-        </span>
-        <div className="min-w-0 space-y-0.5">
-          <p className="truncate text-sm text-muted-foreground">{label}</p>
-          <p className={`text-xl font-semibold ${VALUE_TONE[tone]}`}>
-            {value}
-            {sub && <span className="ml-1.5 text-sm font-normal text-muted-foreground">{sub}</span>}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+    <Link href={href} className="block rounded-xl transition focus-visible:outline-2 focus-visible:outline-ring">
+      <Card size="sm" className="h-full transition hover:ring-foreground/25">
+        <CardContent className="flex items-start gap-3">
+          <span className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg ${ICON_TONE[tone]}`}>
+            <Icon className="size-4" />
+          </span>
+          <div className="min-w-0 space-y-0.5">
+            <p className="truncate text-sm text-muted-foreground">{label}</p>
+            <p className={`text-2xl leading-tight font-semibold ${VALUE_TONE[tone]}`}>{value}</p>
+            <p className="truncate text-xs text-muted-foreground">{context}</p>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }

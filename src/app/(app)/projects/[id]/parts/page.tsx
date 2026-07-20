@@ -38,6 +38,22 @@ export default async function ProjectPartsPage({
     .eq("project_id", id)
     .order("created_at", { ascending: true });
 
+  // Actual hours per part, rolled up from time_entries (RLS scopes this to time the caller may
+  // see -- own entries plus any project they hold view_time on; a viewer without it simply gets
+  // zero rows and the table shows "— / est"). Entries with a null project_part_id are project-
+  // level and intentionally excluded from the per-part actual.
+  const { data: timeRows } = await supabase
+    .from("time_entries")
+    .select("project_part_id, hours")
+    .eq("project_id", id)
+    .not("project_part_id", "is", null);
+  const actualByPartId = new Map<string, number>();
+  for (const r of timeRows ?? []) {
+    if (r.project_part_id) {
+      actualByPartId.set(r.project_part_id, (actualByPartId.get(r.project_part_id) ?? 0) + Number(r.hours));
+    }
+  }
+
   // responsible_person_id -> name resolved via `people` (RLS: view_people, granted
   // globally to every seeded role), same precedent as the Overview tab's pm/owner names.
   const personIds = [
@@ -62,6 +78,7 @@ export default async function ProjectPartsPage({
       <PartsTable
         parts={(parts ?? []) as PartRow[]}
         nameByPersonId={nameByPersonId}
+        actualByPartId={actualByPartId}
         canEdit={!!canEdit}
         canViewBudget={!!canViewBudget}
         projectId={id}

@@ -100,9 +100,10 @@ export function PartForm({
           <EnumSelectField control={form.control} name="billing_model" label="Billing model" options={BILLING_MODEL_OPTIONS} />
         </div>
         <ResponsiblePersonField control={form.control} people={people} />
+        {/* Progress is no longer typed here -- it's derived from part statuses (see lib/progress).
+            `progress` stays in the form defaults so the existing DB value round-trips untouched. */}
         <div className="grid grid-cols-2 gap-3">
           <NumberField control={form.control} name="estimated_hours" label="Est. hours" />
-          <NumberField control={form.control} name="progress" label="Progress %" nullable={false} />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <DateField control={form.control} name="start_date" label="Start date" />

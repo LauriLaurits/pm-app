@@ -1,14 +1,15 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
+import { deriveProgress } from "@/lib/progress";
 import { OverviewDetailsCard } from "./overview-details";
 import { OverviewEditDialog } from "./overview-edit-dialog";
 import type { ClientOption, PmOption } from "./overview-edit-admin-fields";
 import { OverviewNotesCard } from "./overview-notes";
-import { OverviewPeopleCard } from "./overview-people";
+import { ProjectHeaderStrip, type ProjectBudgetCell } from "./project-header";
 import { ProjectDangerZone } from "./project-danger-zone";
 import { StatusHistory } from "./status-history";
-import { StatusUpdateForm } from "./status-update-form";
+import { StatusUpdateDialog } from "./status-update-dialog";
 import type { PersonRef, ProjectRow, StatusUpdateRow } from "./types";
 
 export default async function ProjectOverviewPage({
@@ -44,6 +45,31 @@ export default async function ProjectOverviewPage({
     .select("*")
     .eq("project_id", id)
     .order("created_at", { ascending: false });
+
+  // Header-strip inputs. Progress is derived from part statuses (never the manual column); the
+  // budget row's finance columns are RLS-nulled for a non-finance caller (so the Budget cell is
+  // simply omitted for them); team is a headcount of project_members.
+  const [{ data: parts }, { data: budgetRow }, { count: teamCount }] = await Promise.all([
+    supabase.from("project_parts").select("status, estimated_hours").eq("project_id", id),
+    supabase
+      .from("project_budget_rows")
+      .select("client_amount, invoiced, consumption_pct")
+      .eq("id", id)
+      .maybeSingle(),
+    supabase.from("project_members").select("id", { count: "exact", head: true }).eq("project_id", id),
+  ]);
+
+  const progress = deriveProgress(
+    (parts ?? []).map((p) => ({ status: p.status as string, estimated_hours: p.estimated_hours }))
+  );
+  const budgetCell: ProjectBudgetCell =
+    budgetRow && budgetRow.client_amount !== null
+      ? {
+          clientAmount: budgetRow.client_amount,
+          invoiced: budgetRow.invoiced ?? 0,
+          consumptionPct: budgetRow.consumption_pct,
+        }
+      : null;
 
   // pm_name/owner_name are resolved via `people` (RLS: view_people, granted globally to every
   // seeded role) rather than joining `user_profiles` directly -- same precedent as
@@ -86,34 +112,45 @@ export default async function ProjectOverviewPage({
     .map((p) => ({ user_id: p.user_id, full_name: p.full_name }));
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      <div className="space-y-4 lg:col-span-2">
-        {canEditStatus && <StatusUpdateForm projectId={row.id} />}
-        <StatusHistory updates={(updates ?? []) as StatusUpdateRow[]} />
-        <OverviewNotesCard project={row} />
-      </div>
-      <div className="space-y-4">
-        <OverviewDetailsCard
-          project={row}
-          editAction={
-            canEdit ? (
-              <OverviewEditDialog
-                project={row}
-                clients={(clients ?? []) as ClientOption[]}
-                isAdmin={isAdmin}
-                pmCandidates={pmCandidates}
-                currentPmName={currentPmName}
-              />
-            ) : null
-          }
-        />
-        <OverviewPeopleCard pm={toPersonRef(row.pm_id)} owner={toPersonRef(row.owner_id)} />
-        <ProjectDangerZone
-          projectId={row.id}
-          status={row.status}
-          canArchive={!!canEdit}
-          canDelete={isAdmin}
-        />
+    <div className="space-y-4">
+      <ProjectHeaderStrip
+        progress={progress}
+        deadline={row.deadline}
+        budget={budgetCell}
+        teamCount={teamCount ?? 0}
+      />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
+          <StatusHistory
+            updates={(updates ?? []) as StatusUpdateRow[]}
+            postAction={canEditStatus ? <StatusUpdateDialog projectId={row.id} /> : null}
+          />
+          <OverviewNotesCard project={row} />
+        </div>
+        <div className="space-y-4">
+          <OverviewDetailsCard
+            project={row}
+            pm={toPersonRef(row.pm_id)}
+            owner={toPersonRef(row.owner_id)}
+            editAction={
+              canEdit ? (
+                <OverviewEditDialog
+                  project={row}
+                  clients={(clients ?? []) as ClientOption[]}
+                  isAdmin={isAdmin}
+                  pmCandidates={pmCandidates}
+                  currentPmName={currentPmName}
+                />
+              ) : null
+            }
+          />
+          <ProjectDangerZone
+            projectId={row.id}
+            status={row.status}
+            canArchive={!!canEdit}
+            canDelete={isAdmin}
+          />
+        </div>
       </div>
     </div>
   );

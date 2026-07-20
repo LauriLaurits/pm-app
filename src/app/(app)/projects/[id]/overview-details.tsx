@@ -1,14 +1,22 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { formatDate } from "../types";
+import { formatDate, initials } from "../types";
+import type { PersonRef } from "./types";
 import type { ProjectRow } from "./types";
 
+// Details + people in one card (progress and deadline moved to the header strip so they aren't
+// repeated). "Details" is the standing description of the project; the header answers "where does
+// it stand right now".
 export function OverviewDetailsCard({
   project,
+  pm,
+  owner,
   editAction,
 }: {
   project: ProjectRow;
+  pm: PersonRef;
+  owner: PersonRef;
   editAction?: React.ReactNode;
 }) {
   return (
@@ -22,27 +30,17 @@ export function OverviewDetailsCard({
           {project.description ?? <span className="text-muted-foreground">No description.</span>}
         </p>
 
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <div className="text-muted-foreground">Start date</div>
-            <div>{formatDate(project.start_date)}</div>
+        <div className="space-y-3 border-t pt-3">
+          <PersonRow label="Project manager" person={pm} />
+          <PersonRow label="Owner" person={owner} />
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-muted-foreground">Start date</span>
+            <span>{formatDate(project.start_date)}</span>
           </div>
-          <div>
-            <div className="text-muted-foreground">Deadline</div>
-            <div>{formatDate(project.deadline)}</div>
-          </div>
-        </div>
-
-        <div>
-          <div className="mb-1 flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Progress</span>
-            <span className="font-medium">{project.progress}%</span>
-          </div>
-          <Progress value={project.progress} />
         </div>
 
         {project.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 border-t pt-3">
             {project.tags.map((tag) => (
               <Badge key={tag} variant="secondary">
                 {tag}
@@ -52,5 +50,24 @@ export function OverviewDetailsCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function PersonRow({ label, person }: { label: string; person: PersonRef }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      {person ? (
+        <div className="flex items-center gap-2">
+          <Avatar size="sm">
+            <AvatarImage src={person.avatar_url ?? undefined} alt={person.full_name} />
+            <AvatarFallback>{initials(person.full_name)}</AvatarFallback>
+          </Avatar>
+          <span className="text-sm font-medium">{person.full_name}</span>
+        </div>
+      ) : (
+        <span className="text-sm text-muted-foreground">—</span>
+      )}
+    </div>
   );
 }

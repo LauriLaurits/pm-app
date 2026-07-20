@@ -74,9 +74,15 @@ export default async function DashboardPage() {
         <>
           <SummaryCards
             activeProjects={summary.activeProjects}
+            planningProjects={summary.planningProjects}
+            totalProjects={summary.totalProjects}
             atRiskProjects={summary.atRiskProjects}
+            criticalProjects={summary.criticalProjects}
+            warningProjects={summary.warningProjects}
             teamUtilizationPct={summary.teamUtilizationPct}
+            overallocatedCount={summary.overallocatedCount}
             approachingDeadlines={summary.approachingDeadlines}
+            nextDeadline={summary.nextDeadline}
             totalActiveBudget={summary.totalActiveBudget}
             budgetRemaining={summary.budgetRemaining}
             finance={summary.finance}
