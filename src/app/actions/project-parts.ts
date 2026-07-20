@@ -5,7 +5,9 @@ import { z } from "zod";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
-import { partSchema, type PartInput } from "@/lib/validation/project";
+import {
+  partInlineFieldSchema, partSchema, type PartInlineField, type PartInput,
+} from "@/lib/validation/project";
 
 type ActionResult = { error: string } | { success: true; id: string };
 
@@ -81,6 +83,50 @@ export async function upsertPartAction(
 
   revalidatePath(`/projects/${projectId}/parts`);
   return { success: true as const, id: part.id };
+}
+
+/**
+ * Inline single-field edit for the parts list table (ux-interaction-audit.md #24) --
+ * status/responsible_person_id only, one at a time, not the full partSchema payload the
+ * PartFormDialog submits. `field` selects which value to validate; responsible_person_id
+ * accepts the same "none" sentinel the full form's <Select> already uses for "Unassigned".
+ */
+export async function updatePartFieldAction(
+  projectId: string,
+  partId: string,
+  field: PartInlineField,
+  value: string
+): Promise<{ error: string } | { success: true }> {
+  if (!z.uuid().safeParse(projectId).success) return { error: "Invalid project." };
+  if (!z.uuid().safeParse(partId).success) return { error: "Invalid part." };
+
+  // Security boundary: throws "Not authorized" if the caller lacks edit_project on
+  // this project. Must run before any validation/DB work.
+  const current = await requirePermission("edit_project", projectId);
+
+  const parsed = partInlineFieldSchema(field).safeParse(value);
+  if (!parsed.success) return { error: "Invalid value." };
+
+  const supabase = await createClient();
+  const patch = field === "status" ? { status: parsed.data as PartInput["status"] } : { responsible_person_id: parsed.data as string | null };
+  const { error } = await supabase
+    .from("project_parts")
+    .update(patch)
+    .eq("id", partId)
+    .eq("project_id", projectId);
+  if (error) return { error: "Update failed. Try again." };
+
+  await writeAudit({
+    action: "part.upserted",
+    actorId: current.user.id,
+    actorEmail: current.profile.email,
+    resourceType: "project_part",
+    resourceId: partId,
+    metadata: { project_id: projectId, field, value: parsed.data },
+  });
+
+  revalidatePath(`/projects/${projectId}/parts`);
+  return { success: true as const };
 }
 
 export async function deletePartAction(

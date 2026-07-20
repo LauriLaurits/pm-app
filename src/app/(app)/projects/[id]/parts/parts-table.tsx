@@ -1,8 +1,10 @@
-import { Badge } from "@/components/ui/badge";
+import { updatePartFieldAction } from "@/app/actions/project-parts";
 import { Progress } from "@/components/ui/progress";
+import { InlineEditSelect, type InlineEditOption } from "@/components/inline-edit-select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { PART_STATUS_OPTIONS } from "@/lib/validation/project";
 import { formatMoney, humanize } from "../../types";
 import { PartDeleteButton } from "./part-actions";
 import { PartFormDialog } from "./part-form-dialog";
@@ -20,6 +22,13 @@ const PART_STATUS_BADGE_CLASS: Record<PartRow["status"], string> = {
   done:
     "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-400",
 };
+
+const PART_STATUS_INLINE_OPTIONS: InlineEditOption[] = PART_STATUS_OPTIONS.map((s) => ({
+  value: s,
+  label: humanize(s),
+  badgeVariant: "outline",
+  badgeClassName: PART_STATUS_BADGE_CLASS[s],
+}));
 
 export function PartsTable({
   parts,
@@ -39,6 +48,23 @@ export function PartsTable({
   if (parts.length === 0) {
     return <p className="text-muted-foreground">No parts yet.</p>;
   }
+
+  // Shared across every row -- same "Unassigned" sentinel the full PartFormDialog's <Select>
+  // already uses for a null responsible_person_id. Editors get the full roster (`people`, only
+  // fetched for canEdit) so they can reassign to anyone; non-editors only need enough options to
+  // label whichever person is *already* assigned (`nameByPersonId`, fetched for every viewer) --
+  // the dropdown itself never renders for them, InlineEditSelect just needs a label to show.
+  const responsibleOptions: InlineEditOption[] = canEdit
+    ? [
+        { value: "none", label: "Unassigned", badgeVariant: "outline" },
+        ...people.map((p) => ({ value: p.id, label: p.full_name, badgeVariant: "outline" as const })),
+      ]
+    : [
+        { value: "none", label: "Unassigned", badgeVariant: "outline" },
+        ...[...nameByPersonId.entries()].map(([id, name]) => ({
+          value: id, label: name, badgeVariant: "outline" as const,
+        })),
+      ];
 
   return (
     <Table>
@@ -64,12 +90,22 @@ export function PartsTable({
               )}
             </TableCell>
             <TableCell>
-              <Badge variant="outline" className={PART_STATUS_BADGE_CLASS[part.status]}>
-                {humanize(part.status)}
-              </Badge>
+              <InlineEditSelect
+                value={part.status}
+                options={PART_STATUS_INLINE_OPTIONS}
+                canEdit={canEdit}
+                ariaLabel="part status"
+                onSave={updatePartFieldAction.bind(null, projectId, part.id, "status")}
+              />
             </TableCell>
             <TableCell>
-              {part.responsible_person_id ? nameByPersonId.get(part.responsible_person_id) ?? "—" : "—"}
+              <InlineEditSelect
+                value={part.responsible_person_id ?? "none"}
+                options={responsibleOptions}
+                canEdit={canEdit}
+                ariaLabel="part responsible person"
+                onSave={updatePartFieldAction.bind(null, projectId, part.id, "responsible_person_id")}
+              />
             </TableCell>
             <TableCell>{humanize(part.billing_model)}</TableCell>
             <TableCell>{part.estimated_hours ?? "—"}</TableCell>

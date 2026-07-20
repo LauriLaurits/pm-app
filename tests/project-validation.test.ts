@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   addMemberSchema, createProjectSchema, credentialSchema, credentialUpdateSchema, editProjectSchema,
-  linkSchema, partSchema, statusUpdateSchema, updateMemberSchema,
+  linkSchema, partInlineFieldSchema, partSchema, projectInlineFieldSchema, statusUpdateSchema,
+  updateMemberSchema,
 } from "@/lib/validation/project";
 
 const validProject = {
@@ -115,6 +116,20 @@ describe("editProjectSchema", () => {
     const parsed = editProjectSchema.parse({ ...validProject, client_id: "", pm_id: null });
     expect(parsed.client_id).toBeNull();
     expect(parsed.pm_id).toBeNull();
+  });
+});
+
+describe("projectInlineFieldSchema", () => {
+  it("accepts a known value for each inline field", () => {
+    expect(projectInlineFieldSchema("status").safeParse("on_hold").success).toBe(true);
+    expect(projectInlineFieldSchema("health").safeParse("critical").success).toBe(true);
+    expect(projectInlineFieldSchema("priority").safeParse("high").success).toBe(true);
+  });
+
+  it("rejects an unknown value for each inline field", () => {
+    expect(projectInlineFieldSchema("status").safeParse("cancelled").success).toBe(false);
+    expect(projectInlineFieldSchema("health").safeParse("bad").success).toBe(false);
+    expect(projectInlineFieldSchema("priority").safeParse("urgent").success).toBe(false);
   });
 });
 
@@ -317,6 +332,38 @@ describe("partSchema", () => {
     const parsed = partSchema.parse({ ...validPart, description: "  ", notes: "" });
     expect(parsed.description).toBeNull();
     expect(parsed.notes).toBeNull();
+  });
+});
+
+describe("partInlineFieldSchema", () => {
+  it("accepts a known status", () => {
+    expect(partInlineFieldSchema("status").safeParse("blocked").success).toBe(true);
+  });
+
+  it("rejects an unknown status", () => {
+    expect(partInlineFieldSchema("status").safeParse("cancelled").success).toBe(false);
+  });
+
+  it("accepts a valid uuid for responsible_person_id", () => {
+    const parsed = partInlineFieldSchema("responsible_person_id").safeParse(
+      "50000003-0000-4000-8000-000000000003"
+    );
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data).toBe("50000003-0000-4000-8000-000000000003");
+  });
+
+  it("normalizes the 'none' sentinel (and blank) to null for responsible_person_id", () => {
+    const noneParsed = partInlineFieldSchema("responsible_person_id").safeParse("none");
+    expect(noneParsed.success).toBe(true);
+    if (noneParsed.success) expect(noneParsed.data).toBeNull();
+
+    const blankParsed = partInlineFieldSchema("responsible_person_id").safeParse("");
+    expect(blankParsed.success).toBe(true);
+    if (blankParsed.success) expect(blankParsed.data).toBeNull();
+  });
+
+  it("rejects a malformed responsible_person_id", () => {
+    expect(partInlineFieldSchema("responsible_person_id").safeParse("not-a-uuid").success).toBe(false);
   });
 });
 

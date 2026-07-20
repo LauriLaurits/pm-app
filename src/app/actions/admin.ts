@@ -3,10 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/audit";
-import { approveUserSchema, type ApproveUserInput } from "@/lib/validation/auth";
+import {
+  approveUserSchema, changeUserRoleSchema, type ApproveUserInput,
+} from "@/lib/validation/auth";
 
 export async function approveUserAction(
   input: ApproveUserInput
@@ -59,6 +62,66 @@ export async function approveUserAction(
 
   await writeAudit({
     action: "user.approved",
+    actorId: admin.user.id,
+    actorEmail: admin.profile.email,
+    resourceType: "user",
+    resourceId: parsed.data.userId,
+    metadata: { role: parsed.data.role },
+  });
+
+  revalidatePath("/admin/users");
+  return { success: true as const };
+}
+
+/**
+ * Inline "change role" cell on the admin users table (ux-interaction-audit.md #35 -- there was
+ * previously no way to re-role a user after their initial approval). v1's model assumes a single
+ * role per user (users-table.tsx only ever reads `user_roles?.[0]`), so this replaces whatever
+ * role row(s) the user currently holds rather than adding a second one alongside it.
+ *
+ * Uses requirePermission('manage_users') rather than requireAdmin() -- same effective gate today
+ * (manage_users has no role_permissions rows, so only the is_admin() bypass in has_permission
+ * satisfies it) but goes through the same permission-model boundary as every other action instead
+ * of a hardcoded role check. The "admins manage/update/delete user_roles" RLS policies (all
+ * `using/with check (is_admin())`) are the real backstop regardless of what this does.
+ */
+export async function changeUserRoleAction(
+  userId: string,
+  roleKey: string
+): Promise<{ error: string } | { success: true }> {
+  const admin = await requirePermission("manage_users");
+
+  const parsed = changeUserRoleSchema.safeParse({ userId, role: roleKey });
+  if (!parsed.success) return { error: "Invalid role." };
+
+  if (parsed.data.userId === admin.user.id)
+    return { error: "You cannot change your own role." };
+
+  const supabase = await createClient();
+
+  // Delete-then-insert (not upsert): the new role_key may differ from every row the user
+  // currently holds, and user_roles' primary key is (user_id, role_key) -- an upsert on a
+  // different key would add a second role rather than replace the first. Two round-trips, not
+  // atomic, but if the insert fails after a successful delete the error below says so plainly
+  // rather than silently leaving the user roleless.
+  const { error: deleteError } = await supabase
+    .from("user_roles")
+    .delete()
+    .eq("user_id", parsed.data.userId);
+  if (deleteError) return { error: "Role change failed. Try again." };
+
+  const { error: insertError } = await supabase.from("user_roles").insert({
+    user_id: parsed.data.userId,
+    role_key: parsed.data.role,
+    granted_by: admin.user.id,
+  });
+  if (insertError)
+    return {
+      error: "Role change failed partway -- user now has no role. Retry immediately.",
+    };
+
+  await writeAudit({
+    action: "user.role_changed",
     actorId: admin.user.id,
     actorEmail: admin.profile.email,
     resourceType: "user",

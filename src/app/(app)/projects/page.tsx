@@ -67,6 +67,40 @@ export default async function ProjectsPage({
 
   const { data: rows, error } = await query.order("updated_at", { ascending: false });
 
+  // UX gating only for the inline status/health/priority editors -- InlineEditSelect renders a
+  // plain badge for any row not in this set, but the real boundary is requirePermission inside
+  // updateProjectFieldAction, re-checked server-side regardless of what's rendered here. Mirrors
+  // has_permission('edit_project', project) exactly without an RPC round trip per row: admin
+  // bypasses everything; project_manager holds edit_project only with scope 'own_projects'
+  // (pm_id = uid); no other seeded role holds edit_project at all; user_project_permissions
+  // covers the remaining ad-hoc-grant case (e.g. a viewer given edit_project on one project).
+  const editableProjectIds = new Set<string>();
+  const projectIds = (rows ?? []).map((r) => r.id).filter((id): id is string => !!id);
+  if (current && projectIds.length > 0) {
+    if (current.role === "admin") {
+      for (const id of projectIds) editableProjectIds.add(id);
+    } else {
+      const [{ data: pmRows }, { data: adhocGrants }] = await Promise.all([
+        current.role === "project_manager"
+          ? supabase.from("projects").select("id, pm_id").in("id", projectIds)
+          : Promise.resolve({ data: [] as { id: string; pm_id: string | null }[] }),
+        supabase
+          .from("user_project_permissions")
+          .select("project_id, expires_at")
+          .eq("user_id", current.user.id)
+          .eq("permission_key", "edit_project")
+          .in("project_id", projectIds),
+      ]);
+      for (const p of pmRows ?? []) {
+        if (p.pm_id === current.user.id) editableProjectIds.add(p.id);
+      }
+      const now = new Date();
+      for (const g of adhocGrants ?? []) {
+        if (!g.expires_at || new Date(g.expires_at) > now) editableProjectIds.add(g.project_id);
+      }
+    }
+  }
+
   const view = params.view === "cards" ? "cards" : "table";
   const hasFilters = Boolean(
     params.status || params.health || params.budget_type || params.pm || params.client || params.q
@@ -95,7 +129,7 @@ export default async function ProjectsPage({
       ) : view === "cards" ? (
         <ProjectsCards rows={rows as ProjectListRow[]} />
       ) : (
-        <ProjectsTable rows={rows as ProjectListRow[]} />
+        <ProjectsTable rows={rows as ProjectListRow[]} editableProjectIds={editableProjectIds} />
       )}
     </div>
   );

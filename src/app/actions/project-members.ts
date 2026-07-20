@@ -85,6 +85,22 @@ export async function updateMemberAction(
   return { success: true as const };
 }
 
+/**
+ * Inline single-field wrapper around updateMemberAction for the members table's role_on_project
+ * cell (ux-interaction-audit.md #4) -- role_on_project is free text (not a bounded enum), so the
+ * cell uses InlineEditText rather than InlineEditSelect, but still just delegates to the same
+ * gated action/schema as the full MemberEditDialog. Omitting starts_on/ends_on here (rather than
+ * passing them through unchanged) leaves those columns untouched: updateMemberSchema's date
+ * fields are optional, so an omitted key never appears in the parsed output that gets .update()'d.
+ */
+export async function updateMemberRoleAction(
+  projectId: string,
+  memberId: number,
+  role: string
+): Promise<ActionResult> {
+  return updateMemberAction(projectId, memberId, { role_on_project: role });
+}
+
 export async function removeMemberAction(
   projectId: string,
   memberId: number

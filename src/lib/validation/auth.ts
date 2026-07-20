@@ -26,3 +26,12 @@ export const approveUserSchema = z.object({
   role: z.enum(APP_ROLES),
 });
 export type ApproveUserInput = z.infer<typeof approveUserSchema>;
+
+/** Re-roling an already-active user (users-table inline role edit) -- same shape as
+ * approveUserSchema, kept separate since approval and re-roling are different actions with
+ * different side effects (approval also flips status + sends a notification). */
+export const changeUserRoleSchema = z.object({
+  userId: z.uuid(),
+  role: z.enum(APP_ROLES),
+});
+export type ChangeUserRoleInput = z.infer<typeof changeUserRoleSchema>;

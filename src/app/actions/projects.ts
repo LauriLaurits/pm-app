@@ -9,9 +9,12 @@ import { writeAudit } from "@/lib/audit";
 import {
   createProjectSchema,
   editProjectSchema,
+  projectInlineFieldSchema,
   statusUpdateSchema,
   type CreateProjectInput,
   type EditProjectInput,
+  type EditProjectOutput,
+  type ProjectInlineField,
   type StatusUpdateInput,
 } from "@/lib/validation/project";
 
@@ -120,6 +123,53 @@ export async function editProjectAction(
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/people`);
+  return { success: true as const };
+}
+
+/**
+ * Inline single-field edit for the projects list table (ux-interaction-audit.md #20) --
+ * status/health/priority only, one at a time, not the full editProjectSchema payload the
+ * Overview edit dialog submits. `field` selects which enum to validate `value` against; the
+ * inline cell only ever sends the one field the user just changed.
+ */
+export async function updateProjectFieldAction(
+  projectId: string,
+  field: ProjectInlineField,
+  value: string
+): Promise<{ error: string } | { success: true }> {
+  if (!z.uuid().safeParse(projectId).success) return { error: "Invalid project." };
+
+  // Security boundary: throws "Not authorized" if the caller lacks edit_project on
+  // this project. Must run before any validation/DB work.
+  const current = await requirePermission("edit_project", projectId);
+
+  const parsed = projectInlineFieldSchema(field).safeParse(value);
+  if (!parsed.success) return { error: "Invalid value." };
+
+  const supabase = await createClient();
+  // Built as a switch (not a computed `{ [field]: ... }`) so each branch's value keeps its own
+  // narrow enum type instead of collapsing to a generic index signature Supabase's typed
+  // `.update()` rejects.
+  const patch =
+    field === "status"
+      ? { status: parsed.data as EditProjectOutput["status"] }
+      : field === "health"
+        ? { health: parsed.data as EditProjectOutput["health"] }
+        : { priority: parsed.data as EditProjectOutput["priority"] };
+  const { error } = await supabase.from("projects").update(patch).eq("id", projectId);
+  if (error) return { error: "Update failed. Try again." };
+
+  await writeAudit({
+    action: "project.updated",
+    actorId: current.user.id,
+    actorEmail: current.profile.email,
+    resourceType: "project",
+    resourceId: projectId,
+    metadata: { fields: { [field]: parsed.data } },
+  });
+
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${projectId}`);
   return { success: true as const };
 }
 

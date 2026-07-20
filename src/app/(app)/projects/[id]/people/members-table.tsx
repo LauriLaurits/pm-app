@@ -1,4 +1,6 @@
+import { updateMemberRoleAction } from "@/app/actions/project-members";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { InlineEditText } from "@/components/inline-edit-text";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -44,7 +46,14 @@ export function MembersTable({
                 <span className="font-medium">{member.full_name ?? "Unknown"}</span>
               </div>
             </TableCell>
-            <TableCell>{member.role_on_project ?? "—"}</TableCell>
+            <TableCell>
+              <InlineEditText
+                value={member.role_on_project}
+                canEdit={canManage}
+                ariaLabel="role on project"
+                onSave={updateMemberRoleAction.bind(null, projectId, member.id)}
+              />
+            </TableCell>
             <TableCell>{member.allocation_pct != null ? `${member.allocation_pct}%` : "—"}</TableCell>
             <TableCell>{formatDate(member.starts_on)}</TableCell>
             <TableCell>{formatDate(member.ends_on)}</TableCell>

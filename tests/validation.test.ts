@@ -3,6 +3,7 @@ import {
   loginSchema,
   signupSchema,
   approveUserSchema,
+  changeUserRoleSchema,
   APP_ROLES,
 } from "@/lib/validation/auth";
 
@@ -69,5 +70,25 @@ describe("approveUserSchema", () => {
       "member",
       "viewer",
     ]);
+  });
+});
+
+describe("changeUserRoleSchema", () => {
+  it("requires uuid + known role, same as approveUserSchema", () => {
+    expect(
+      changeUserRoleSchema.safeParse({
+        userId: "11111111-1111-4111-8111-111111111111",
+        role: "finance",
+      }).success
+    ).toBe(true);
+    expect(
+      changeUserRoleSchema.safeParse({ userId: "not-a-uuid", role: "admin" }).success
+    ).toBe(false);
+    expect(
+      changeUserRoleSchema.safeParse({
+        userId: "11111111-1111-4111-8111-111111111111",
+        role: "superuser",
+      }).success
+    ).toBe(false);
   });
 });

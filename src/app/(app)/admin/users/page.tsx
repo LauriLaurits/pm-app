@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { UsersTable } from "./users-table";
 
 export default async function AdminUsersPage() {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const supabase = await createClient();
   const { data: users, error } = await supabase
     .from("user_profiles")
@@ -26,7 +26,7 @@ export default async function AdminUsersPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">User access</h1>
-      <UsersTable users={rows} />
+      <UsersTable users={rows} currentUserId={admin.user.id} />
     </div>
   );
 }

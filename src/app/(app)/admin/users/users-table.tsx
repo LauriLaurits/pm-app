@@ -1,4 +1,7 @@
+import { changeUserRoleAction } from "@/app/actions/admin";
+import { APP_ROLES } from "@/lib/validation/auth";
 import { Badge } from "@/components/ui/badge";
+import { InlineEditSelect, type InlineEditOption } from "@/components/inline-edit-select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -20,7 +23,21 @@ const statusVariant = {
   disabled: "destructive",
 } as const;
 
-export function UsersTable({ users }: { users: UserRow[] }) {
+const ROLE_INLINE_OPTIONS: InlineEditOption[] = APP_ROLES.map((r) => ({
+  value: r,
+  label: r.replace("_", " "),
+  badgeVariant: "outline",
+}));
+
+export function UsersTable({
+  users,
+  currentUserId,
+}: {
+  users: UserRow[];
+  /** The viewing admin's own id -- self role-change is disabled here (and rejected server-side
+   * by changeUserRoleAction) so an admin can never accidentally lock themselves out. */
+  currentUserId: string | null;
+}) {
   if (users.length === 0) {
     return <p className="text-muted-foreground">No users yet.</p>;
   }
@@ -45,7 +62,19 @@ export function UsersTable({ users }: { users: UserRow[] }) {
             <TableCell>
               <Badge variant={statusVariant[user.status]}>{user.status}</Badge>
             </TableCell>
-            <TableCell>{user.role?.replace("_", " ") ?? "—"}</TableCell>
+            <TableCell>
+              {user.status === "pending" || !user.role ? (
+                user.role?.replace("_", " ") ?? "—"
+              ) : (
+                <InlineEditSelect
+                  value={user.role}
+                  options={ROLE_INLINE_OPTIONS}
+                  canEdit={user.id !== currentUserId}
+                  ariaLabel="user role"
+                  onSave={changeUserRoleAction.bind(null, user.id)}
+                />
+              )}
+            </TableCell>
             <TableCell>
               {new Date(user.created_at).toLocaleDateString()}
             </TableCell>

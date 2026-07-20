@@ -67,6 +67,24 @@ export const editProjectSchema = z.object({
 export type EditProjectInput = z.input<typeof editProjectSchema>;
 export type EditProjectOutput = z.output<typeof editProjectSchema>;
 
+// ---------- inline list-view edits (projects-table.tsx) ----------
+// One enum field at a time, not the full editProjectSchema payload -- the inline cell only ever
+// submits the single field the user just changed.
+
+export const PROJECT_INLINE_FIELDS = ["status", "health", "priority"] as const;
+export type ProjectInlineField = (typeof PROJECT_INLINE_FIELDS)[number];
+
+export function projectInlineFieldSchema(field: ProjectInlineField) {
+  switch (field) {
+    case "status":
+      return z.enum(PROJECT_STATUS_OPTIONS);
+    case "health":
+      return z.enum(PROJECT_HEALTH_OPTIONS);
+    case "priority":
+      return z.enum(PROJECT_PRIORITY_OPTIONS);
+  }
+}
+
 // Creation is deliberately minimal: only `name` has no usable default. Status/health/priority
 // all default to the same "healthy new project" values the form pre-fills, and budget_type
 // -- NOT NULL in the DB with no column default -- gets one here (the form always submits
@@ -133,6 +151,21 @@ export const partSchema = z.object({
 });
 export type PartInput = z.input<typeof partSchema>;
 export type PartOutput = z.output<typeof partSchema>;
+
+// ---------- inline list-view edits (parts-table.tsx) ----------
+// One field at a time, mirroring the projects-table inline pattern above. responsible_person_id
+// uses the same "none" sentinel the full part form's <Select> already uses for "Unassigned".
+
+export const PART_INLINE_FIELDS = ["status", "responsible_person_id"] as const;
+export type PartInlineField = (typeof PART_INLINE_FIELDS)[number];
+
+export function partInlineFieldSchema(field: PartInlineField) {
+  if (field === "status") return z.enum(PART_STATUS_OPTIONS);
+  return z
+    .string()
+    .transform((v) => (v === "none" || v.trim() === "" ? null : v))
+    .refine((v) => v === null || z.uuid().safeParse(v).success, "Invalid person");
+}
 
 // ---------- project members (access) ----------
 
