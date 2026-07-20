@@ -6,8 +6,9 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import {
-  addProjectPersonSchema, allocationSchema, type AddProjectPersonInput,
+  addProjectPersonSchema, allocationDaysSchema, type AddProjectPersonInput,
 } from "@/lib/validation/project";
+import { daysToPct } from "@/lib/allocation";
 
 type ActionResult = { error: string } | { success: true };
 
@@ -33,7 +34,7 @@ export async function addProjectPersonAction(
     // Postgres accepts NULL for these (nullable columns / coalesced start); the generated RPC
     // types just don't model nullable args, so assert past them.
     p_role: parsed.data.role_on_project as string,
-    p_allocation: parsed.data.allocation_pct,
+    p_allocation: daysToPct(parsed.data.days_per_week),
     p_start: parsed.data.starts_on as string,
     p_end: parsed.data.ends_on as string,
   });
@@ -45,14 +46,15 @@ export async function addProjectPersonAction(
     actorEmail: current.profile.email,
     resourceType: "project_member",
     resourceId: `${projectId}:${parsed.data.user_id}`,
-    metadata: { project_id: projectId, user_id: parsed.data.user_id, allocation_pct: parsed.data.allocation_pct },
+    metadata: { project_id: projectId, user_id: parsed.data.user_id, allocation_pct: daysToPct(parsed.data.days_per_week) },
   });
 
   revalidatePath(`/projects/${projectId}/people`);
   return { success: true as const };
 }
 
-// Inline % cell in the members table -- takes a raw string from InlineEditText.
+// Inline days/week cell in the members table -- takes a raw string from InlineEditText and
+// converts to allocation_pct for storage.
 export async function setPersonAllocationAction(
   projectId: string,
   userId: string,
@@ -62,14 +64,14 @@ export async function setPersonAllocationAction(
   if (!z.uuid().safeParse(userId).success) return { error: "Invalid person." };
   const current = await requirePermission("manage_project_members", projectId);
 
-  const parsed = allocationSchema.safeParse(Number(value));
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Enter 1–200." };
+  const parsed = allocationDaysSchema.safeParse(Number(value));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Enter 0.5–5 days." };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_person_allocation", {
     p_project: projectId,
     p_user_id: userId,
-    p_allocation: parsed.data,
+    p_allocation: daysToPct(parsed.data),
   });
   if (error) return { error: "Could not update allocation." };
 
@@ -79,7 +81,7 @@ export async function setPersonAllocationAction(
     actorEmail: current.profile.email,
     resourceType: "project_member",
     resourceId: `${projectId}:${userId}`,
-    metadata: { project_id: projectId, user_id: userId, allocation_pct: parsed.data },
+    metadata: { project_id: projectId, user_id: userId, allocation_pct: daysToPct(parsed.data) },
   });
 
   revalidatePath(`/projects/${projectId}/people`);

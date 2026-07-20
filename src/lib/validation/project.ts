@@ -186,20 +186,26 @@ export type UpdateMemberInput = z.input<typeof updateMemberSchema>;
 export type UpdateMemberOutput = z.output<typeof updateMemberSchema>;
 
 /** Adds a person to a project WITH their allocation in one step (backed by add_project_person,
- * which creates the access + allocation atomically). allocation_pct mirrors the DB bound
- * (0 < pct <= 200). */
+ * which creates the access + allocation atomically). Allocation is entered in DAYS PER WEEK (a
+ * PM's natural unit); the action converts to allocation_pct for storage. 0.5–5 days = 10–100%. */
 export const addProjectPersonSchema = z.object({
   user_id: z.uuid("Select a person"),
   role_on_project: nullableText(200),
-  allocation_pct: z.number("Enter an allocation").min(1, "At least 1%").max(200, "At most 200%"),
+  days_per_week: z
+    .number("Enter days per week")
+    .min(0.5, "At least half a day")
+    .max(5, "At most 5 days (a full week)"),
   starts_on: nullableDate,
   ends_on: nullableDate,
 });
 export type AddProjectPersonInput = z.input<typeof addProjectPersonSchema>;
 export type AddProjectPersonOutput = z.output<typeof addProjectPersonSchema>;
 
-/** Single-field allocation edit (the members table's inline % cell). */
-export const allocationSchema = z.number().min(1, "At least 1%").max(200, "At most 200%");
+/** Single-field allocation edit (the members table's inline days/week cell). */
+export const allocationDaysSchema = z
+  .number()
+  .min(0.5, "At least half a day")
+  .max(5, "At most 5 days");
 
 // ---------- project links ----------
 

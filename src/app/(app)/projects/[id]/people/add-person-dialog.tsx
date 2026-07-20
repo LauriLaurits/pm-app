@@ -29,7 +29,7 @@ export function AddPersonDialog({
         <DialogHeader>
           <DialogTitle>Add a person to this project</DialogTitle>
           <DialogDescription>
-            Their allocation % is how much of their week this project takes — it drives the workload view.
+            Days per week is how much of their week this project takes (a full week is 5 days) — it drives the workload view.
           </DialogDescription>
         </DialogHeader>
         <AddPersonForm

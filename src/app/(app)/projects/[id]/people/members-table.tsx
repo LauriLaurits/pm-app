@@ -1,5 +1,6 @@
 import { updateMemberRoleAction } from "@/app/actions/project-members";
 import { setPersonAllocationAction } from "@/app/actions/project-people";
+import { pctToDays } from "@/lib/allocation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InlineEditText } from "@/components/inline-edit-text";
 import {
@@ -29,7 +30,7 @@ export function MembersTable({
         <TableRow>
           <TableHead>Name</TableHead>
           <TableHead>Role on project</TableHead>
-          <TableHead>Allocation</TableHead>
+          <TableHead>Allocation (days/wk)</TableHead>
           <TableHead>Starts</TableHead>
           <TableHead>Ends</TableHead>
           {canManage && <TableHead className="text-right">Actions</TableHead>}
@@ -56,15 +57,16 @@ export function MembersTable({
               />
             </TableCell>
             <TableCell>
-              <div className="flex items-center gap-0.5">
+              <div className="flex items-center gap-1">
                 <InlineEditText
-                  value={member.allocation_pct != null ? String(member.allocation_pct) : ""}
+                  value={member.allocation_pct != null ? String(pctToDays(member.allocation_pct)) : ""}
                   canEdit={canManage}
-                  ariaLabel="allocation percent"
-                  placeholder="—"
+                  ariaLabel="allocation days per week"
+                  placeholder={canManage ? "Set days" : "—"}
+                  className={canManage ? "underline decoration-dotted underline-offset-4" : undefined}
                   onSave={setPersonAllocationAction.bind(null, projectId, member.user_id)}
                 />
-                {member.allocation_pct != null && <span className="text-muted-foreground">%</span>}
+                {member.allocation_pct != null && <span className="text-muted-foreground">days/wk</span>}
               </div>
             </TableCell>
             <TableCell>{formatDate(member.starts_on)}</TableCell>

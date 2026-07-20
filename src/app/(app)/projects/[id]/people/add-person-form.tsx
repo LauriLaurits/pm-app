@@ -31,7 +31,7 @@ export function AddPersonForm({
     defaultValues: {
       user_id: "",
       role_on_project: null,
-      allocation_pct: 50,
+      days_per_week: 3,
       starts_on: null,
       ends_on: null,
     },
@@ -104,16 +104,17 @@ export function AddPersonForm({
           />
           <FormField
             control={form.control}
-            name="allocation_pct"
+            name="days_per_week"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Allocation %</FormLabel>
+                <FormLabel>Days per week</FormLabel>
                 <FormControl
                   render={
                     <Input
                       type="number"
-                      min={1}
-                      max={200}
+                      min={0.5}
+                      max={5}
+                      step={0.5}
                       {...field}
                       value={field.value ?? ""}
                       onChange={(e) => field.onChange(e.target.value === "" ? undefined : e.target.valueAsNumber)}
