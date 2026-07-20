@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { AdminTabs } from "../admin-tabs";
 import { UsersTable } from "./users-table";
 
 export default async function AdminUsersPage() {
@@ -25,6 +26,7 @@ export default async function AdminUsersPage() {
 
   return (
     <div className="space-y-4">
+      <AdminTabs active="users" />
       <h1 className="text-2xl font-semibold">User access</h1>
       <UsersTable users={rows} currentUserId={admin.user.id} />
     </div>

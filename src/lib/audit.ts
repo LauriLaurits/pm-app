@@ -47,7 +47,9 @@ export type AuditAction =
   | "client.updated"
   | "client.deleted"
   | "delegation.created"
-  | "delegation.revoked";
+  | "delegation.revoked"
+  | "access.granted"
+  | "access.revoked";
 
 export type AuditEntry = {
   action: AuditAction;
