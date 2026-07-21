@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ChevronLeft, ChevronRight, Database, Flag, Folder, Globe, Landmark, MoreHorizontal,
-  Package, Settings2, ShoppingCart, Star, Truck, Users, Wrench, type LucideIcon,
+  ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Database, Flag, Folder, Globe,
+  Landmark, MoreHorizontal, Package, Settings2, ShoppingCart, Star, Truck, Users, Wrench,
+  type LucideIcon,
 } from "lucide-react";
 import { updateProjectFieldAction } from "@/app/actions/projects";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -90,8 +91,17 @@ const OPTIONAL_COLUMNS = [
 type ColumnKey = (typeof OPTIONAL_COLUMNS)[number]["key"];
 
 type SortKey =
-  | "name" | "client" | "pm" | "status" | "health" | "deadline"
+  | "priority" | "name" | "client" | "pm" | "status" | "health" | "deadline"
   | "team" | "budget" | "progress" | "updated";
+
+// Ascending = most important first, so the first click on the flag surfaces high priority.
+const PRIORITY_RANK = { high: 0, medium: 1, low: 2 } as const;
+
+const PRIORITY_FLAG_CLASS: Record<"high" | "medium" | "low", string> = {
+  high: "text-red-500 fill-red-500",
+  medium: "text-blue-500 fill-blue-500",
+  low: "text-muted-foreground/40",
+};
 
 export function ProjectsTable({
   rows,
@@ -132,6 +142,7 @@ export function ProjectsTable({
 
   const accessors = useMemo<SortAccessors<ProjectListRow, SortKey>>(
     () => ({
+      priority: (r) => (r.priority ? PRIORITY_RANK[r.priority] : null),
       name: (r) => r.name,
       client: (r) => r.client_name,
       pm: (r) => r.pm_name,
@@ -159,10 +170,32 @@ export function ProjectsTable({
       <Table className="[&_tbody_td]:py-4">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-2 px-1">
-              <span title="Stripe color = priority (red high, blue medium)" aria-label="Priority">
+            <TableHead
+              className="w-8 px-1"
+              aria-sort={
+                sort?.key === "priority"
+                  ? sort.dir === "asc"
+                    ? "ascending"
+                    : "descending"
+                  : undefined
+              }
+            >
+              <button
+                type="button"
+                onClick={() => toggle("priority")}
+                title="Sort by priority (red high, blue medium, gray low)"
+                aria-label="Sort by priority"
+                className="group inline-flex items-center gap-0.5 rounded p-0.5 transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+              >
                 <Flag className="size-3.5" />
-              </span>
+                {sort?.key === "priority" ? (
+                  sort.dir === "asc" ? (
+                    <ChevronUp className="size-3" />
+                  ) : (
+                    <ChevronDown className="size-3" />
+                  )
+                ) : null}
+              </button>
             </TableHead>
             <SortableHead label="Project" sortKey="name" sort={sort} onToggle={toggle} />
             {show("client") && <SortableHead label="Client" sortKey="client" sort={sort} onToggle={toggle} />}
@@ -215,25 +248,17 @@ export function ProjectsTable({
             const canEdit = editable.has(projectId);
             const rowLinks = links[projectId];
             const Icon = projectIcon(row.name);
-            // The front stripe carries PRIORITY (high red / medium blue / low none) -- health
-            // already has its own colored badge column.
-            const accent =
-              row.priority === "high"
-                ? "border-l-4 border-l-red-400"
-                : row.priority === "medium"
-                  ? "border-l-4 border-l-blue-400"
-                  : "border-l-4 border-l-transparent";
             return (
               <TableRow key={row.id} className="group">
-                <TableCell
-                  aria-hidden
-                  className={`w-2 px-1 ${accent}`}
-                  title={
-                    row.priority
-                      ? `${row.priority.charAt(0).toUpperCase()}${row.priority.slice(1)} priority`
-                      : undefined
-                  }
-                />
+                {/* Priority flag (red high / blue medium / faint gray low) under the flag header. */}
+                <TableCell className="w-8 px-1">
+                  {row.priority && (
+                    <Flag
+                      aria-label={`${row.priority} priority`}
+                      className={`size-3.5 ${PRIORITY_FLAG_CLASS[row.priority]}`}
+                    />
+                  )}
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <span

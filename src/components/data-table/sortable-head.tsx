@@ -44,7 +44,8 @@ export function SortableHead<K extends string>({
             <ChevronDown className="size-3.5" />
           )
         ) : (
-          <ChevronsUpDown className="size-3.5 opacity-0 transition-opacity group-hover:opacity-60" />
+          // Always faintly visible -- sortability must be discoverable without hovering.
+          <ChevronsUpDown className="size-3.5 opacity-40 transition-opacity group-hover:opacity-70" />
         )}
       </button>
     </TableHead>

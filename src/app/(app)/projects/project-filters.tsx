@@ -191,7 +191,7 @@ export function ProjectFilters({
               }}
             </SelectValue>
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="min-w-52">
             <SelectItem value={ALL}>All PMs</SelectItem>
             {pmOptions.map((pm) => (
               <SelectItem key={pm.name} value={pm.name}>
@@ -233,7 +233,7 @@ export function ProjectFilters({
               }
             </SelectValue>
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="min-w-52">
             <SelectItem value={ALL}>All clients</SelectItem>
             {clientOptions.map((client) => (
               <SelectItem key={client} value={client}>
