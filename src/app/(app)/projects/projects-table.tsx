@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ChevronLeft, ChevronRight, Database, Folder, Globe, Landmark, MoreHorizontal,
+  ChevronLeft, ChevronRight, Database, Flag, Folder, Globe, Landmark, MoreHorizontal,
   Package, Settings2, ShoppingCart, Star, Truck, Users, Wrench, type LucideIcon,
 } from "lucide-react";
 import { updateProjectFieldAction } from "@/app/actions/projects";
@@ -159,6 +159,11 @@ export function ProjectsTable({
       <Table className="[&_tbody_td]:py-4">
         <TableHeader>
           <TableRow>
+            <TableHead className="w-2 px-1">
+              <span title="Stripe color = priority (red high, blue medium)" aria-label="Priority">
+                <Flag className="size-3.5" />
+              </span>
+            </TableHead>
             <SortableHead label="Project" sortKey="name" sort={sort} onToggle={toggle} />
             {show("client") && <SortableHead label="Client" sortKey="client" sort={sort} onToggle={toggle} />}
             {show("pm") && <SortableHead label="PM" sortKey="pm" sort={sort} onToggle={toggle} />}
@@ -220,7 +225,16 @@ export function ProjectsTable({
                   : "border-l-4 border-l-transparent";
             return (
               <TableRow key={row.id} className="group">
-                <TableCell className={accent}>
+                <TableCell
+                  aria-hidden
+                  className={`w-2 px-1 ${accent}`}
+                  title={
+                    row.priority
+                      ? `${row.priority.charAt(0).toUpperCase()}${row.priority.slice(1)} priority`
+                      : undefined
+                  }
+                />
+                <TableCell>
                   <div className="flex items-center gap-3">
                     <span
                       aria-hidden
@@ -471,26 +485,19 @@ function PersonCell({
 }
 
 // Derived health badge -- the one column that stays loudly colorful (soft filled green/orange/
-// red): it's the "where is my attention needed" signal. The second line says WHY ("due in 8
-// days · over budget"), so the color is explained right where it appears.
+// red): it's the "where is my attention needed" signal. WHY ("due in 8 days · over budget")
+// lives in the hover title, keeping the rows quiet.
 export function HealthBadge({ health }: { health?: DerivedHealth }) {
   if (!health) return null;
   return (
-    <div className="min-w-0">
-      <Badge
-        variant="outline"
-        className={DERIVED_HEALTH_BADGE_CLASS[health.level]}
-        title={healthTitle(health)}
-      >
-        <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DERIVED_HEALTH_DOT[health.level]}`} />
-        {DERIVED_HEALTH_LABEL[health.level]}
-      </Badge>
-      {health.reasons.length > 0 && (
-        <div className="mt-0.5 max-w-36 truncate text-xs text-muted-foreground" title={healthTitle(health)}>
-          {healthTitle(health)}
-        </div>
-      )}
-    </div>
+    <Badge
+      variant="outline"
+      className={DERIVED_HEALTH_BADGE_CLASS[health.level]}
+      title={healthTitle(health)}
+    >
+      <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DERIVED_HEALTH_DOT[health.level]}`} />
+      {DERIVED_HEALTH_LABEL[health.level]}
+    </Badge>
   );
 }
 
