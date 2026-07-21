@@ -249,19 +249,12 @@ export function ProjectsTable({
             const canEdit = editable.has(projectId);
             const rowLinks = links[projectId];
             const Icon = projectIcon(row.name);
-            // Health drives the row's edge accent (thin amber/red line) -- health is where a PM
-            // must ACT; priority (the dot) only says how important the project is.
-            const level = healthById[projectId]?.level ?? "healthy";
-            const healthAccent =
-              level === "critical"
-                ? "border-l-2 border-l-red-400"
-                : level === "warning"
-                  ? "border-l-2 border-l-amber-400/80"
-                  : "border-l-2 border-l-transparent";
             return (
               <TableRow key={row.id} className="group">
-                {/* Priority dot (red high / blue medium / faint low) under the flag header. */}
-                <TableCell className={`w-8 px-1 ${healthAccent}`}>
+                {/* Priority dot (red high / blue medium / faint low) under the flag header.
+                    NO edge accent line -- tried twice (priority, then health), rejected both
+                    times: the badges carry the signal. */}
+                <TableCell className="w-8 px-1">
                   {row.priority && (
                     <span
                       aria-label={`${row.priority} priority`}
