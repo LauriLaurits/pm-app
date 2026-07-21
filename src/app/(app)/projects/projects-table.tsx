@@ -10,18 +10,18 @@ import { useSort, type SortAccessors } from "@/components/data-table/use-sort";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { consumptionBarClasses } from "@/lib/budget";
 import { avatarTint } from "@/lib/avatar-tint";
 import { deadlineCountdown } from "@/lib/deadline";
 import {
-  DERIVED_HEALTH_BADGE_CLASS, DERIVED_HEALTH_LABEL, deriveHealth, healthTitle,
-  type DerivedHealth,
+  DERIVED_HEALTH_BADGE_CLASS, DERIVED_HEALTH_DOT, DERIVED_HEALTH_LABEL, deriveHealth,
+  healthTitle, type DerivedHealth,
 } from "@/lib/health";
 import {
   BUDGET_TYPE_CHIP_CLASS, PRIORITY_INLINE_OPTIONS, STATUS_INLINE_OPTIONS,
-  formatDate, formatMoney, formatMoneyCompact, humanize, initials,
+  formatDate, formatMoney, humanize, initials,
 } from "./types";
 import type { ProjectListRow } from "./types";
 
@@ -112,11 +112,11 @@ export function ProjectsTable({
           <SortableHead label="PM" sortKey="pm" sort={sort} onToggle={toggle} />
           <SortableHead label="Status" sortKey="status" sort={sort} onToggle={toggle} />
           <SortableHead label="Health" sortKey="health" sort={sort} onToggle={toggle} />
-          <SortableHead label="Deadline" sortKey="deadline" sort={sort} onToggle={toggle} className="text-right" />
-          <SortableHead label="Team" sortKey="team" sort={sort} onToggle={toggle} className="text-right" />
-          <SortableHead label="Budget" sortKey="budget" sort={sort} onToggle={toggle} className="text-right" />
-          <SortableHead label="Progress" sortKey="progress" sort={sort} onToggle={toggle} className="text-right" />
-          <SortableHead label="Updated" sortKey="updated" sort={sort} onToggle={toggle} className="text-right" />
+          <SortableHead label="Dates" sortKey="deadline" sort={sort} onToggle={toggle} />
+          <SortableHead label="Team" sortKey="team" sort={sort} onToggle={toggle} />
+          <SortableHead label="Budget" sortKey="budget" sort={sort} onToggle={toggle} />
+          <SortableHead label="Progress" sortKey="progress" sort={sort} onToggle={toggle} />
+          <SortableHead label="Updated" sortKey="updated" sort={sort} onToggle={toggle} />
           <TableHead aria-hidden className="w-8" />
         </TableRow>
       </TableHeader>
@@ -141,24 +141,34 @@ export function ProjectsTable({
           return (
             <TableRow key={row.id} className="group">
               <TableCell className={accent}>
-                <Link
-                  href={`/projects/${row.id}`}
-                  className="text-base leading-tight font-semibold hover:underline"
-                >
-                  {row.name}
-                </Link>
-                {row.priority && (
-                  <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <InlineEditSelect
-                      value={row.priority}
-                      options={PRIORITY_INLINE_OPTIONS}
-                      canEdit={canEdit}
-                      ariaLabel="project priority"
-                      onSave={updateProjectFieldAction.bind(null, projectId, "priority")}
-                    />
-                    <span>priority</span>
+                <div className="flex items-center gap-3">
+                  <span
+                    aria-hidden
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-[11px] font-medium text-muted-foreground uppercase"
+                  >
+                    {initials(row.name)}
+                  </span>
+                  <div className="min-w-0">
+                    <Link
+                      href={`/projects/${row.id}`}
+                      className="text-base leading-tight font-semibold hover:underline"
+                    >
+                      {row.name}
+                    </Link>
+                    {row.priority && (
+                      <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <InlineEditSelect
+                          value={row.priority}
+                          options={PRIORITY_INLINE_OPTIONS}
+                          canEdit={canEdit}
+                          ariaLabel="project priority"
+                          onSave={updateProjectFieldAction.bind(null, projectId, "priority")}
+                        />
+                        <span>priority</span>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </TableCell>
               <TableCell>
                 <ClientCell name={row.client_name} clientId={rowLinks?.clientId ?? null} />
@@ -184,17 +194,22 @@ export function ProjectsTable({
               <TableCell>
                 <HealthBadge health={healthById[projectId]} />
               </TableCell>
-              <TableCell className="text-right">
-                <DeadlineCell deadline={row.deadline} />
+              <TableCell>
+                <DatesCell start={row.start_date} deadline={row.deadline} />
               </TableCell>
-              <TableCell className="text-right tabular-nums">{row.member_count ?? 0}</TableCell>
-              <TableCell className="text-right">
+              <TableCell>
+                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground tabular-nums">
+                  <Users className="size-3.5" />
+                  {row.member_count ?? 0}
+                </span>
+              </TableCell>
+              <TableCell>
                 <BudgetCell row={row} />
               </TableCell>
-              <TableCell className="w-40 text-right">
+              <TableCell className="w-44">
                 <ProgressCell progress={progressById[projectId]} />
               </TableCell>
-              <TableCell className="text-right text-sm whitespace-nowrap text-muted-foreground">
+              <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
                 {formatDate(row.updated_at)}
               </TableCell>
               <TableCell className="pr-3">
@@ -214,22 +229,26 @@ export function ProjectsTable({
   );
 }
 
-// Semantic urgency at a glance: green when comfortably out, orange within 14 days, red the
-// moment it's overdue.
-function DeadlineCell({ deadline }: { deadline: string | null }) {
-  if (!deadline) return <span className="text-sm text-muted-foreground">—</span>;
-  const countdown = deadlineCountdown(deadline);
-  const days = countdown.days ?? 0;
-  const label = days < 0 ? "Overdue" : `${days} ${days === 1 ? "day" : "days"}`;
+// Date range on top, semantic urgency underneath: green when comfortably out, orange within
+// 14 days, red the moment it's overdue.
+function DatesCell({ start, deadline }: { start: string | null; deadline: string | null }) {
+  const countdown = deadline ? deadlineCountdown(deadline) : null;
+  const days = countdown?.days ?? null;
+  const label =
+    days === null ? "No end date" : days < 0 ? "Overdue" : `${days} ${days === 1 ? "day" : "days"} left`;
   const tone =
-    days < 0
-      ? "text-red-600 dark:text-red-400 font-medium"
-      : days <= 14
-        ? "text-orange-600 dark:text-orange-400"
-        : "text-emerald-600 dark:text-emerald-500";
+    days === null
+      ? "text-muted-foreground"
+      : days < 0
+        ? "text-red-600 dark:text-red-400 font-medium"
+        : days <= 14
+          ? "text-orange-600 dark:text-orange-400"
+          : "text-emerald-600 dark:text-emerald-500";
   return (
     <div className="whitespace-nowrap">
-      <div className="text-sm">{formatDate(deadline)}</div>
+      <div className="text-sm">
+        {formatDate(start)} → {formatDate(deadline)}
+      </div>
       <div className={`text-xs ${tone}`}>{label}</div>
     </div>
   );
@@ -298,7 +317,7 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
         </Badge>
       )}
       {pct !== null && (
-        <div className="mt-1 ml-auto h-1.5 w-full max-w-28 overflow-hidden rounded-full bg-muted">
+        <div className="mt-1 h-1.5 w-full max-w-32 overflow-hidden rounded-full bg-muted">
           <div
             className={`h-full rounded-full ${consumptionBarClasses(pct)}`}
             style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
@@ -307,9 +326,9 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
       )}
       <div className="mt-0.5 tabular-nums whitespace-nowrap">
         <span className="font-medium text-foreground">
-          {formatMoneyCompact(row.budget_used)} / {formatMoneyCompact(row.budget_total)}
+          {formatMoney(row.budget_used)} / {formatMoney(row.budget_total)}
         </span>
-        {pct !== null && <span className="ml-1 text-muted-foreground">· {pct.toFixed(0)}% used</span>}
+        {pct !== null && <span className="ml-1 text-muted-foreground">{pct.toFixed(0)}% used</span>}
       </div>
     </div>
   );
@@ -327,6 +346,7 @@ export function HealthBadge({ health }: { health?: DerivedHealth }) {
         className={DERIVED_HEALTH_BADGE_CLASS[health.level]}
         title={healthTitle(health)}
       >
+        <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DERIVED_HEALTH_DOT[health.level]}`} />
         {DERIVED_HEALTH_LABEL[health.level]}
       </Badge>
       {health.reasons.length > 0 && (
@@ -347,16 +367,18 @@ function ProgressCell({ progress }: { progress?: { pct: number | null; label: st
   const [first, ...rest] = progress.label.split(" ");
   return (
     <div className="min-w-36 text-xs">
-      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full rounded-full bg-[var(--viz-series-1)]"
-          style={{ width: `${Math.min(Math.max(progress.pct, 0), 100)}%` }}
-        />
+      <div className="flex items-center gap-2">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-[var(--viz-series-1)]"
+            style={{ width: `${Math.min(Math.max(progress.pct, 0), 100)}%` }}
+          />
+        </div>
+        <span className="text-muted-foreground tabular-nums">{progress.pct}%</span>
       </div>
       <div className="mt-1 tabular-nums whitespace-nowrap">
         <span className="text-sm font-medium text-foreground">{first}</span>{" "}
         <span className="text-muted-foreground">{rest.join(" ")}</span>
-        <span className="ml-1 text-muted-foreground">· {progress.pct}%</span>
       </div>
     </div>
   );

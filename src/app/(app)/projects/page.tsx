@@ -1,7 +1,11 @@
 import Link from "next/link";
+import {
+  AlertTriangle, CircleCheckBig, Clock, FolderKanban, Wallet, type LucideIcon,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { ProjectFilters } from "./project-filters";
 import { ProjectsCards } from "./projects-cards";
 import { deriveHealth } from "@/lib/health";
@@ -216,6 +220,20 @@ export default async function ProjectsPage({
         </div>
       </div>
 
+      {validRows.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <StatCard icon={FolderKanban} label="Total projects" value={String(validRows.length)} iconClass="bg-blue-500/10 text-blue-600 dark:text-blue-400" />
+          <StatCard icon={CircleCheckBig} label="Active projects" value={String(activeCount)} iconClass="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" />
+          <StatCard icon={AlertTriangle} label="At risk" value={String(atRiskCount)} iconClass="bg-amber-500/10 text-amber-600 dark:text-amber-400" />
+          {totalBudget !== null && (
+            <StatCard icon={Wallet} label="Total budget" value={formatMoney(totalBudget)} iconClass="bg-violet-500/10 text-violet-600 dark:text-violet-400" />
+          )}
+          {plannedHours > 0 && (
+            <StatCard icon={Clock} label="Planned hours" value={`${Math.round(plannedHours).toLocaleString("en-US")} h`} iconClass="bg-blue-500/10 text-blue-600 dark:text-blue-400" />
+          )}
+        </div>
+      )}
+
       <ProjectFilters pmOptions={pmOptions} clientOptions={clientOptions} />
 
       {error ? (
@@ -233,6 +251,32 @@ export default async function ProjectsPage({
         />
       )}
     </div>
+  );
+}
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  iconClass,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  iconClass: string;
+}) {
+  return (
+    <Card size="sm">
+      <CardContent className="flex items-center gap-3">
+        <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${iconClass}`}>
+          <Icon className="size-4.5" />
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-xs text-muted-foreground">{label}</p>
+          <p className="text-xl leading-tight font-semibold tabular-nums">{value}</p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
