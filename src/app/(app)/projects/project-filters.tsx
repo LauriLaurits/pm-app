@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { ListFilter, XIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { avatarTint } from "@/lib/avatar-tint";
+import { BudgetTypeBadge } from "./budget-type-badge";
 import {
-  BUDGET_TYPE_CHIP_CLASS, BUDGET_TYPE_OPTIONS, STATUS_DOT, STATUS_OPTIONS, humanize, initials,
+  BUDGET_TYPE_OPTIONS, STATUS_DOT, STATUS_OPTIONS, humanize, initials,
 } from "./types";
 
 const ALL = "__all__";
@@ -84,7 +85,7 @@ export function ProjectFilters({
         value={searchParams.get("status") ?? ALL}
         onValueChange={(v) => setParam("status", v ?? null)}
       >
-        <SelectTrigger className="rounded-full border-transparent bg-muted/60 shadow-none w-36">
+        <SelectTrigger className="rounded-full border-transparent bg-muted/60 shadow-none">
           <SelectValue>{(v: string) => (v === ALL ? "All statuses" : humanize(v))}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -103,18 +104,14 @@ export function ProjectFilters({
         value={searchParams.get("budget_type") ?? ALL}
         onValueChange={(v) => setParam("budget_type", v ?? null)}
       >
-        <SelectTrigger className="rounded-full border-transparent bg-muted/60 shadow-none w-36">
+        <SelectTrigger className="rounded-full border-transparent bg-muted/60 shadow-none">
           <SelectValue>{(v: string) => (v === ALL ? "All budget types" : humanize(v))}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>All budget types</SelectItem>
           {BUDGET_TYPE_OPTIONS.map((b) => (
             <SelectItem key={b} value={b}>
-              <span
-                className={`inline-flex items-center rounded-md border px-1.5 text-xs ${BUDGET_TYPE_CHIP_CLASS[b]}`}
-              >
-                {humanize(b)}
-              </span>
+              <BudgetTypeBadge type={b} />
             </SelectItem>
           ))}
         </SelectContent>
@@ -124,7 +121,7 @@ export function ProjectFilters({
           value={searchParams.get("pm") ?? ALL}
           onValueChange={(v) => setParam("pm", v ?? null)}
         >
-          <SelectTrigger className="rounded-full border-transparent bg-muted/60 shadow-none w-40">
+          <SelectTrigger className="rounded-full border-transparent bg-muted/60 shadow-none">
             <SelectValue>{(v: string) => (v === ALL ? "All PMs" : v)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -150,7 +147,7 @@ export function ProjectFilters({
           value={searchParams.get("client") ?? ALL}
           onValueChange={(v) => setParam("client", v ?? null)}
         >
-          <SelectTrigger className="rounded-full border-transparent bg-muted/60 shadow-none w-40">
+          <SelectTrigger className="rounded-full border-transparent bg-muted/60 shadow-none">
             <SelectValue>{(v: string) => (v === ALL ? "All clients" : v)}</SelectValue>
           </SelectTrigger>
           <SelectContent>

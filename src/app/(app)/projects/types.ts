@@ -34,8 +34,10 @@ export const STATUS_BADGE: Record<ProjectStatus, BadgeVariant> = {
 export const STATUS_SOFT_BADGE_CLASS =
   "border-transparent bg-muted/70 font-normal text-foreground/80";
 
+// Every status gets its OWN dot color (planning and archived used to share gray and read as
+// the same state): planning violet, active green, on hold orange, completed blue, archived gray.
 export const STATUS_DOT: Record<ProjectStatus, string> = {
-  planning: "bg-muted-foreground/60",
+  planning: "bg-violet-400",
   active: "bg-emerald-500",
   on_hold: "bg-orange-400",
   completed: "bg-blue-500",

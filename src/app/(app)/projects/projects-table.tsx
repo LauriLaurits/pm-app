@@ -28,9 +28,10 @@ import {
   DERIVED_HEALTH_BADGE_CLASS, DERIVED_HEALTH_DOT, DERIVED_HEALTH_LABEL, deriveHealth,
   healthTitle, type DerivedHealth,
 } from "@/lib/health";
+import { BudgetTypeBadge } from "./budget-type-badge";
 import {
   PRIORITY_INLINE_OPTIONS, STATUS_INLINE_OPTIONS,
-  formatDate, formatMoney, humanize, initials,
+  formatDate, formatMoney, initials,
 } from "./types";
 import type { ProjectListRow } from "./types";
 
@@ -244,10 +245,10 @@ export function ProjectsTable({
             const level = healthById[projectId]?.level ?? "healthy";
             const accent =
               level === "critical"
-                ? "border-l-2 border-l-red-400/70"
+                ? "border-l-4 border-l-red-400"
                 : level === "warning"
-                  ? "border-l-2 border-l-amber-400/70"
-                  : "border-l-2 border-l-transparent";
+                  ? "border-l-4 border-l-amber-400"
+                  : "border-l-4 border-l-transparent";
             return (
               <TableRow key={row.id} className="group">
                 <TableCell className={accent}>
@@ -533,8 +534,9 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
   const pct = consumptionPct(row);
   if (pct === null) {
     return (
-      <div className="min-w-36 text-xs text-muted-foreground">
-        {row.budget_type ? humanize(row.budget_type) : "—"} · no budget set
+      <div className="flex min-w-36 items-center gap-1.5 text-xs text-muted-foreground">
+        {row.budget_type && <BudgetTypeBadge type={row.budget_type} />}
+        no budget set
       </div>
     );
   }
@@ -551,13 +553,11 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
           {pct.toFixed(0)}% used
         </span>
       </div>
-      <div className="mt-1 tabular-nums whitespace-nowrap">
+      <div className="mt-1 flex items-center gap-1.5 tabular-nums whitespace-nowrap">
         <span className="text-sm font-medium text-foreground">
           {formatMoney(row.budget_used)} / {formatMoney(row.budget_total)}
         </span>
-        {row.budget_type && (
-          <span className="ml-1 text-muted-foreground">· {humanize(row.budget_type)}</span>
-        )}
+        {row.budget_type && <BudgetTypeBadge type={row.budget_type} />}
       </div>
     </div>
   );

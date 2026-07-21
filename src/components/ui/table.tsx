@@ -36,10 +36,10 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   return (
     <tbody
       data-slot="table-body"
-      // Whisper-level zebra: even body rows get the faintest wash so long tables stay scannable
-      // without the table feeling striped; row hover (on TableRow) is clearly darker.
+      // Zebra: every other body row gets a clearly visible wash -- wide rows (budget/progress at
+      // the far right) are hard to track without it; row hover (on TableRow) is a step darker.
       className={cn(
-        "[&_tr:last-child]:border-0 [&>tr:nth-child(even)]:bg-muted/25",
+        "[&_tr:last-child]:border-0 [&>tr:nth-child(even)]:bg-muted/40",
         className
       )}
       {...props}
@@ -65,7 +65,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b border-border/50 transition-colors hover:bg-muted/60 has-aria-expanded:bg-muted/60 data-[state=selected]:bg-muted",
+        "border-b border-border/50 transition-colors hover:bg-muted/70 has-aria-expanded:bg-muted/70 data-[state=selected]:bg-muted",
         className
       )}
       {...props}
