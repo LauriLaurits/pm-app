@@ -5,7 +5,7 @@ import { DERIVED_HEALTH_BADGE_CLASS, deriveHealth, healthTitle, type DerivedHeal
 import type { BudgetSpentRow } from "@/components/charts/budget-spent-chart";
 import type { CapacityRow } from "@/components/charts/capacity-chart";
 import type { FinanceSummary } from "./summary-cards";
-import { formatDate, humanize, type AttentionItem, type ProjectBudgetRow, type ProjectListRow } from "./types";
+import { formatDate, type AttentionItem, type ProjectBudgetRow, type ProjectListRow } from "./types";
 
 const DEADLINE_DAYS = 14;
 const STALE_DAYS = 14;

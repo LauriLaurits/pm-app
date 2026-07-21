@@ -58,13 +58,13 @@ export function ProjectFilters({
         placeholder="Search projects or clients…"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        className="w-64"
+        className="w-64 rounded-full border-transparent bg-muted/60 shadow-none"
       />
       <Select
         value={searchParams.get("status") ?? ALL}
         onValueChange={(v) => setParam("status", v ?? null)}
       >
-        <SelectTrigger className="w-36">
+        <SelectTrigger className="rounded-full border-transparent bg-muted/60 shadow-none w-36">
           <SelectValue>{(v: string) => (v === ALL ? "All statuses" : humanize(v))}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -78,7 +78,7 @@ export function ProjectFilters({
         value={searchParams.get("budget_type") ?? ALL}
         onValueChange={(v) => setParam("budget_type", v ?? null)}
       >
-        <SelectTrigger className="w-36">
+        <SelectTrigger className="rounded-full border-transparent bg-muted/60 shadow-none w-36">
           <SelectValue>{(v: string) => (v === ALL ? "All budget types" : humanize(v))}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -93,7 +93,7 @@ export function ProjectFilters({
           value={searchParams.get("pm") ?? ALL}
           onValueChange={(v) => setParam("pm", v ?? null)}
         >
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="rounded-full border-transparent bg-muted/60 shadow-none w-40">
             <SelectValue>{(v: string) => (v === ALL ? "All PMs" : v)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -109,7 +109,7 @@ export function ProjectFilters({
           value={searchParams.get("client") ?? ALL}
           onValueChange={(v) => setParam("client", v ?? null)}
         >
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="rounded-full border-transparent bg-muted/60 shadow-none w-40">
             <SelectValue>{(v: string) => (v === ALL ? "All clients" : v)}</SelectValue>
           </SelectTrigger>
           <SelectContent>

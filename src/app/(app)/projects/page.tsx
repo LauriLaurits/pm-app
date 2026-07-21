@@ -4,7 +4,9 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
 import { ProjectFilters } from "./project-filters";
 import { ProjectsCards } from "./projects-cards";
-import { deriveProgress, progressBasisLabel, type ProgressPart } from "@/lib/progress";
+import { deriveHealth } from "@/lib/health";
+import { formatMoney } from "@/lib/budget";
+import { deriveProgress, type ProgressPart } from "@/lib/progress";
 import { ProjectsTable, type ProjectRowLinks } from "./projects-table";
 import { ViewToggle } from "./view-toggle";
 import {
@@ -23,6 +25,10 @@ type ProjectsSearchParams = {
 
 function distinct(values: (string | null)[]) {
   return Array.from(new Set(values.filter((v): v is string => !!v))).sort();
+}
+
+function round1(n: number) {
+  return Math.round(n * 10) / 10;
 }
 
 export default async function ProjectsPage({
@@ -134,9 +140,37 @@ export default async function ProjectsPage({
     }
     for (const id of projectIds) {
       const derived = deriveProgress(partsByProject.get(id) ?? []);
-      progressById[id] = { pct: derived.pct, label: progressBasisLabel(derived) };
+      // Compact list label ("80 / 950 h"); the long form (progressBasisLabel) stays on detail pages.
+      const label =
+        derived.basis === "hours"
+          ? `${round1(derived.doneHours)} / ${round1(derived.totalHours)} h`
+          : derived.basis === "count"
+            ? `${derived.donePartCount} / ${derived.totalPartCount} parts`
+            : "No parts yet";
+      progressById[id] = { pct: derived.pct, label };
     }
   }
+
+  // Muted summary strip under the title: portfolio at a glance without leaving the list.
+  // At-risk derives the same way the table's Health column does; budget total only renders
+  // when this viewer can actually see budget numbers (RLS nulls them otherwise).
+  const validRows = (rows ?? []).filter((r): r is ProjectListRow & { id: string } => !!r.id);
+  const activeCount = validRows.filter((r) => r.status === "active").length;
+  const atRiskCount = validRows.filter(
+    (r) =>
+      deriveHealth({
+        status: r.status,
+        startDate: r.start_date,
+        deadline: r.deadline,
+        consumptionPct:
+          r.budget_total && r.budget_used !== null ? (r.budget_used / r.budget_total) * 100 : null,
+        progressPct: progressById[r.id]?.pct ?? null,
+      }).level !== "healthy"
+  ).length;
+  const budgetRows = validRows.filter((r) => r.budget_total !== null);
+  const totalBudget = budgetRows.length
+    ? budgetRows.reduce((sum, r) => sum + (r.budget_total ?? 0), 0)
+    : null;
 
   const view = params.view === "cards" ? "cards" : "table";
   const hasFilters = Boolean(
@@ -146,7 +180,24 @@ export default async function ProjectsPage({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Projects</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">Projects</h1>
+          {validRows.length > 0 && (
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {validRows.length} project{validRows.length === 1 ? "" : "s"}
+              <span className="mx-1.5 text-border">·</span>
+              {activeCount} active
+              <span className="mx-1.5 text-border">·</span>
+              {atRiskCount} at risk
+              {totalBudget !== null && (
+                <>
+                  <span className="mx-1.5 text-border">·</span>
+                  {formatMoney(totalBudget)} budget
+                </>
+              )}
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <ViewToggle view={view} />
           {canCreate && (

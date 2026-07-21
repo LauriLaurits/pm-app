@@ -84,6 +84,19 @@ export const DERIVED_HEALTH_BADGE_CLASS: Record<DerivedHealthLevel, string> = {
   critical: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400",
 };
 
+// Human labels + "● At risk" dot colors for the calmer soft-badge presentation.
+export const DERIVED_HEALTH_LABEL: Record<DerivedHealthLevel, string> = {
+  healthy: "On track",
+  warning: "At risk",
+  critical: "Critical",
+};
+
+export const DERIVED_HEALTH_DOT: Record<DerivedHealthLevel, string> = {
+  healthy: "bg-emerald-500",
+  warning: "bg-orange-400",
+  critical: "bg-red-500",
+};
+
 export function healthTitle(h: DerivedHealth): string {
   return h.reasons.length > 0 ? h.reasons.join(" · ") : "on track";
 }

@@ -10,12 +10,12 @@ import { useSort, type SortAccessors } from "@/components/data-table/use-sort";
 import {
   Table, TableBody, TableCell, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { DotBadge } from "@/components/dot-badge";
 import { consumptionBarClasses } from "@/lib/budget";
 import { avatarTint } from "@/lib/avatar-tint";
 import { deadlineCountdown } from "@/lib/deadline";
 import {
-  DERIVED_HEALTH_BADGE_CLASS, deriveHealth, healthTitle, type DerivedHealth,
+  DERIVED_HEALTH_DOT, DERIVED_HEALTH_LABEL, deriveHealth, healthTitle, type DerivedHealth,
 } from "@/lib/health";
 import {
   PRIORITY_INLINE_OPTIONS, STATUS_INLINE_OPTIONS,
@@ -102,7 +102,7 @@ export function ProjectsTable({
   });
 
   return (
-    <Table>
+    <Table className="[&_tbody_td]:py-4">
       <TableHeader>
         <TableRow>
           <SortableHead label="Project" sortKey="name" sort={sort} onToggle={toggle} />
@@ -110,11 +110,11 @@ export function ProjectsTable({
           <SortableHead label="PM" sortKey="pm" sort={sort} onToggle={toggle} />
           <SortableHead label="Status" sortKey="status" sort={sort} onToggle={toggle} />
           <SortableHead label="Health" sortKey="health" sort={sort} onToggle={toggle} />
-          <SortableHead label="Deadline" sortKey="deadline" sort={sort} onToggle={toggle} />
-          <SortableHead label="Team" sortKey="team" sort={sort} onToggle={toggle} />
-          <SortableHead label="Budget" sortKey="budget" sort={sort} onToggle={toggle} />
-          <SortableHead label="Progress" sortKey="progress" sort={sort} onToggle={toggle} />
-          <SortableHead label="Updated" sortKey="updated" sort={sort} onToggle={toggle} />
+          <SortableHead label="Deadline" sortKey="deadline" sort={sort} onToggle={toggle} className="text-right" />
+          <SortableHead label="Team" sortKey="team" sort={sort} onToggle={toggle} className="text-right" />
+          <SortableHead label="Budget" sortKey="budget" sort={sort} onToggle={toggle} className="text-right" />
+          <SortableHead label="Progress" sortKey="progress" sort={sort} onToggle={toggle} className="text-right" />
+          <SortableHead label="Updated" sortKey="updated" sort={sort} onToggle={toggle} className="text-right" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -126,15 +126,17 @@ export function ProjectsTable({
           const projectId = row.id;
           const canEdit = editable.has(projectId);
           const rowLinks = links[projectId];
-          const countdown = deadlineCountdown(row.deadline);
           return (
             <TableRow key={row.id}>
               <TableCell>
-                <Link href={`/projects/${row.id}`} className="font-medium hover:underline">
+                <Link
+                  href={`/projects/${row.id}`}
+                  className="text-base leading-tight font-semibold hover:underline"
+                >
                   {row.name}
                 </Link>
                 {row.priority && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
                     <InlineEditSelect
                       value={row.priority}
                       options={PRIORITY_INLINE_OPTIONS}
@@ -147,13 +149,7 @@ export function ProjectsTable({
                 )}
               </TableCell>
               <TableCell>
-                {row.client_name && rowLinks?.clientId ? (
-                  <Link href={`/clients/${rowLinks.clientId}`} className="hover:underline">
-                    {row.client_name}
-                  </Link>
-                ) : (
-                  (row.client_name ?? "—")
-                )}
+                <ClientCell name={row.client_name} clientId={rowLinks?.clientId ?? null} />
               </TableCell>
               <TableCell>
                 <PersonCell
@@ -176,20 +172,17 @@ export function ProjectsTable({
               <TableCell>
                 <HealthBadge health={healthById[projectId]} />
               </TableCell>
-              <TableCell>
-                <div className="text-sm">{formatDate(row.deadline)}</div>
-                {countdown.days !== null && (
-                  <div className={`text-xs ${countdown.toneClass}`}>{countdown.label}</div>
-                )}
+              <TableCell className="text-right">
+                <DeadlineCell deadline={row.deadline} />
               </TableCell>
-              <TableCell>{row.member_count ?? 0}</TableCell>
-              <TableCell>
+              <TableCell className="text-right tabular-nums">{row.member_count ?? 0}</TableCell>
+              <TableCell className="text-right">
                 <BudgetCell row={row} />
               </TableCell>
-              <TableCell className="w-36">
+              <TableCell className="w-40 text-right">
                 <ProgressCell progress={progressById[projectId]} />
               </TableCell>
-              <TableCell className="text-sm text-muted-foreground">
+              <TableCell className="text-right text-sm whitespace-nowrap text-muted-foreground">
                 {formatDate(row.updated_at)}
               </TableCell>
             </TableRow>
@@ -197,6 +190,48 @@ export function ProjectsTable({
         })}
       </TableBody>
     </Table>
+  );
+}
+
+// Semantic urgency at a glance: green when comfortably out, orange within 14 days, red the
+// moment it's overdue.
+function DeadlineCell({ deadline }: { deadline: string | null }) {
+  if (!deadline) return <span className="text-sm text-muted-foreground">—</span>;
+  const countdown = deadlineCountdown(deadline);
+  const days = countdown.days ?? 0;
+  const label = days < 0 ? "Overdue" : `${days} ${days === 1 ? "day" : "days"}`;
+  const tone =
+    days < 0
+      ? "text-red-600 dark:text-red-400 font-medium"
+      : days <= 14
+        ? "text-orange-600 dark:text-orange-400"
+        : "text-emerald-600 dark:text-emerald-500";
+  return (
+    <div className="whitespace-nowrap">
+      <div className="text-sm">{formatDate(deadline)}</div>
+      <div className={`text-xs ${tone}`}>{label}</div>
+    </div>
+  );
+}
+
+function ClientCell({ name, clientId }: { name: string | null; clientId: string | null }) {
+  if (!name) return <span className="text-muted-foreground">—</span>;
+  const inner = (
+    <span className="flex items-center gap-2">
+      <span
+        aria-hidden
+        className={`flex size-5 shrink-0 items-center justify-center rounded-md text-[9px] font-medium ${avatarTint(name)}`}
+      >
+        {initials(name)}
+      </span>
+      <span className="text-sm">{name}</span>
+    </span>
+  );
+  if (!clientId) return inner;
+  return (
+    <Link href={`/clients/${clientId}`} className="hover:underline">
+      {inner}
+    </Link>
   );
 }
 
@@ -226,44 +261,38 @@ function PersonCell({
   );
 }
 
-// Same consumption language as /budgets (ConsumptionCell there): used-of-total on top, the
-// severity-colored bar in the middle, and "% used · remaining" together on the bottom line.
+// Lean budget cell (spent leads, everything else grays out): bold spent figure, thin severity
+// bar, "% used" under it. Total + type live in the hover title so the cell stays scannable.
 function BudgetCell({ row }: { row: ProjectListRow }) {
   const pct = consumptionPct(row);
+  const title = `${formatMoney(row.budget_used)} of ${formatMoney(row.budget_total)} · ${humanize(row.budget_type ?? "")}`;
   return (
-    <div className="min-w-32 text-xs">
-      <div className="text-muted-foreground">
-        <span className="font-medium text-foreground">{formatMoney(row.budget_used)}</span>
-        {" of "}
-        {formatMoney(row.budget_total)}
-        <span className="ml-1">· {humanize(row.budget_type ?? "")}</span>
-      </div>
+    <div className="min-w-28 text-xs" title={title}>
+      <div className="text-sm font-medium tabular-nums">{formatMoney(row.budget_used)}</div>
       {pct !== null && (
-        <div className="mt-1 flex items-center gap-2">
-          <div className="h-2 w-full max-w-24 overflow-hidden rounded-full bg-muted">
+        <>
+          <div className="mt-1 ml-auto h-1.5 w-full max-w-24 overflow-hidden rounded-full bg-muted">
             <div
               className={`h-full rounded-full ${consumptionBarClasses(pct)}`}
               style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
             />
           </div>
-          <span className="text-muted-foreground tabular-nums whitespace-nowrap">
-            {pct.toFixed(0)}% used
-          </span>
-        </div>
+          <div className="mt-0.5 text-muted-foreground tabular-nums">{pct.toFixed(0)}% used</div>
+        </>
       )}
     </div>
   );
 }
 
-// Derived health badge: the color says how bad, the second line says WHY ("due in 8 days ·
+// Derived health badge: the dot says how bad, the second line says WHY ("due in 8 days ·
 // over budget"), so the signal is explained right where it appears.
 export function HealthBadge({ health }: { health?: DerivedHealth }) {
   if (!health) return null;
   return (
     <div className="min-w-0">
-      <Badge variant="outline" className={DERIVED_HEALTH_BADGE_CLASS[health.level]}>
-        {health.level}
-      </Badge>
+      <DotBadge dotClassName={DERIVED_HEALTH_DOT[health.level]} title={healthTitle(health)}>
+        {DERIVED_HEALTH_LABEL[health.level]}
+      </DotBadge>
       {health.reasons.length > 0 && (
         <div className="mt-0.5 max-w-36 truncate text-xs text-muted-foreground" title={healthTitle(health)}>
           {healthTitle(health)}
@@ -274,29 +303,24 @@ export function HealthBadge({ health }: { health?: DerivedHealth }) {
 }
 
 // Progress derived from parts (done est-hours / total est-hours; part-count fallback). Same
-// two-line anatomy as BudgetCell: what it's based on on top, then the bar with "% done" inline.
+// lean anatomy as BudgetCell: bold leading figure, thin bar, "% done" grayed under it.
 function ProgressCell({ progress }: { progress?: { pct: number | null; label: string } }) {
   if (!progress || progress.pct === null) {
     return <span className="text-xs text-muted-foreground">{progress?.label ?? "—"}</span>;
   }
-  // Bold the leading number, mirroring BudgetCell's "€8,000 of …" emphasis.
   const [first, ...rest] = progress.label.split(" ");
   return (
-    <div className="min-w-32 text-xs">
-      <div className="text-muted-foreground">
-        <span className="font-medium text-foreground">{first}</span> {rest.join(" ")}
+    <div className="min-w-28 text-xs">
+      <div className="tabular-nums text-muted-foreground">
+        <span className="text-sm font-medium text-foreground">{first}</span> {rest.join(" ")}
       </div>
-      <div className="mt-1 flex items-center gap-2">
-        <div className="h-2 w-full max-w-24 overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-[var(--viz-series-1)]"
-            style={{ width: `${Math.min(Math.max(progress.pct, 0), 100)}%` }}
-          />
-        </div>
-        <span className="text-muted-foreground tabular-nums whitespace-nowrap">
-          {progress.pct}% done
-        </span>
+      <div className="mt-1 ml-auto h-1.5 w-full max-w-24 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-[var(--viz-series-1)]"
+          style={{ width: `${Math.min(Math.max(progress.pct, 0), 100)}%` }}
+        />
       </div>
+      <div className="mt-0.5 text-muted-foreground tabular-nums">{progress.pct}% done</div>
     </div>
   );
 }

@@ -29,6 +29,19 @@ export const STATUS_BADGE: Record<ProjectStatus, BadgeVariant> = {
   archived: "ghost",
 };
 
+// "● Active"-style soft badges (Linear/Stripe language): one quiet filled chip everywhere, the
+// dot carries the state color. Calmer than per-state pill colors at table density.
+export const STATUS_SOFT_BADGE_CLASS =
+  "border-transparent bg-muted/70 font-normal text-foreground/80";
+
+export const STATUS_DOT: Record<ProjectStatus, string> = {
+  planning: "bg-muted-foreground/60",
+  active: "bg-emerald-500",
+  on_hold: "bg-orange-400",
+  completed: "bg-muted-foreground/60",
+  archived: "bg-muted-foreground/40",
+};
+
 export const HEALTH_BADGE_CLASS: Record<ProjectHealth, string> = {
   healthy:
     "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
@@ -40,11 +53,11 @@ export const HEALTH_BADGE_CLASS: Record<ProjectHealth, string> = {
 export const PRIORITY_OPTIONS: ProjectPriority[] = ["low", "medium", "high"];
 
 // One priority color scheme for EVERY surface (list inline chip + detail header badge must
-// match). Priority is importance, not alarm -- so high is orange, never the destructive red
-// that delete buttons and critical health own.
+// match). Priority is importance, not alarm -- high is orange, never the destructive red that
+// delete buttons and critical health own; low/medium stay grayscale to keep the palette calm.
 export const PRIORITY_BADGE_CLASS: Record<ProjectPriority, string> = {
-  low: "text-muted-foreground",
-  medium: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  low: "border-transparent bg-transparent font-normal text-muted-foreground",
+  medium: "border-transparent bg-muted/70 font-normal text-foreground/70",
   high: "border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-400",
 };
 
@@ -58,7 +71,9 @@ export function humanize(value: string) {
 export const STATUS_INLINE_OPTIONS: InlineEditOption[] = STATUS_OPTIONS.map((s) => ({
   value: s,
   label: humanize(s),
-  badgeVariant: STATUS_BADGE[s],
+  badgeVariant: "outline",
+  badgeClassName: STATUS_SOFT_BADGE_CLASS,
+  dotClassName: STATUS_DOT[s],
 }));
 
 export const HEALTH_INLINE_OPTIONS: InlineEditOption[] = HEALTH_OPTIONS.map((h) => ({

@@ -17,6 +17,9 @@ export type InlineEditOption = {
   /** Badge styling for this option's value (falls back to "outline"). */
   badgeVariant?: BadgeVariant;
   badgeClassName?: string;
+  /** When set, a small colored dot renders before the label ("● Active" style) -- pass the
+   * dot's bg class, e.g. "bg-emerald-500". */
+  dotClassName?: string;
 };
 
 type SaveResult = { error: string } | { success: true };
@@ -56,6 +59,9 @@ export function InlineEditSelect({
       className={cn(active?.badgeClassName, isPending && "opacity-60", className)}
     >
       {isPending && <Loader2Icon className="animate-spin" />}
+      {active?.dotClassName && (
+        <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", active.dotClassName)} />
+      )}
       {active?.label ?? current}
     </Badge>
   );
