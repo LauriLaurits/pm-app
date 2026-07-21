@@ -22,6 +22,10 @@ export function BudgetPartsHourly({
 }) {
   if (parts.length === 0) return null;
 
+  // Hours are summed floats (0.1-precision entries), so display rounds to one decimal to avoid
+  // artifacts like 175.39999999999998.
+  const fmtHours = (h: number) => String(Math.round(h * 10) / 10);
+
   const showActions = canManageBudget || canManageCost;
   const totalEstimated = sumOrNull(parts.map((p) => p.estimated_hours));
   const totalLogged = sumOrNull(parts.map((p) => p.logged_hours));
@@ -52,10 +56,10 @@ export function BudgetPartsHourly({
               <TableCell>{part.hourly_rate === null ? "—" : formatMoney(part.hourly_rate)}</TableCell>
               <TableCell>{part.estimated_hours ?? "—"}</TableCell>
               <TableCell>
-                {part.logged_hours ?? 0}
+                {fmtHours(part.logged_hours ?? 0)}
                 {part.billable_hours !== null && (
                   <span className="ml-1 text-xs text-muted-foreground">
-                    ({part.billable_hours} billable)
+                    ({fmtHours(part.billable_hours)} billable)
                   </span>
                 )}
               </TableCell>
@@ -93,7 +97,7 @@ export function BudgetPartsHourly({
             <TableCell>Total</TableCell>
             <TableCell>—</TableCell>
             <TableCell>{totalEstimated ?? "—"}</TableCell>
-            <TableCell>{totalLogged ?? 0}</TableCell>
+            <TableCell>{fmtHours(totalLogged ?? 0)}</TableCell>
             <TableCell>{formatMoney(totalClient)}</TableCell>
             <TableCell>{formatMoney(totalCost)}</TableCell>
             <TableCell>{formatMoney(totalMargin)}</TableCell>
