@@ -28,7 +28,7 @@ import {
   healthTitle, type DerivedHealth,
 } from "@/lib/health";
 import {
-  PRIORITY_NAME_CLASS, STATUS_INLINE_OPTIONS,
+  STATUS_INLINE_OPTIONS,
   formatDate, formatMoney, humanize, initials,
 } from "./types";
 import type { ProjectListRow } from "./types";
@@ -210,14 +210,13 @@ export function ProjectsTable({
             const canEdit = editable.has(projectId);
             const rowLinks = links[projectId];
             const Icon = projectIcon(row.name);
-            // At-risk rows get a whisper of a left accent so attention-needing projects catch
-            // the eye while scanning -- never a colored row.
-            const level = healthById[projectId]?.level ?? "healthy";
+            // The front stripe carries PRIORITY (high red / medium blue / low none) -- health
+            // already has its own colored badge column.
             const accent =
-              level === "critical"
+              row.priority === "high"
                 ? "border-l-4 border-l-red-400"
-                : level === "warning"
-                  ? "border-l-4 border-l-amber-400"
+                : row.priority === "medium"
+                  ? "border-l-4 border-l-blue-400"
                   : "border-l-4 border-l-transparent";
             return (
               <TableRow key={row.id} className="group">
@@ -237,7 +236,7 @@ export function ProjectsTable({
                             ? `${row.priority.charAt(0).toUpperCase()}${row.priority.slice(1)} priority`
                             : undefined
                         }
-                        className={`text-base leading-tight font-semibold hover:underline ${row.priority ? PRIORITY_NAME_CLASS[row.priority] : ""}`}
+                        className="text-base leading-tight font-semibold hover:underline"
                       >
                         {row.name}
                       </Link>
