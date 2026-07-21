@@ -29,7 +29,7 @@ import {
 } from "@/lib/health";
 import { BudgetTypeBadge } from "./budget-type-badge";
 import {
-  PRIORITY_INLINE_OPTIONS, STATUS_INLINE_OPTIONS,
+  PRIORITY_DOT, STATUS_INLINE_OPTIONS,
   formatDate, formatMoney, initials,
 } from "./types";
 import type { ProjectListRow } from "./types";
@@ -231,23 +231,21 @@ export function ProjectsTable({
                       <Icon className="size-4.5" />
                     </span>
                     <div className="min-w-0">
-                      <Link
-                        href={`/projects/${row.id}`}
-                        className="text-base leading-tight font-semibold hover:underline"
-                      >
-                        {row.name}
-                      </Link>
-                      {row.priority && (
-                        <div className="mt-0.5 text-[11px]">
-                          <InlineEditSelect
-                            value={row.priority}
-                            options={PRIORITY_INLINE_OPTIONS}
-                            canEdit={canEdit}
-                            ariaLabel="project priority"
-                            onSave={updateProjectFieldAction.bind(null, projectId, "priority")}
+                      <span className="flex items-center gap-2">
+                        <Link
+                          href={`/projects/${row.id}`}
+                          className="text-base leading-tight font-semibold hover:underline"
+                        >
+                          {row.name}
+                        </Link>
+                        {row.priority && (
+                          <span
+                            aria-label={`${row.priority} priority`}
+                            title={`${row.priority.charAt(0).toUpperCase()}${row.priority.slice(1)} priority`}
+                            className={`size-2 shrink-0 rounded-full ${PRIORITY_DOT[row.priority]}`}
                           />
-                        </div>
-                      )}
+                        )}
+                      </span>
                     </div>
                   </div>
                 </TableCell>
