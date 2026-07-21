@@ -29,7 +29,7 @@ export function PersonRowActions({ person }: { person: PersonListRow }) {
     <div className="flex flex-col items-end gap-1">
       <div className="flex items-center gap-2">
         <PersonFormDialog person={person} />
-        <Button size="sm" variant="outline" onClick={onToggleStatus} disabled={isPending}>
+        <Button size="sm" variant="ghost" onClick={onToggleStatus} disabled={isPending}>
           {person.status === "active" ? "Deactivate" : "Activate"}
         </Button>
         <ConfirmDialog

@@ -80,7 +80,7 @@ export function BudgetPartsHourly({
                 )}
               </TableCell>
               {showActions && (
-                <TableCell>
+                <TableCell className="text-right">
                   <PartBudgetEditDialog
                     projectId={projectId}
                     part={part}

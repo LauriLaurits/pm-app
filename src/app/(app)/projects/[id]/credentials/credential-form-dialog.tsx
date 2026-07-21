@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
 import { CredentialEditForm } from "./credential-edit-form";
 import { CredentialForm } from "./credential-form";
 import type { DisplayCredentialRow } from "./types";
@@ -23,7 +24,11 @@ export function CredentialFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" variant={credential ? "outline" : "default"} />}>
+      <DialogTrigger
+        render={
+          <Button size="sm" variant={credential ? "ghost" : "default"} className={credential ? EDIT_ACTION_CLASS : undefined} />
+        }
+      >
         {credential ? "Edit" : "Add credential"}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">

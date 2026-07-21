@@ -10,7 +10,7 @@ import { DESTRUCTIVE_ACTION_CLASS } from "@/lib/action-styles";
 export function RevokeButton({ delegationId }: { delegationId: string }) {
   return (
     <ConfirmDialog
-      trigger={<Button variant="outline" size="sm" className={DESTRUCTIVE_ACTION_CLASS} />}
+      trigger={<Button variant="ghost" size="sm" className={DESTRUCTIVE_ACTION_CLASS} />}
       triggerLabel="Revoke"
       title="Revoke this delegation?"
       description="The delegate loses this access immediately. This can't be undone -- you'd need to create a new delegation instead."

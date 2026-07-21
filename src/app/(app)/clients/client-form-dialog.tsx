@@ -19,7 +19,7 @@ export function ClientFormDialog({ client }: { client?: ClientRow }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button size="sm" variant={client ? "outline" : "default"} className={client ? EDIT_ACTION_CLASS : undefined} />
+          <Button size="sm" variant={client ? "ghost" : "default"} className={client ? EDIT_ACTION_CLASS : undefined} />
         }
       >
         {client ? "Edit" : "Add client"}

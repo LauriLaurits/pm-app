@@ -26,7 +26,7 @@ export function PartFormDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button size="sm" variant={part ? "outline" : "default"} className={part ? EDIT_ACTION_CLASS : undefined} />
+          <Button size="sm" variant={part ? "ghost" : "default"} className={part ? EDIT_ACTION_CLASS : undefined} />
         }
       >
         {part ? "Edit" : "Add part"}

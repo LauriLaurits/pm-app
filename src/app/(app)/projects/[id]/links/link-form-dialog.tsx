@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
 import { LinkForm } from "./link-form";
 import type { LinkRow } from "./types";
 
@@ -13,7 +14,11 @@ export function LinkFormDialog({ projectId, link }: { projectId: string; link?: 
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" variant={link ? "outline" : "default"} />}>
+      <DialogTrigger
+        render={
+          <Button size="sm" variant={link ? "ghost" : "default"} className={link ? EDIT_ACTION_CLASS : undefined} />
+        }
+      >
         {link ? "Edit" : "Add link"}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">

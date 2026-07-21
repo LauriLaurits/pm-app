@@ -89,7 +89,7 @@ export function PartBudgetEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" variant="outline" className={EDIT_ACTION_CLASS} />}>Edit billing</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" variant="ghost" className={EDIT_ACTION_CLASS} />}>Edit billing</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit billing — {part.part_name}</DialogTitle>

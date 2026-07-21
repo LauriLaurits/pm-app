@@ -14,7 +14,7 @@ export function MemberEditDialog({ projectId, member }: { projectId: string; mem
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" variant="outline" className={EDIT_ACTION_CLASS} />}>Edit</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" variant="ghost" className={EDIT_ACTION_CLASS} />}>Edit</DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit {member.full_name ?? "member"}</DialogTitle>

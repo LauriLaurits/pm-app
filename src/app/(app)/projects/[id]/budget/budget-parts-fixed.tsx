@@ -73,7 +73,7 @@ export function BudgetPartsFixed({
               <TableCell>{formatMoney(part.paid)}</TableCell>
               <TableCell>{formatMoney(part.remaining)}</TableCell>
               {showActions && (
-                <TableCell>
+                <TableCell className="text-right">
                   <PartBudgetEditDialog
                     projectId={projectId}
                     part={part}

@@ -19,7 +19,7 @@ export function RevokeGrantButton({
 }) {
   return (
     <ConfirmDialog
-      trigger={<Button variant="outline" size="sm" className={DESTRUCTIVE_ACTION_CLASS} />}
+      trigger={<Button variant="ghost" size="sm" className={DESTRUCTIVE_ACTION_CLASS} />}
       triggerLabel="Revoke"
       title="Revoke this access grant?"
       description={`${label} loses this permission on this project immediately.`}

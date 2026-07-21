@@ -41,7 +41,7 @@ export function UserActions({
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button size="sm" variant="outline" disabled={isPending}>
+            <Button size="sm" variant="ghost" disabled={isPending}>
               {isPending ? "Working…" : "Manage"}
             </Button>
           }
