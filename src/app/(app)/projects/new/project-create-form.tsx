@@ -7,7 +7,6 @@ import { createProjectAction } from "@/app/actions/projects";
 import {
   BUDGET_TYPE_OPTIONS,
   createProjectSchema,
-  PROJECT_HEALTH_OPTIONS,
   PROJECT_PRIORITY_OPTIONS,
   PROJECT_STATUS_OPTIONS,
   type CreateProjectInput,
@@ -73,7 +72,7 @@ export function ProjectCreateForm({
               </Alert>
             )}
 
-            <FormSection first title="Project details" description="The name and client this project belongs to.">
+            <FormSection first tone="blue" title="Project details" description="The name and client this project belongs to.">
               <FormField
                 control={form.control}
                 name="name"
@@ -93,25 +92,25 @@ export function ProjectCreateForm({
             </FormSection>
 
             <FormSection
+              tone="amber"
               title="Status & priority"
-              description="A reasonable starting point — you can change all of these later."
+              description="A reasonable starting point — health is derived automatically from deadline, budget, and progress."
             >
               <div className="grid grid-cols-2 gap-3">
                 <EnumSelectField control={form.control} name="status" label="Status" options={PROJECT_STATUS_OPTIONS} />
-                <EnumSelectField control={form.control} name="health" label="Health" options={PROJECT_HEALTH_OPTIONS} />
                 <EnumSelectField control={form.control} name="priority" label="Priority" options={PROJECT_PRIORITY_OPTIONS} />
                 <EnumSelectField control={form.control} name="budget_type" label="Budget type" options={BUDGET_TYPE_OPTIONS} />
               </div>
             </FormSection>
 
-            <FormSection title="Timeline" description="Optional — set these now or fill them in later.">
+            <FormSection tone="violet" title="Timeline" description="Optional — set these now or fill them in later.">
               <div className="grid grid-cols-2 gap-3">
                 <DateField control={form.control} name="start_date" label="Start date" />
                 <DateField control={form.control} name="deadline" label="Deadline" />
               </div>
             </FormSection>
 
-            <FormSection title="Tags & description" description="Help teammates find and understand this project.">
+            <FormSection tone="teal" title="Tags & description" description="Help teammates find and understand this project.">
               <TagsField control={form.control} />
               <FormField
                 control={form.control}

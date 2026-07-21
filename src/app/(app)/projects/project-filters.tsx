@@ -9,11 +9,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
 import {
-  BUDGET_TYPE_OPTIONS, HEALTH_OPTIONS, STATUS_OPTIONS, humanize,
+  BUDGET_TYPE_OPTIONS, STATUS_OPTIONS, humanize,
 } from "./types";
 
 const ALL = "__all__";
-const FILTER_KEYS = ["status", "health", "budget_type", "pm", "client", "q"];
+// No health filter: health is derived at render time (lib/health.ts), so the stored column the
+// server-side filter would need is meaningless -- sort the Health column instead.
+const FILTER_KEYS = ["status", "budget_type", "pm", "client", "q"];
 
 export function ProjectFilters({
   pmOptions,
@@ -69,20 +71,6 @@ export function ProjectFilters({
           <SelectItem value={ALL}>All statuses</SelectItem>
           {STATUS_OPTIONS.map((s) => (
             <SelectItem key={s} value={s}>{humanize(s)}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select
-        value={searchParams.get("health") ?? ALL}
-        onValueChange={(v) => setParam("health", v ?? null)}
-      >
-        <SelectTrigger className="w-32">
-          <SelectValue>{(v: string) => (v === ALL ? "All health" : humanize(v))}</SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>All health</SelectItem>
-          {HEALTH_OPTIONS.map((h) => (
-            <SelectItem key={h} value={h}>{humanize(h)}</SelectItem>
           ))}
         </SelectContent>
       </Select>

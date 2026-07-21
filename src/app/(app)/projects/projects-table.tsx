@@ -10,11 +10,15 @@ import { useSort, type SortAccessors } from "@/components/data-table/use-sort";
 import {
   Table, TableBody, TableCell, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { consumptionBarClasses } from "@/lib/budget";
 import { avatarTint } from "@/lib/avatar-tint";
 import { deadlineCountdown } from "@/lib/deadline";
 import {
-  HEALTH_INLINE_OPTIONS, PRIORITY_INLINE_OPTIONS, STATUS_INLINE_OPTIONS,
+  DERIVED_HEALTH_BADGE_CLASS, deriveHealth, healthTitle, type DerivedHealth,
+} from "@/lib/health";
+import {
+  PRIORITY_INLINE_OPTIONS, STATUS_INLINE_OPTIONS,
   formatDate, formatMoney, humanize, initials,
 } from "./types";
 import type { ProjectListRow } from "./types";
@@ -26,7 +30,11 @@ export type ProjectRowLinks = Record<
   { clientId: string | null; pmPersonId: string | null }
 >;
 
-const HEALTH_RANK = { healthy: 0, warning: 1, critical: 2 } as const;
+const HEALTH_RANK: Record<DerivedHealth["level"], number> = {
+  healthy: 0,
+  warning: 1,
+  critical: 2,
+};
 
 function consumptionPct(row: ProjectListRow): number | null {
   if (row.budget_total === null || row.budget_total === 0 || row.budget_used === null) return null;
@@ -57,20 +65,36 @@ export function ProjectsTable({
   progressById: ProgressById;
 }) {
   const editable = useMemo(() => new Set(editableProjectIds), [editableProjectIds]);
+  // Health is derived (deadline + budget + parts progress -- see lib/health.ts), never the
+  // stored hand-typed column: a flag a PM must remember to update is always stale.
+  const healthById = useMemo(() => {
+    const map: Record<string, DerivedHealth> = {};
+    for (const r of rows) {
+      if (!r.id) continue;
+      map[r.id] = deriveHealth({
+        status: r.status,
+        startDate: r.start_date,
+        deadline: r.deadline,
+        consumptionPct: consumptionPct(r),
+        progressPct: progressById[r.id]?.pct ?? null,
+      });
+    }
+    return map;
+  }, [rows, progressById]);
   const accessors = useMemo<SortAccessors<ProjectListRow, SortKey>>(
     () => ({
       name: (r) => r.name,
       client: (r) => r.client_name,
       pm: (r) => r.pm_name,
       status: (r) => r.status,
-      health: (r) => (r.health ? HEALTH_RANK[r.health] : null),
+      health: (r) => (r.id ? HEALTH_RANK[healthById[r.id]?.level ?? "healthy"] : null),
       deadline: (r) => r.deadline,
       team: (r) => r.member_count,
       budget: (r) => consumptionPct(r),
       progress: (r) => (r.id ? (progressById[r.id]?.pct ?? null) : null),
       updated: (r) => r.updated_at,
     }),
-    [progressById]
+    [progressById, healthById]
   );
   const { rows: sorted, sort, toggle } = useSort(rows, accessors, {
     key: "updated",
@@ -150,15 +174,7 @@ export function ProjectsTable({
                 )}
               </TableCell>
               <TableCell>
-                {row.health && (
-                  <InlineEditSelect
-                    value={row.health}
-                    options={HEALTH_INLINE_OPTIONS}
-                    canEdit={canEdit}
-                    ariaLabel="project health"
-                    onSave={updateProjectFieldAction.bind(null, projectId, "health")}
-                  />
-                )}
+                <HealthBadge health={healthById[projectId]} />
               </TableCell>
               <TableCell>
                 <div className="text-sm">{formatDate(row.deadline)}</div>
@@ -233,6 +249,24 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
           <span className="text-muted-foreground tabular-nums whitespace-nowrap">
             {pct.toFixed(0)}% used
           </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Derived health badge: the color says how bad, the second line says WHY ("due in 8 days ·
+// over budget"), so the signal is explained right where it appears.
+export function HealthBadge({ health }: { health?: DerivedHealth }) {
+  if (!health) return null;
+  return (
+    <div className="min-w-0">
+      <Badge variant="outline" className={DERIVED_HEALTH_BADGE_CLASS[health.level]}>
+        {health.level}
+      </Badge>
+      {health.reasons.length > 0 && (
+        <div className="mt-0.5 max-w-36 truncate text-xs text-muted-foreground" title={healthTitle(health)}>
+          {healthTitle(health)}
         </div>
       )}
     </div>

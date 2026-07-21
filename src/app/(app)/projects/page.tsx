@@ -8,13 +8,12 @@ import { deriveProgress, progressBasisLabel, type ProgressPart } from "@/lib/pro
 import { ProjectsTable, type ProjectRowLinks } from "./projects-table";
 import { ViewToggle } from "./view-toggle";
 import {
-  BUDGET_TYPE_OPTIONS, HEALTH_OPTIONS, STATUS_OPTIONS,
+  BUDGET_TYPE_OPTIONS, STATUS_OPTIONS,
 } from "./types";
-import type { BudgetType, ProjectHealth, ProjectListRow, ProjectStatus } from "./types";
+import type { BudgetType, ProjectListRow, ProjectStatus } from "./types";
 
 type ProjectsSearchParams = {
   status?: string;
-  health?: string;
   budget_type?: string;
   pm?: string;
   client?: string;
@@ -51,12 +50,10 @@ export default async function ProjectsPage({
   const clientOptions = distinct((optionRows ?? []).map((r) => r.client_name));
 
   const status = STATUS_OPTIONS.find((s) => s === params.status);
-  const health = HEALTH_OPTIONS.find((h) => h === params.health);
   const budgetType = BUDGET_TYPE_OPTIONS.find((b) => b === params.budget_type);
 
   let query = supabase.from("project_list_rows").select("*");
   if (status) query = query.eq("status", status satisfies ProjectStatus);
-  if (health) query = query.eq("health", health satisfies ProjectHealth);
   if (budgetType) query = query.eq("budget_type", budgetType satisfies BudgetType);
   if (params.pm) query = query.eq("pm_name", params.pm);
   if (params.client) query = query.eq("client_name", params.client);
@@ -143,7 +140,7 @@ export default async function ProjectsPage({
 
   const view = params.view === "cards" ? "cards" : "table";
   const hasFilters = Boolean(
-    params.status || params.health || params.budget_type || params.pm || params.client || params.q
+    params.status || params.budget_type || params.pm || params.client || params.q
   );
 
   return (

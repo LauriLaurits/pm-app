@@ -39,10 +39,13 @@ export const HEALTH_BADGE_CLASS: Record<ProjectHealth, string> = {
 
 export const PRIORITY_OPTIONS: ProjectPriority[] = ["low", "medium", "high"];
 
-export const PRIORITY_BADGE: Record<ProjectPriority, BadgeVariant> = {
-  low: "outline",
-  medium: "secondary",
-  high: "destructive",
+// One priority color scheme for EVERY surface (list inline chip + detail header badge must
+// match). Priority is importance, not alarm -- so high is orange, never the destructive red
+// that delete buttons and critical health own.
+export const PRIORITY_BADGE_CLASS: Record<ProjectPriority, string> = {
+  low: "text-muted-foreground",
+  medium: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  high: "border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-400",
 };
 
 export function humanize(value: string) {
@@ -68,7 +71,8 @@ export const HEALTH_INLINE_OPTIONS: InlineEditOption[] = HEALTH_OPTIONS.map((h) 
 export const PRIORITY_INLINE_OPTIONS: InlineEditOption[] = PRIORITY_OPTIONS.map((p) => ({
   value: p,
   label: humanize(p),
-  badgeVariant: PRIORITY_BADGE[p],
+  badgeVariant: "outline",
+  badgeClassName: PRIORITY_BADGE_CLASS[p],
 }));
 
 export function initials(name: string | null) {

@@ -1,7 +1,7 @@
 import { consumptionBadgeClasses, consumptionSeverity, formatMoney, marginPct } from "@/lib/budget";
 import { utilizationBadgeClasses } from "@/lib/workload";
 import { daysUntil, isApproachingDeadline, isStaleStatus } from "@/lib/dashboard";
-import { HEALTH_BADGE_CLASS } from "../projects/types";
+import { DERIVED_HEALTH_BADGE_CLASS, deriveHealth, healthTitle, type DerivedHealth } from "@/lib/health";
 import type { BudgetSpentRow } from "@/components/charts/budget-spent-chart";
 import type { CapacityRow } from "@/components/charts/capacity-chart";
 import type { FinanceSummary } from "./summary-cards";
@@ -14,6 +14,20 @@ const CHART_TOP_N = 6;
 const CAPACITY_TOP_N = 8;
 
 type ValidProject = ProjectListRow & { id: string; name: string };
+
+// Health is DERIVED (lib/health.ts), same rule as the projects list/detail -- never the stored
+// hand-typed column. The dashboard has no parts data, so the progress-lag signal is absent here;
+// deadline + budget consumption still apply.
+function rowHealth(p: ValidProject): DerivedHealth {
+  return deriveHealth({
+    status: p.status,
+    startDate: p.start_date,
+    deadline: p.deadline,
+    consumptionPct:
+      p.budget_total && p.budget_used !== null ? (p.budget_used / p.budget_total) * 100 : null,
+    progressPct: null,
+  });
+}
 type ValidBudgetRow = ProjectBudgetRow & { id: string; name: string };
 type ValidPerson = {
   id: string;
@@ -58,8 +72,9 @@ export function computeSummary(
 
   const activeProjects = projects.filter((p) => p.status === "active").length;
   const planningProjects = projects.filter((p) => p.status === "planning").length;
-  const criticalProjects = projects.filter((p) => p.health === "critical").length;
-  const warningProjects = projects.filter((p) => p.health === "warning").length;
+  const healthLevels = projects.map((p) => rowHealth(p).level);
+  const criticalProjects = healthLevels.filter((l) => l === "critical").length;
+  const warningProjects = healthLevels.filter((l) => l === "warning").length;
   const atRiskProjects = criticalProjects + warningProjects;
   const approachingDeadlines = projects.filter(
     (p) =>
@@ -125,22 +140,19 @@ export function computeCapacityChart(people: ValidPerson[]): CapacityRow[] {
 // ---- attention sections ----
 export function computeNeedsAttention(projects: ValidProject[]): AttentionItem[] {
   return projects
-    .filter((p) => p.health === "warning" || p.health === "critical")
+    .map((p) => ({ p, health: rowHealth(p) }))
+    .filter(({ health }) => health.level !== "healthy")
+    .sort((a, b) => (b.health.level === "critical" ? 1 : 0) - (a.health.level === "critical" ? 1 : 0))
     .slice(0, ATTENTION_LIMIT)
-    .map((p) => ({
+    .map(({ p, health }) => ({
       id: p.id,
       href: `/projects/${p.id}`,
+      // The reasons ARE the attention message ("12 days overdue · over budget (104%)") --
+      // far more actionable than repeating the client name here.
       primary: p.name,
-      secondary: p.client_name ?? undefined,
-      badgeLabel: humanize(p.health ?? ""),
-      // HEALTH_BADGE_CLASS.critical is deliberately "" upstream (projects/types.ts pairs it with
-      // variant="destructive" instead) -- this list always uses variant="outline", so critical
-      // needs its own explicit color here, matching the same red-500 tier used by
-      // consumptionBadgeClasses/utilizationBadgeClasses elsewhere.
-      badgeClassName:
-        p.health === "critical"
-          ? "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400"
-          : HEALTH_BADGE_CLASS[p.health ?? "healthy"],
+      secondary: healthTitle(health),
+      badgeLabel: health.level,
+      badgeClassName: DERIVED_HEALTH_BADGE_CLASS[health.level],
     }));
 }
 

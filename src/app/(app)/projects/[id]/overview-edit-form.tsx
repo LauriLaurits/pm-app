@@ -7,7 +7,6 @@ import { editProjectAction } from "@/app/actions/projects";
 import {
   BUDGET_TYPE_OPTIONS,
   editProjectSchema,
-  PROJECT_HEALTH_OPTIONS,
   PROJECT_PRIORITY_OPTIONS,
   PROJECT_STATUS_OPTIONS,
   type EditProjectInput,
@@ -86,7 +85,7 @@ export function OverviewEditForm({
           </Alert>
         )}
 
-        <FormSection first title="Details" description="The name, client, and who's running this project.">
+        <FormSection first tone="blue" title="Details" description="The name, client, and who's running this project.">
           <FormField
             control={form.control}
             name="name"
@@ -105,26 +104,29 @@ export function OverviewEditForm({
           <PmField control={form.control} candidates={pmCandidates} isAdmin={isAdmin} currentPmName={currentPmName} />
         </FormSection>
 
-        <FormSection title="Status & priority" description="How this project is tracking right now.">
-          <div className="grid grid-cols-3 gap-3">
+        <FormSection
+          tone="amber"
+          title="Status & priority"
+          description="Health isn't set here — it's derived automatically from deadline, budget, and progress."
+        >
+          <div className="grid grid-cols-2 gap-3">
             <EnumSelectField control={form.control} name="status" label="Status" options={PROJECT_STATUS_OPTIONS} />
-            <EnumSelectField control={form.control} name="health" label="Health" options={PROJECT_HEALTH_OPTIONS} />
             <EnumSelectField control={form.control} name="priority" label="Priority" options={PROJECT_PRIORITY_OPTIONS} />
           </div>
         </FormSection>
 
-        <FormSection title="Timeline" description="Dates shown on the project overview. Progress is derived from part statuses, not typed.">
+        <FormSection tone="violet" title="Timeline" description="Dates shown on the project overview. Progress is derived from part statuses, not typed.">
           <div className="grid grid-cols-2 gap-3">
             <DateField control={form.control} name="start_date" label="Start date" />
             <DateField control={form.control} name="deadline" label="Deadline" />
           </div>
         </FormSection>
 
-        <FormSection title="Tags" description="Used for filtering and grouping on the projects list.">
+        <FormSection tone="teal" title="Tags" description="Used for filtering and grouping on the projects list.">
           <TagsField control={form.control} />
         </FormSection>
 
-        <FormSection title="Notes" description="Standing context — risks and internal/client notes. Point-in-time blockers and next steps go in a status update.">
+        <FormSection tone="rose" title="Notes" description="Standing context — risks and internal/client notes. Point-in-time blockers and next steps go in a status update.">
           {TEXT_FIELDS.map(({ name, label }) => (
             <TextAreaField key={name} control={form.control} name={name} label={label} />
           ))}
