@@ -55,3 +55,6 @@ dev.log
 .playwright-mcp/
 
 .vercel
+
+# ad-hoc verification screenshots at repo root
+/*.png
