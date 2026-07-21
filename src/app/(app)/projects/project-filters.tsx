@@ -252,8 +252,13 @@ export function ProjectFilters({
         </Select>
       )}
       {hasActiveFilters && (
-        <Button variant="ghost" size="sm" onClick={clearAll}>
-          <XIcon /> Clear
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={clearAll}
+          className="rounded-full bg-red-500/8 text-red-700 hover:bg-red-500/15 hover:text-red-800 dark:bg-red-500/15 dark:text-red-400 dark:hover:bg-red-500/25"
+        >
+          <XIcon /> Clear filters
         </Button>
       )}
     </div>

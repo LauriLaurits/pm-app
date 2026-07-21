@@ -28,7 +28,7 @@ import {
   healthTitle, type DerivedHealth,
 } from "@/lib/health";
 import {
-  PRIORITY_DOT, STATUS_INLINE_OPTIONS,
+  PRIORITY_NAME_CLASS, STATUS_INLINE_OPTIONS,
   formatDate, formatMoney, humanize, initials,
 } from "./types";
 import type { ProjectListRow } from "./types";
@@ -230,21 +230,17 @@ export function ProjectsTable({
                       <Icon className="size-4.5" />
                     </span>
                     <div className="min-w-0">
-                      <span className="flex items-center gap-2">
-                        <Link
-                          href={`/projects/${row.id}`}
-                          className="text-base leading-tight font-semibold hover:underline"
-                        >
-                          {row.name}
-                        </Link>
-                        {row.priority && (
-                          <span
-                            aria-label={`${row.priority} priority`}
-                            title={`${row.priority.charAt(0).toUpperCase()}${row.priority.slice(1)} priority`}
-                            className={`size-2 shrink-0 rounded-full ${PRIORITY_DOT[row.priority]}`}
-                          />
-                        )}
-                      </span>
+                      <Link
+                        href={`/projects/${row.id}`}
+                        title={
+                          row.priority
+                            ? `${row.priority.charAt(0).toUpperCase()}${row.priority.slice(1)} priority`
+                            : undefined
+                        }
+                        className={`text-base leading-tight font-semibold hover:underline ${row.priority ? PRIORITY_NAME_CLASS[row.priority] : ""}`}
+                      >
+                        {row.name}
+                      </Link>
                     </div>
                   </div>
                 </TableCell>
@@ -521,11 +517,10 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
           style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
         />
       </div>
-      <div className="mt-1 flex items-center gap-1.5 tabular-nums whitespace-nowrap">
-        <span className="text-sm font-medium text-foreground">
-          {formatMoney(row.budget_used)} / {formatMoney(row.budget_total)}
-        </span>
-        <span className="text-muted-foreground">{pct.toFixed(0)}% used</span>
+      <div className="mt-1 tabular-nums whitespace-nowrap">
+        <span className="text-sm font-medium text-foreground">{formatMoney(row.budget_used)}</span>{" "}
+        <span className="text-muted-foreground">/ {formatMoney(row.budget_total)}</span>
+        <span className="ml-1.5 text-muted-foreground">{pct.toFixed(0)}% used</span>
       </div>
     </div>
   );

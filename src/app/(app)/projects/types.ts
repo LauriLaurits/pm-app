@@ -115,12 +115,12 @@ export const PRIORITY_INLINE_OPTIONS: InlineEditOption[] = PRIORITY_OPTIONS.map(
   badgeClassName: PRIORITY_BADGE_CLASS[p],
 }));
 
-// Compact list presentation: priority is a small colored dot right after the project name
-// (high red / medium blue / low gray), full wording in the hover title.
-export const PRIORITY_DOT: Record<ProjectPriority, string> = {
-  low: "bg-muted-foreground/40",
-  medium: "bg-blue-500",
-  high: "bg-red-500",
+// Compact list presentation: priority tints the project NAME itself (high red / medium blue /
+// low default ink), full wording in the hover title. No extra chip or dot in the row.
+export const PRIORITY_NAME_CLASS: Record<ProjectPriority, string> = {
+  low: "",
+  medium: "text-blue-700 dark:text-blue-400",
+  high: "text-red-700 dark:text-red-400",
 };
 
 export function initials(name: string | null) {
