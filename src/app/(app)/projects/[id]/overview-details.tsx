@@ -14,11 +14,15 @@ export function OverviewDetailsCard({
   project,
   pm,
   owner,
+  clientName,
+  clientContact,
   editAction,
 }: {
   project: ProjectRow;
   pm: PersonRef;
   owner: PersonRef;
+  clientName: string | null;
+  clientContact: { name: string; email: string | null } | null;
   editAction?: React.ReactNode;
 }) {
   return (
@@ -35,6 +39,20 @@ export function OverviewDetailsCard({
         <div className="space-y-3 border-t pt-3">
           <PersonRow label="Project manager" person={pm} />
           <PersonRow label="Owner" person={owner} />
+          {project.client_id && (
+            <div className="flex items-start justify-between gap-3 text-sm">
+              <span className="text-muted-foreground">Client</span>
+              <div className="text-right">
+                <p className="font-medium">{clientName ?? "—"}</p>
+                {clientContact && (
+                  <p className="text-muted-foreground">
+                    {clientContact.name}
+                    {clientContact.email ? ` · ${clientContact.email}` : ""}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-between gap-3 text-sm">
             <span className="text-muted-foreground">Start date</span>
             <span>{formatDate(project.start_date)}</span>

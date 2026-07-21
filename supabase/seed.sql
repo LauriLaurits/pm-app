@@ -381,3 +381,9 @@ insert into public.client_contacts (id, client_id, name, email, phone, role, is_
   ('90000004-0000-4000-8000-000000000004','20000003-0000-4000-8000-000000000003','Jaan Kuusk','jaan@finserv.ee',null,'Head of IT',false),
   ('90000005-0000-4000-8000-000000000005','20000003-0000-4000-8000-000000000003','Maria Lepp','maria@finserv.ee','+372 5512 3390','Compliance',false)
 on conflict (id) do nothing;
+
+-- One demo project carries a client contact (P3: projects.client_contact_id) so the overview
+-- Details card has something to show. Must run after the contact inserts above.
+update public.projects
+set client_contact_id = '90000001-0000-4000-8000-000000000001' -- Marko Saar, Baltic Retail CTO
+where id = '30000001-0000-4000-8000-000000000001';

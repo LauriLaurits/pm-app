@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { GrantForm } from "./grant-form";
 import type { PermissionOption, ProjectOption, UserOption } from "./types";
@@ -28,9 +28,6 @@ export function GrantFormDialog({
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Grant project access</DialogTitle>
-          <DialogDescription>
-            Give a user one or more permissions on a single project, optionally for a limited time.
-          </DialogDescription>
         </DialogHeader>
         <GrantForm users={users} projects={projects} permissions={permissions} onSuccess={() => setOpen(false)} />
       </DialogContent>

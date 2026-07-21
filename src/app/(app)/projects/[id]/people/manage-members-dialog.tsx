@@ -4,7 +4,7 @@ import { useState } from "react";
 import { UsersIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { ManageMembersPanel } from "./manage-members-panel";
 import type { CandidateOption } from "./types";
@@ -29,9 +29,6 @@ export function ManageMembersDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Manage members</DialogTitle>
-          <DialogDescription>
-            Toggle people on or off this project. Changes save immediately.
-          </DialogDescription>
         </DialogHeader>
         <ManageMembersPanel projectId={projectId} candidates={candidates} />
       </DialogContent>

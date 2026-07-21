@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
 import { TimeOffForm } from "./time-off-form";
@@ -26,7 +26,6 @@ export function TimeOffDialog({ personId, timeOff }: { personId: string; timeOff
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{timeOff ? "Edit time off" : "Add time off"}</DialogTitle>
-          <DialogDescription>Changes are saved immediately and audited.</DialogDescription>
         </DialogHeader>
         <TimeOffForm personId={personId} timeOff={timeOff} onSuccess={() => setOpen(false)} />
       </DialogContent>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { LogTimeForm } from "./log-time-form";
 import type { AssignedProjectOption, PartOption } from "./types";
@@ -23,9 +23,6 @@ export function LogTimeDialog({
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Log time</DialogTitle>
-          <DialogDescription>
-            Logged against your own account, only on projects you&apos;re assigned to.
-          </DialogDescription>
         </DialogHeader>
         <LogTimeForm projects={projects} partsByProject={partsByProject} onSuccess={() => setOpen(false)} />
       </DialogContent>

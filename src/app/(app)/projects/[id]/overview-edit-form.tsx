@@ -15,7 +15,10 @@ import type { ProjectRow } from "./types";
 import {
   DateField, EnumSelectField, TagsField, TextAreaField, TEXT_FIELDS,
 } from "./overview-edit-fields";
-import { ClientField, PmField, type ClientOption, type PmOption } from "./overview-edit-admin-fields";
+import {
+  ClientContactField, ClientField, PmField,
+  type ClientContactOption, type ClientOption, type PmOption,
+} from "./overview-edit-admin-fields";
 import { FormSection } from "@/components/form-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +30,7 @@ function toDefaults(project: ProjectRow): EditProjectInput {
   return {
     name: project.name,
     client_id: project.client_id,
+    client_contact_id: project.client_contact_id,
     description: project.description,
     status: project.status,
     health: project.health,
@@ -48,6 +52,7 @@ function toDefaults(project: ProjectRow): EditProjectInput {
 export function OverviewEditForm({
   project,
   clients,
+  contacts,
   isAdmin,
   pmCandidates,
   currentPmName,
@@ -55,6 +60,7 @@ export function OverviewEditForm({
 }: {
   project: ProjectRow;
   clients: ClientOption[];
+  contacts: ClientContactOption[];
   isAdmin: boolean;
   pmCandidates: PmOption[];
   currentPmName: string;
@@ -85,7 +91,7 @@ export function OverviewEditForm({
           </Alert>
         )}
 
-        <FormSection first tone="blue" title="Details" description="The name, client, and who's running this project.">
+        <FormSection first tone="blue" title="Details">
           <FormField
             control={form.control}
             name="name"
@@ -101,32 +107,29 @@ export function OverviewEditForm({
             <ClientField control={form.control} clients={clients} />
             <EnumSelectField control={form.control} name="budget_type" label="Budget type" options={BUDGET_TYPE_OPTIONS} />
           </div>
+          <ClientContactField control={form.control} contacts={contacts} />
           <PmField control={form.control} candidates={pmCandidates} isAdmin={isAdmin} currentPmName={currentPmName} />
         </FormSection>
 
-        <FormSection
-          tone="amber"
-          title="Status & priority"
-          description="Health isn't set here — it's derived automatically from deadline, budget, and progress."
-        >
+        <FormSection tone="amber" title="Status & priority">
           <div className="grid grid-cols-2 gap-3">
             <EnumSelectField control={form.control} name="status" label="Status" options={PROJECT_STATUS_OPTIONS} />
             <EnumSelectField control={form.control} name="priority" label="Priority" options={PROJECT_PRIORITY_OPTIONS} />
           </div>
         </FormSection>
 
-        <FormSection tone="violet" title="Timeline" description="Dates shown on the project overview. Progress is derived from part statuses, not typed.">
+        <FormSection tone="violet" title="Timeline">
           <div className="grid grid-cols-2 gap-3">
             <DateField control={form.control} name="start_date" label="Start date" />
             <DateField control={form.control} name="deadline" label="Deadline" />
           </div>
         </FormSection>
 
-        <FormSection tone="teal" title="Tags" description="Used for filtering and grouping on the projects list.">
+        <FormSection tone="teal" title="Tags">
           <TagsField control={form.control} />
         </FormSection>
 
-        <FormSection tone="rose" title="Notes" description="Standing context — risks and internal/client notes. Point-in-time blockers and next steps go in a status update.">
+        <FormSection tone="rose" title="Notes">
           {TEXT_FIELDS.map(({ name, label }) => (
             <TextAreaField key={name} control={form.control} name={name} label={label} />
           ))}

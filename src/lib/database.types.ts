@@ -1190,6 +1190,7 @@ export type Database = {
         Row: {
           blockers: string | null
           budget_type: Database["public"]["Enums"]["budget_type"]
+          client_contact_id: string | null
           client_id: string | null
           client_notes: string | null
           created_at: string
@@ -1213,6 +1214,7 @@ export type Database = {
         Insert: {
           blockers?: string | null
           budget_type: Database["public"]["Enums"]["budget_type"]
+          client_contact_id?: string | null
           client_id?: string | null
           client_notes?: string | null
           created_at?: string
@@ -1236,6 +1238,7 @@ export type Database = {
         Update: {
           blockers?: string | null
           budget_type?: Database["public"]["Enums"]["budget_type"]
+          client_contact_id?: string | null
           client_id?: string | null
           client_notes?: string | null
           created_at?: string
@@ -1257,6 +1260,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "projects_client_contact_id_fkey"
+            columns: ["client_contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "projects_client_id_fkey"
             columns: ["client_id"]
@@ -1849,6 +1859,13 @@ export type Database = {
         Returns: {
           allocation_pct: number
           week_start: string
+        }[]
+      }
+      pm_options: {
+        Args: never
+        Returns: {
+          full_name: string
+          user_id: string
         }[]
       }
       remove_project_person: {

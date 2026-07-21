@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { ClientForm } from "./client-form";
 
@@ -26,7 +26,6 @@ export function ClientQuickCreateDialog({
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>New client</DialogTitle>
-          <DialogDescription>Add a client without leaving this form.</DialogDescription>
         </DialogHeader>
         <ClientForm
           onSuccess={(client) => {

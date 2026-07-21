@@ -11,7 +11,7 @@ import { MoneyField } from "./budget-form-fields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
 import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
@@ -93,7 +93,6 @@ export function PartBudgetEditDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit billing — {part.part_name}</DialogTitle>
-          <DialogDescription>Changes are saved immediately and audited.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

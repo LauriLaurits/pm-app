@@ -7,12 +7,12 @@ import { createProjectAction } from "@/app/actions/projects";
 import {
   BUDGET_TYPE_OPTIONS,
   createProjectSchema,
-  PROJECT_PRIORITY_OPTIONS,
   PROJECT_STATUS_OPTIONS,
   type CreateProjectInput,
 } from "@/lib/validation/project";
 import {
-  ClientField, DateField, EnumSelectField, TagsField, type ClientOption,
+  ClientContactField, ClientField, DateField, EnumSelectField, PmField, TagsField,
+  type ClientContactOption, type ClientOption, type PmOption,
 } from "./project-create-fields";
 import { FormSection } from "@/components/form-section";
 import { Button } from "@/components/ui/button";
@@ -22,15 +22,17 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
-// Good defaults so a PM can type just a name and hit Create: Planning/Healthy/Medium/Fixed
-// are the same "new, low-risk project" baseline the rest of the app already assumes.
-const DEFAULT_VALUES: CreateProjectInput = {
+// Good defaults so a PM can type just a name and hit Create: Planning/Healthy/Fixed are the
+// same "new, low-risk project" baseline the rest of the app already assumes. Priority isn't
+// asked on this form anymore (P3 feedback) -- the schema default ('medium') applies and it
+// stays editable on the list/detail views.
+const DEFAULT_VALUES: Omit<CreateProjectInput, "pm_id"> = {
   name: "",
   client_id: null,
+  client_contact_id: null,
   description: null,
   status: "planning",
   health: "healthy",
-  priority: "medium",
   budget_type: "fixed",
   start_date: null,
   deadline: null,
@@ -39,16 +41,20 @@ const DEFAULT_VALUES: CreateProjectInput = {
 
 export function ProjectCreateForm({
   clients,
-  currentUserLabel,
+  contacts,
+  pms,
+  currentUserId,
 }: {
   clients: ClientOption[];
-  currentUserLabel: string;
+  contacts: ClientContactOption[];
+  pms: PmOption[];
+  currentUserId: string;
 }) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const form = useForm<CreateProjectInput>({
     resolver: zodResolver(createProjectSchema),
-    defaultValues: DEFAULT_VALUES,
+    defaultValues: { ...DEFAULT_VALUES, pm_id: currentUserId },
   });
 
   function onSubmit(values: CreateProjectInput) {
@@ -72,7 +78,7 @@ export function ProjectCreateForm({
               </Alert>
             )}
 
-            <FormSection first tone="blue" title="Project details" description="The name and client this project belongs to.">
+            <FormSection first tone="blue" title="Project details">
               <FormField
                 control={form.control}
                 name="name"
@@ -84,33 +90,26 @@ export function ProjectCreateForm({
                   </FormItem>
                 )}
               />
-              <div>
-                <p className="mb-1.5 text-sm font-medium">Project manager</p>
-                <p className="text-sm text-muted-foreground">You ({currentUserLabel})</p>
-              </div>
+              <PmField control={form.control} pms={pms} />
               <ClientField control={form.control} clients={clients} />
+              <ClientContactField control={form.control} contacts={contacts} />
             </FormSection>
 
-            <FormSection
-              tone="amber"
-              title="Status & priority"
-              description="A reasonable starting point — health is derived automatically from deadline, budget, and progress."
-            >
+            <FormSection tone="amber" title="Status & Budget">
               <div className="grid grid-cols-2 gap-3">
                 <EnumSelectField control={form.control} name="status" label="Status" options={PROJECT_STATUS_OPTIONS} />
-                <EnumSelectField control={form.control} name="priority" label="Priority" options={PROJECT_PRIORITY_OPTIONS} />
                 <EnumSelectField control={form.control} name="budget_type" label="Budget type" options={BUDGET_TYPE_OPTIONS} />
               </div>
             </FormSection>
 
-            <FormSection tone="violet" title="Timeline" description="Optional — set these now or fill them in later.">
+            <FormSection tone="violet" title="Timeline">
               <div className="grid grid-cols-2 gap-3">
                 <DateField control={form.control} name="start_date" label="Start date" />
                 <DateField control={form.control} name="deadline" label="Deadline" />
               </div>
             </FormSection>
 
-            <FormSection tone="teal" title="Tags & description" description="Help teammates find and understand this project.">
+            <FormSection tone="teal" title="Tags & description">
               <TagsField control={form.control} />
               <FormField
                 control={form.control}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { ClientForm } from "./client-form";
 import type { ClientContactRow, ClientRow } from "./types";
@@ -33,7 +33,6 @@ export function ClientFormDialog({
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{client ? `Edit ${client.name}` : "Add client"}</DialogTitle>
-          <DialogDescription>Changes are saved immediately and audited.</DialogDescription>
         </DialogHeader>
         <ClientForm client={client} contacts={contacts} onSuccess={() => setOpen(false)} />
       </DialogContent>

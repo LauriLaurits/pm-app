@@ -70,7 +70,7 @@ export function GrantForm({
           </Alert>
         )}
 
-        <FormSection first title="Who gets access" description="Pick the user who should gain access to a project.">
+        <FormSection first title="Who gets access">
           <FormField
             control={form.control}
             name="user_id"
@@ -86,18 +86,15 @@ export function GrantForm({
           />
         </FormSection>
 
-        <FormSection title="Which project" description="The permissions below apply to this project only.">
+        <FormSection title="Which project">
           <ProjectSelectField control={form.control} projects={projects} />
         </FormSection>
 
-        <FormSection
-          title="What they can do"
-          description="Only permissions that are safe to grant directly are available."
-        >
+        <FormSection title="What they can do">
           <PermissionsField control={form.control} permissions={permissions} />
         </FormSection>
 
-        <FormSection title="When it ends" description="Leave blank for access that doesn't expire on its own.">
+        <FormSection title="When it ends">
           <ExpiresField control={form.control} />
         </FormSection>
 

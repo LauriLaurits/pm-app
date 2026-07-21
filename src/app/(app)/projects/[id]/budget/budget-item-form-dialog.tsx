@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { BudgetItemForm } from "./budget-item-form";
 
@@ -25,7 +25,6 @@ export function BudgetItemFormDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add budget entry</DialogTitle>
-          <DialogDescription>Changes are saved immediately and audited.</DialogDescription>
         </DialogHeader>
         <BudgetItemForm
           projectId={projectId}

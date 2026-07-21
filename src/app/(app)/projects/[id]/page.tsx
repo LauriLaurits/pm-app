@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { deriveProgress } from "@/lib/progress";
 import { OverviewDetailsCard } from "./overview-details";
 import { OverviewEditDialog } from "./overview-edit-dialog";
-import type { ClientOption, PmOption } from "./overview-edit-admin-fields";
+import type { ClientContactOption, ClientOption, PmOption } from "./overview-edit-admin-fields";
 import { OverviewNotesCard } from "./overview-notes";
 import { ProjectHeaderStrip, type ProjectBudgetCell } from "./project-header";
 import { ProjectDangerZone } from "./project-danger-zone";
@@ -61,6 +61,8 @@ export default async function ProjectOverviewPage({
     { count: teamCount },
     { data: people },
     { data: pmCandidateRows },
+    { data: clientRow },
+    { data: clientContact },
   ] = await Promise.all([
     current
       ? supabase.rpc("has_permission", { uid: current.user.id, perm: "edit_project", project: id })
@@ -89,6 +91,14 @@ export default async function ProjectOverviewPage({
     isAdmin
       ? supabase.from("people").select("user_id, full_name").not("user_id", "is", null).order("full_name")
       : Promise.resolve({ data: [] as { user_id: string | null; full_name: string }[] }),
+    // Client + contact for the Details card. Both read through their own RLS (view_clients),
+    // so a viewer without it (e.g. a plain member) just gets null and the card shows a dash.
+    row.client_id
+      ? supabase.from("clients").select("name").eq("id", row.client_id).maybeSingle()
+      : Promise.resolve({ data: null as { name: string } | null }),
+    row.client_contact_id
+      ? supabase.from("client_contacts").select("name, email").eq("id", row.client_contact_id).maybeSingle()
+      : Promise.resolve({ data: null as { name: string; email: string | null } | null }),
   ]);
 
   const progress = deriveProgress(
@@ -112,12 +122,15 @@ export default async function ProjectOverviewPage({
   };
   const currentPmName = toPersonRef(row.pm_id)?.full_name ?? "Unassigned";
 
-  // "view clients" RLS (granted to project_manager/finance/admin) already limits this to
-  // whatever this caller can actually see -- same query as the New Project page. Depends on
+  // "view clients" RLS (granted to project_manager/finance/admin) already limits these to
+  // whatever this caller can actually see -- same queries as the New Project page. Depends on
   // canEdit, so it can't join the wave above.
-  const { data: clients } = canEdit
-    ? await supabase.from("clients").select("id, name").order("name")
-    : { data: [] as ClientOption[] };
+  const [{ data: clients }, { data: contactOptions }] = canEdit
+    ? await Promise.all([
+        supabase.from("clients").select("id, name").order("name"),
+        supabase.from("client_contacts").select("id, client_id, name, email").order("name"),
+      ])
+    : [{ data: [] as ClientOption[] }, { data: [] as ClientContactOption[] }];
 
   const pmCandidates: PmOption[] = (pmCandidateRows ?? [])
     .filter((p): p is { user_id: string; full_name: string } => !!p.user_id)
@@ -144,11 +157,14 @@ export default async function ProjectOverviewPage({
             project={row}
             pm={toPersonRef(row.pm_id)}
             owner={toPersonRef(row.owner_id)}
+            clientName={clientRow?.name ?? null}
+            clientContact={clientContact ?? null}
             editAction={
               canEdit ? (
                 <OverviewEditDialog
                   project={row}
                   clients={(clients ?? []) as ClientOption[]}
+                  contacts={(contactOptions ?? []) as ClientContactOption[]}
                   isAdmin={isAdmin}
                   pmCandidates={pmCandidates}
                   currentPmName={currentPmName}

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { StatusUpdateForm } from "./status-update-form";
 
@@ -19,9 +19,6 @@ export function StatusUpdateDialog({ projectId }: { projectId: string }) {
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Post a status update</DialogTitle>
-          <DialogDescription>
-            A point-in-time check-in — fill in what&apos;s relevant. Posted updates are timestamped and kept as history.
-          </DialogDescription>
         </DialogHeader>
         <StatusUpdateForm projectId={projectId} onSuccess={() => setOpen(false)} />
       </DialogContent>

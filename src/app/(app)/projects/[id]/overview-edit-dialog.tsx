@@ -3,22 +3,24 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { OverviewEditForm } from "./overview-edit-form";
-import type { ClientOption, PmOption } from "./overview-edit-admin-fields";
+import type { ClientContactOption, ClientOption, PmOption } from "./overview-edit-admin-fields";
 import type { ProjectRow } from "./types";
 import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
 
 export function OverviewEditDialog({
   project,
   clients,
+  contacts,
   isAdmin,
   pmCandidates,
   currentPmName,
 }: {
   project: ProjectRow;
   clients: ClientOption[];
+  contacts: ClientContactOption[];
   isAdmin: boolean;
   pmCandidates: PmOption[];
   currentPmName: string;
@@ -31,11 +33,11 @@ export function OverviewEditDialog({
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit {project.name}</DialogTitle>
-          <DialogDescription>Changes are saved immediately and audited.</DialogDescription>
         </DialogHeader>
         <OverviewEditForm
           project={project}
           clients={clients}
+          contacts={contacts}
           isAdmin={isAdmin}
           pmCandidates={pmCandidates}
           currentPmName={currentPmName}

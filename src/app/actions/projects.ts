@@ -18,6 +18,31 @@ import {
   type StatusUpdateInput,
 } from "@/lib/validation/project";
 
+/**
+ * A client_contact_id is only valid when it points at a contact OF the selected client -- a
+ * bare uuid check can't know that, and the FK alone would happily accept another client's
+ * contact. Reads via the RLS client, so a caller who can't see client_contacts (no
+ * view_clients) simply can't set one either. Returns an error message or null. Not exported:
+ * "use server" files may only export async server actions.
+ */
+async function validateClientContact(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  clientId: string | null,
+  contactId: string | null
+): Promise<string | null> {
+  if (!contactId) return null;
+  if (!clientId) return "Pick a client before picking a contact.";
+  const { data: contact } = await supabase
+    .from("client_contacts")
+    .select("client_id")
+    .eq("id", contactId)
+    .maybeSingle();
+  if (!contact || contact.client_id !== clientId) {
+    return "That contact doesn't belong to the selected client.";
+  }
+  return null;
+}
+
 export async function createProjectAction(
   input: CreateProjectInput
 ): Promise<{ error: string }> {
@@ -29,17 +54,37 @@ export async function createProjectAction(
   if (!parsed.success) return { error: "Invalid project details." };
 
   const supabase = await createClient();
-  // pm_id is server-derived from the session, never taken from the client -- the "create
-  // project" RLS policy requires pm_id = auth.uid() for every non-admin anyway, but this is
-  // the actual security boundary the client-side form never gets a chance to violate.
+
+  // pm_id defaults to the caller; assigning someone ELSE is only for admins/PMs (everyone
+  // holding create_project) and only onto another active PM/admin. Mirrors -- and is backstopped
+  // by -- the "create project" RLS policy (see 20260721000003), which re-checks exactly this
+  // with has_permission(pm_id,'create_project') server-side. protect_project_pm still makes any
+  // LATER reassignment admin-only.
+  const pmId = parsed.data.pm_id ?? current.user.id;
+  if (pmId !== current.user.id) {
+    if (current.role !== "admin" && current.role !== "project_manager") {
+      return { error: "Only an admin or project manager can assign another project manager." };
+    }
+    const { data: pmOk } = await supabase.rpc("has_permission", {
+      uid: pmId,
+      perm: "create_project",
+    });
+    if (pmOk !== true) return { error: "Selected project manager can't manage projects." };
+  }
+
+  const contactError = await validateClientContact(
+    supabase, parsed.data.client_id, parsed.data.client_contact_id
+  );
+  if (contactError) return { error: contactError };
+
   const { data: project, error } = await supabase
     .from("projects")
-    .insert({ ...parsed.data, pm_id: current.user.id })
+    .insert({ ...parsed.data, pm_id: pmId })
     .select("id")
     .single();
   if (error) return { error: "Create failed. Try again." };
 
-  // Auto-add the creator to the new project so a PM is never locked out of their own
+  // Auto-add the project's PM to the new project so a PM is never locked out of their own
   // project (the "PM isn't a member" gap): a project_members row for the People tab, which is
   // also what the "log own time" RLS policy now checks (membership-or-assignment). No synthetic
   // `assignments` row is created here -- that previously inflated workload allocation (a PM
@@ -48,7 +93,7 @@ export async function createProjectAction(
   try {
     const { error: memberError } = await supabase
       .from("project_members")
-      .insert({ project_id: project.id, user_id: current.user.id, role_on_project: "Project Manager" });
+      .insert({ project_id: project.id, user_id: pmId, role_on_project: "Project Manager" });
     if (memberError) console.error("auto-add PM as project member failed:", memberError.message);
   } catch (e) {
     console.error("auto-add PM as project member failed:", e);
@@ -81,6 +126,11 @@ export async function editProjectAction(
   if (!parsed.success) return { error: "Invalid project details." };
 
   const supabase = await createClient();
+
+  const contactError = await validateClientContact(
+    supabase, parsed.data.client_id, parsed.data.client_contact_id
+  );
+  if (contactError) return { error: contactError };
 
   // Read the current pm_id BEFORE the update so we can detect a real change below. Only an
   // admin can ever actually change it -- the `protect_project_pm` DB trigger raises for anyone

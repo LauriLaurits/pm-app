@@ -42,6 +42,9 @@ function nullableUuidField(message: string) {
 export const editProjectSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
   client_id: nullableUuidField("Invalid client"),
+  // Optional pointer at ONE of the client's contact persons; the action verifies the contact
+  // actually belongs to client_id before writing (a bare uuid check can't know that).
+  client_contact_id: nullableUuidField("Invalid contact"),
   description: nullableText(),
   status: z.enum(PROJECT_STATUS_OPTIONS),
   health: z.enum(PROJECT_HEALTH_OPTIONS),
@@ -86,14 +89,17 @@ export function projectInlineFieldSchema(field: ProjectInlineField) {
 }
 
 // Creation is deliberately minimal: only `name` has no usable default. Status/health/priority
-// all default to the same "healthy new project" values the form pre-fills, and budget_type
+// all default to the same "healthy new project" values (priority is no longer asked on the
+// create form -- P3 feedback -- so its default always applies there), and budget_type
 // -- NOT NULL in the DB with no column default -- gets one here (the form always submits
-// 'fixed' unless the PM changes it). pm_id is NOT part of this schema: it's server-derived
-// from the caller's session in createProjectAction, never trusted from the client (see the
-// "create project" RLS policy, which requires pm_id = auth.uid() for non-admins anyway).
+// 'fixed' unless the PM changes it). pm_id: null/blank means "me" (the action fills in the
+// caller); a non-self value is only honored per the "create project" RLS policy -- the caller
+// must hold create_project and the target must be an active PM/admin (see pm_options()).
 export const createProjectSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
   client_id: nullableUuidField("Invalid client"),
+  client_contact_id: nullableUuidField("Invalid contact"),
+  pm_id: nullableUuidField("Invalid project manager"),
   description: nullableText(),
   status: z.enum(PROJECT_STATUS_OPTIONS).default("planning"),
   health: z.enum(PROJECT_HEALTH_OPTIONS).default("healthy"),

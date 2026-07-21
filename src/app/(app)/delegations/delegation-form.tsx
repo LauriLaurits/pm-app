@@ -71,7 +71,7 @@ export function DelegationForm({
           </Alert>
         )}
 
-        <FormSection first title="Who covers for you" description="Pick the person who'll act on your behalf while you're away.">
+        <FormSection first title="Who covers for you">
           <FormField
             control={form.control}
             name="to_user"
@@ -89,25 +89,19 @@ export function DelegationForm({
           />
         </FormSection>
 
-        <FormSection
-          title="Which projects"
-          description="Only projects you manage are shown. Toggle the ones the stand-in should cover."
-        >
+        <FormSection title="Which projects">
           <ProjectsField control={form.control} projects={projects} />
         </FormSection>
 
-        <FormSection
-          title="What they can do"
-          description="Only permissions that are safe to hand over are available."
-        >
+        <FormSection title="What they can do">
           <PermissionsField control={form.control} permissions={permissions} />
         </FormSection>
 
-        <FormSection title="When" description="The stand-in's access is only active during this window.">
+        <FormSection title="When">
           <DateRangeFields control={form.control} />
         </FormSection>
 
-        <FormSection title="Handover notes" description="Optional context for whoever is covering for you.">
+        <FormSection title="Handover notes">
           <NotesField control={form.control} />
         </FormSection>
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { UserPlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { AddPersonForm } from "./add-person-form";
 import type { CandidateOption } from "./types";
@@ -28,9 +28,6 @@ export function AddPersonDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add a person to this project</DialogTitle>
-          <DialogDescription>
-            Days per week is how much of their week this project takes (a full week is 5 days) — it drives the workload view.
-          </DialogDescription>
         </DialogHeader>
         <AddPersonForm
           projectId={projectId}

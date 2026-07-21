@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(20);
 
 -- fixtures: PM Anna (owns P1), PM Bella (owns P2), member Max (member of P1 only), finance Fia,
 -- admin Aida (for I3: only an admin may reassign a project's pm_id)
@@ -63,10 +63,17 @@ select throws_ok(
      values ('c3000000-0000-4000-8000-000000000001', 'c3000000-0000-4000-8000-000000000002') $$,
   'P0001', 'part dependencies must stay within one project',
   'cross-project dependency rejected');
+-- P3 (20260721000003): a create_project holder may assign another active PM/admin as the
+-- project's PM at creation time -- but never a non-PM (has_permission(pm_id,'create_project')
+-- in the "create project" policy is what separates the two).
+select lives_ok(
+  $$ insert into public.projects (name, budget_type, pm_id)
+     values ('For Bella', 'fixed', 'c0000000-0000-4000-8000-000000000002') $$,
+  'PM creates a project owned by another PM');
 select throws_ok(
   $$ insert into public.projects (name, budget_type, pm_id)
-     values ('Spoofed', 'fixed', 'c0000000-0000-4000-8000-000000000002') $$,
-  '42501', null, 'PM cannot create a project owned by someone else');
+     values ('Spoofed', 'fixed', 'c0000000-0000-4000-8000-000000000003') $$,
+  '42501', null, 'PM cannot create a project owned by a non-PM');
 select lives_ok(
   $$ insert into public.projects (name, budget_type, pm_id)
      values ('Own new project', 'fixed', auth.uid()) $$,

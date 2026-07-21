@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { LogTimeForm } from "./log-time-form";
 import type { AssignedProjectOption, PartOption, TimeEntryWithProject } from "./types";
@@ -26,7 +26,6 @@ export function TimeEntryEditDialog({
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit time entry</DialogTitle>
-          <DialogDescription>Changes are saved immediately and audited.</DialogDescription>
         </DialogHeader>
         <LogTimeForm projects={projects} partsByProject={partsByProject} entry={entry} onSuccess={() => setOpen(false)} />
       </DialogContent>

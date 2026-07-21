@@ -5,7 +5,7 @@ import { approveUserAction } from "@/app/actions/admin";
 import { APP_ROLES } from "@/lib/validation/auth";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
+  Dialog, DialogContent, DialogFooter, DialogHeader,
   DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import {
@@ -42,9 +42,6 @@ export function ApproveDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Approve {userLabel}</DialogTitle>
-          <DialogDescription>
-            Assign a role. The user gets access immediately after approval.
-          </DialogDescription>
         </DialogHeader>
         <Select
           value={role}

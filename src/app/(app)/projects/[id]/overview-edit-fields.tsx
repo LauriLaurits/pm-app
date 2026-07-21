@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Control, FieldPath } from "react-hook-form";
 import { humanize } from "../types";
 import type { EditProjectInput } from "@/lib/validation/project";
@@ -81,6 +82,9 @@ export function DateField({
   );
 }
 
+/** Same comma-bug fix as the create form's TagsInput (project-create-fields.tsx): the input
+ * used to re-derive its value from the parsed array, which stripped the comma the user just
+ * typed. Raw text lives in local state; the parsed tags array is committed on every change. */
 export function TagsField({ control }: { control: Control<EditProjectInput> }) {
   return (
     <FormField
@@ -89,19 +93,29 @@ export function TagsField({ control }: { control: Control<EditProjectInput> }) {
       render={({ field }) => (
         <FormItem>
           <FormLabel>Tags (comma-separated)</FormLabel>
-          <FormControl
-            render={
-              <Input
-                value={(field.value ?? []).join(", ")}
-                onChange={(e) =>
-                  field.onChange(e.target.value.split(",").map((t) => t.trim()).filter(Boolean))
-                }
-              />
-            }
-          />
+          <FormControl render={<TagsInput value={field.value ?? []} onChange={field.onChange} />} />
           <FormMessage />
         </FormItem>
       )}
+    />
+  );
+}
+
+function TagsInput({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (tags: string[]) => void;
+}) {
+  const [text, setText] = useState(() => (value ?? []).join(", "));
+  return (
+    <Input
+      value={text}
+      onChange={(e) => {
+        setText(e.target.value);
+        onChange(e.target.value.split(",").map((t) => t.trim()).filter(Boolean));
+      }}
     />
   );
 }

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { Control } from "react-hook-form";
+import { useEffect, useState } from "react";
+import { useWatch, type Control } from "react-hook-form";
 import type { EditProjectInput } from "@/lib/validation/project";
 import { ClientQuickCreateDialog } from "@/app/(app)/clients/client-quick-create-dialog";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -9,8 +9,10 @@ import {
 
 const NO_CLIENT = "__none__";
 const NEW_CLIENT = "__new__";
+const NO_CONTACT = "__none__";
 
 export type ClientOption = { id: string; name: string };
+export type ClientContactOption = { id: string; client_id: string; name: string; email: string | null };
 export type PmOption = { user_id: string; full_name: string };
 
 /** Optional client picker -- same "No client" sentinel pattern as the create form's ClientField
@@ -72,6 +74,81 @@ export function ClientField({
   );
 }
 
+/** Contact person of the SELECTED client -- same behavior as the create form's
+ * ClientContactField (project-create-fields.tsx), bound to EditProjectInput: hidden until a
+ * client with contacts is chosen, options swap when the client changes, and a contact that no
+ * longer belongs to the current client is cleared (the server action re-validates ownership). */
+export function ClientContactField({
+  control,
+  contacts,
+}: {
+  control: Control<EditProjectInput>;
+  contacts: ClientContactOption[];
+}) {
+  const clientId = useWatch({ control, name: "client_id" }) ?? null;
+  const options = contacts.filter((c) => c.client_id === clientId);
+
+  return (
+    <FormField
+      control={control}
+      name="client_contact_id"
+      render={({ field }) => (
+        <ContactSelect
+          value={field.value ?? null}
+          onChange={field.onChange}
+          options={options}
+          visible={!!clientId && options.length > 0}
+        />
+      )}
+    />
+  );
+}
+
+/** Split out so the stale-selection cleanup can be a hook (hooks can't live in a render prop). */
+function ContactSelect({
+  value,
+  onChange,
+  options,
+  visible,
+}: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+  options: ClientContactOption[];
+  visible: boolean;
+}) {
+  const stale = !!value && !options.some((o) => o.id === value);
+  useEffect(() => {
+    if (stale) onChange(null);
+  }, [stale, onChange]);
+
+  if (!visible) return null;
+  return (
+    <FormItem>
+      <FormLabel>Client contact</FormLabel>
+      <Select
+        value={value ?? NO_CONTACT}
+        onValueChange={(v) => onChange(v === NO_CONTACT ? null : v)}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue>
+            {(v: string) => (v === NO_CONTACT ? "No contact" : options.find((o) => o.id === v)?.name ?? "No contact")}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={NO_CONTACT}>No contact</SelectItem>
+          {options.map((o) => (
+            <SelectItem key={o.id} value={o.id}>
+              {o.name}
+              {o.email ? ` — ${o.email}` : ""}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <FormMessage />
+    </FormItem>
+  );
+}
+
 /**
  * pm_id is only ever writable by an admin -- the `protect_project_pm` DB trigger blocks any
  * non-admin update to this column outright, raising if the value changes at all. Non-admins get
@@ -94,7 +171,7 @@ export function PmField({
     return (
       <FormItem>
         <FormLabel>Project manager</FormLabel>
-        <p className="text-sm text-muted-foreground">{currentPmName} (only an admin can reassign)</p>
+        <p className="text-sm text-muted-foreground">{currentPmName}</p>
       </FormItem>
     );
   }
