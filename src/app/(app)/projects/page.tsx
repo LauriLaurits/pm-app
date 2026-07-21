@@ -289,8 +289,8 @@ function StatCard({
   return (
     <Card size="sm">
       <CardContent className="flex items-center gap-3">
-        <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${iconClass}`}>
-          <Icon className="size-4.5" />
+        <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${iconClass}`}>
+          <Icon className="size-4" />
         </span>
         <div className="min-w-0">
           <p className="truncate text-xs text-muted-foreground">{label}</p>

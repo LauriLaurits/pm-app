@@ -97,11 +97,11 @@ type SortKey =
 // Ascending = most important first, so the first click on the flag surfaces high priority.
 const PRIORITY_RANK = { high: 0, medium: 1, low: 2 } as const;
 
-// Tiny GitHub-style priority dots -- small enough that the eye lands on the project name first.
-const PRIORITY_DOT_CLASS: Record<"high" | "medium" | "low", string> = {
+// Tiny GitHub-style priority dots. LOW renders nothing -- a dot should only appear when it
+// carries a signal, so the column stays empty for the default case.
+const PRIORITY_DOT_CLASS: Record<"high" | "medium", string> = {
   high: "bg-red-500",
   medium: "bg-blue-500",
-  low: "bg-muted-foreground/30",
 };
 
 export function ProjectsTable({
@@ -201,9 +201,9 @@ export function ProjectsTable({
             <SortableHead label="Project" sortKey="name" sort={sort} onToggle={toggle} />
             {show("client") && <SortableHead label="Client" sortKey="client" sort={sort} onToggle={toggle} />}
             {show("pm") && <SortableHead label="PM" sortKey="pm" sort={sort} onToggle={toggle} />}
-            {show("status") && <SortableHead label="Status" sortKey="status" sort={sort} onToggle={toggle} />}
-            {show("health") && <SortableHead label="Health" sortKey="health" sort={sort} onToggle={toggle} />}
-            {show("dates") && <SortableHead label="Dates" sortKey="deadline" sort={sort} onToggle={toggle} />}
+            {show("status") && <SortableHead label="Status" sortKey="status" sort={sort} onToggle={toggle} className="pr-1" />}
+            {show("health") && <SortableHead label="Health" sortKey="health" sort={sort} onToggle={toggle} className="px-1" />}
+            {show("dates") && <SortableHead label="Dates" sortKey="deadline" sort={sort} onToggle={toggle} className="pl-1" />}
             {show("team") && <SortableHead label="Team" sortKey="team" sort={sort} onToggle={toggle} />}
             {show("budget") && <SortableHead label="Budget" sortKey="budget" sort={sort} onToggle={toggle} />}
             {show("progress") && <SortableHead label="Progress" sortKey="progress" sort={sort} onToggle={toggle} />}
@@ -255,7 +255,7 @@ export function ProjectsTable({
                     NO edge accent line -- tried twice (priority, then health), rejected both
                     times: the badges carry the signal. */}
                 <TableCell className="w-8 px-1">
-                  {row.priority && (
+                  {(row.priority === "high" || row.priority === "medium") && (
                     <span
                       aria-label={`${row.priority} priority`}
                       title={`${row.priority.charAt(0).toUpperCase()}${row.priority.slice(1)} priority`}
@@ -301,7 +301,7 @@ export function ProjectsTable({
                   </TableCell>
                 )}
                 {show("status") && (
-                  <TableCell>
+                  <TableCell className="pr-1">
                     {row.status && (
                       <InlineEditSelect
                         value={row.status}
@@ -314,12 +314,12 @@ export function ProjectsTable({
                   </TableCell>
                 )}
                 {show("health") && (
-                  <TableCell>
+                  <TableCell className="px-1">
                     <HealthBadge health={healthById[projectId]} />
                   </TableCell>
                 )}
                 {show("dates") && (
-                  <TableCell>
+                  <TableCell className="pl-1">
                     <DatesCell start={row.start_date} deadline={row.deadline} status={row.status} />
                   </TableCell>
                 )}
@@ -596,15 +596,19 @@ export function ProgressCell({ progress }: { progress?: { pct: number | null; la
   );
 }
 
-// "20 Jul" over a muted "2026" -- more compact than one long line.
+// "20 Jul" -- the year renders only when it differs from the current year, so it isn't
+// repeated on every row for no information.
 function UpdatedCell({ date }: { date: string | null }) {
   if (!date) return <span className="text-sm">—</span>;
   const d = new Date(date);
   const dayMonth = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  const year = d.getFullYear();
   return (
     <div className="text-sm leading-tight tabular-nums">
       <div>{dayMonth}</div>
-      <div className="text-xs text-muted-foreground/80">{d.getFullYear()}</div>
+      {year !== new Date().getFullYear() && (
+        <div className="text-xs text-muted-foreground/60">{year}</div>
+      )}
     </div>
   );
 }

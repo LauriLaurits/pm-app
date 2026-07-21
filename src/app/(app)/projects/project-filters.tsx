@@ -19,6 +19,11 @@ import {
 } from "./types";
 
 const ALL = "__all__";
+
+/** Thin vertical rule between filter chips -- separates them without adding visual weight. */
+function FilterDivider() {
+  return <span aria-hidden className="h-4 w-px shrink-0 bg-border" />;
+}
 const HEALTH_LEVELS: DerivedHealthLevel[] = ["healthy", "warning", "critical"];
 const FILTER_KEYS = ["status", "health", "budget_type", "pm", "client", "q"];
 
@@ -110,6 +115,7 @@ export function ProjectFilters({
           ))}
         </SelectContent>
       </Select>
+      <FilterDivider />
       <Select
         value={healthValue ?? ALL}
         onValueChange={(v) => setParam("health", v ?? null)}
@@ -143,6 +149,7 @@ export function ProjectFilters({
           ))}
         </SelectContent>
       </Select>
+      <FilterDivider />
       <Select
         value={budgetValue ?? ALL}
         onValueChange={(v) => setParam("budget_type", v ?? null)}
@@ -167,6 +174,7 @@ export function ProjectFilters({
           ))}
         </SelectContent>
       </Select>
+      <FilterDivider />
       {pmOptions.length > 0 && (
         <Select
           value={pmValue ?? ALL}
@@ -209,6 +217,7 @@ export function ProjectFilters({
           </SelectContent>
         </Select>
       )}
+      <FilterDivider />
       {clientOptions.length > 0 && (
         <Select
           value={clientValue ?? ALL}
