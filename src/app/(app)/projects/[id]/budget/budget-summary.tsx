@@ -34,7 +34,14 @@ export function BudgetSummary({ row }: { row: ProjectBudgetRow }) {
         </Alert>
       )}
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+      {/* One row when it fits (6 tiles finance / 4 without); collapsed widths stack 2 per column. */}
+      <div
+        className={
+          hasFinanceVisibility
+            ? "grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6"
+            : "grid grid-cols-2 gap-3 lg:grid-cols-4"
+        }
+      >
         <SummaryCard label="Client amount" value={formatMoney(row.client_amount)} />
         <SummaryCard label="Invoiced" value={formatMoney(row.invoiced)} />
         <SummaryCard label="Paid" value={formatMoney(row.paid)} />
