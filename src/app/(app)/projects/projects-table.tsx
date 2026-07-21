@@ -279,7 +279,7 @@ export function ProjectsTable({
                             ? `${row.priority.charAt(0).toUpperCase()}${row.priority.slice(1)} priority`
                             : undefined
                         }
-                        className="text-base leading-tight font-semibold hover:underline"
+                        className="text-base leading-tight font-semibold transition-opacity hover:opacity-70"
                       >
                         {row.name}
                       </Link>
@@ -481,7 +481,7 @@ function ClientCell({ name, clientId }: { name: string | null; clientId: string 
   );
   if (!clientId) return inner;
   return (
-    <Link href={`/clients/${clientId}`} className="hover:underline">
+    <Link href={`/clients/${clientId}`} className="transition-opacity hover:opacity-70">
       {inner}
     </Link>
   );
@@ -507,7 +507,7 @@ function PersonCell({
   );
   if (!personId || !name) return inner;
   return (
-    <Link href={`/people/${personId}`} className="hover:underline">
+    <Link href={`/people/${personId}`} className="transition-opacity hover:opacity-70">
       {inner}
     </Link>
   );
