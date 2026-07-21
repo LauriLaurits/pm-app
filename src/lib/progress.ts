@@ -51,11 +51,11 @@ export function deriveProgress(parts: ProgressPart[]): DerivedProgress {
   };
 }
 
-// A short human label for the progress basis, shown under the bar: "40 of 95 est. hrs" or
-// "3 of 7 parts" or "No parts yet".
+// A short human label for the progress basis, shown with the bar: "40 of 95 estimated hours"
+// or "3 of 7 parts" or "No parts yet".
 export function progressBasisLabel(p: DerivedProgress): string {
   if (p.basis === "none") return "No parts yet";
-  if (p.basis === "hours") return `${round1(p.doneHours)} of ${round1(p.totalHours)} est. hrs`;
+  if (p.basis === "hours") return `${round1(p.doneHours)} of ${round1(p.totalHours)} estimated hours`;
   return `${p.donePartCount} of ${p.totalPartCount} parts`;
 }
 

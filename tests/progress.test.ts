@@ -62,7 +62,7 @@ describe("deriveProgress", () => {
 describe("progressBasisLabel", () => {
   it("labels the hours basis", () => {
     expect(progressBasisLabel(deriveProgress([{ status: "done", estimated_hours: 40 }, { status: "not_started", estimated_hours: 55 }]))).toBe(
-      "40 of 95 est. hrs"
+      "40 of 95 estimated hours"
     );
   });
   it("labels the count basis", () => {

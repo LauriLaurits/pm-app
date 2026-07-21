@@ -223,37 +223,41 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
         <span className="ml-1">· {humanize(row.budget_type ?? "")}</span>
       </div>
       {pct !== null && (
-        <div className="mt-1 h-2 w-full max-w-28 overflow-hidden rounded-full bg-muted">
-          <div
-            className={`h-full rounded-full ${consumptionBarClasses(pct)}`}
-            style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
-          />
+        <div className="mt-1 flex items-center gap-2">
+          <div className="h-2 w-full max-w-28 overflow-hidden rounded-full bg-muted">
+            <div
+              className={`h-full rounded-full ${consumptionBarClasses(pct)}`}
+              style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
+            />
+          </div>
+          <span className="text-muted-foreground tabular-nums whitespace-nowrap">
+            {pct.toFixed(0)}% used
+          </span>
         </div>
       )}
-      <div className="mt-0.5 text-muted-foreground tabular-nums">
-        {pct !== null && <span>{pct.toFixed(0)}% used · </span>}
-        rem. {formatMoney(row.budget_remaining)}
-      </div>
     </div>
   );
 }
 
-// Progress derived from parts (done est-hours / total est-hours; part-count fallback) -- the
-// label under the bar says exactly what the % is based on, e.g. "40 of 95 est. hrs".
+// Progress derived from parts (done est-hours / total est-hours; part-count fallback). Same
+// two-line anatomy as BudgetCell: what it's based on on top, then the bar with "% done" inline.
 function ProgressCell({ progress }: { progress?: { pct: number | null; label: string } }) {
   if (!progress || progress.pct === null) {
     return <span className="text-xs text-muted-foreground">{progress?.label ?? "—"}</span>;
   }
   return (
-    <div className="min-w-24 text-xs">
-      <div className="h-2 w-full max-w-28 overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full rounded-full bg-[var(--viz-series-1)]"
-          style={{ width: `${Math.min(Math.max(progress.pct, 0), 100)}%` }}
-        />
-      </div>
-      <div className="mt-0.5 text-muted-foreground tabular-nums">
-        {progress.pct}% · {progress.label}
+    <div className="min-w-32 text-xs">
+      <div className="text-muted-foreground">{progress.label}</div>
+      <div className="mt-1 flex items-center gap-2">
+        <div className="h-2 w-full max-w-28 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-[var(--viz-series-1)]"
+            style={{ width: `${Math.min(Math.max(progress.pct, 0), 100)}%` }}
+          />
+        </div>
+        <span className="text-muted-foreground tabular-nums whitespace-nowrap">
+          {progress.pct}% done
+        </span>
       </div>
     </div>
   );
