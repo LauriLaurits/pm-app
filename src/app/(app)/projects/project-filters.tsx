@@ -7,18 +7,20 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { ListFilter, XIcon } from "lucide-react";
+import { XIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { avatarTint } from "@/lib/avatar-tint";
+import {
+  DERIVED_HEALTH_DOT, DERIVED_HEALTH_LABEL, type DerivedHealthLevel,
+} from "@/lib/health";
 import { BudgetTypeBadge } from "./budget-type-badge";
 import {
   BUDGET_TYPE_OPTIONS, STATUS_DOT, STATUS_OPTIONS, humanize, initials,
 } from "./types";
 
 const ALL = "__all__";
-// No health filter: health is derived at render time (lib/health.ts), so the stored column the
-// server-side filter would need is meaningless -- sort the Health column instead.
-const FILTER_KEYS = ["status", "budget_type", "pm", "client", "q"];
+const HEALTH_LEVELS: DerivedHealthLevel[] = ["healthy", "warning", "critical"];
+const FILTER_KEYS = ["status", "health", "budget_type", "pm", "client", "q"];
 
 export function ProjectFilters({
   pmOptions,
@@ -31,13 +33,6 @@ export function ProjectFilters({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [q, setQ] = useState(searchParams.get("q") ?? "");
-  // Dropdowns start collapsed behind the Filters button (mock parity) -- but never hide a
-  // filter that's actually applied.
-  const hasDropdownFilters = ["status", "budget_type", "pm", "client"].some((k) =>
-    searchParams.get(k)
-  );
-  const [expanded, setExpanded] = useState(hasDropdownFilters);
-  const showDropdowns = expanded || hasDropdownFilters;
 
   function setParam(key: string, value: string | null) {
     const params = new URLSearchParams(searchParams.toString());
@@ -70,17 +65,6 @@ export function ProjectFilters({
         onChange={(e) => setQ(e.target.value)}
         className="w-64 rounded-full border-transparent bg-muted/60 shadow-none"
       />
-      <Button
-        variant="outline"
-        size="sm"
-        className={`rounded-full border-transparent bg-muted/60 shadow-none ${showDropdowns ? "text-foreground" : "text-muted-foreground"}`}
-        onClick={() => setExpanded((e) => !e)}
-        aria-expanded={showDropdowns}
-      >
-        <ListFilter /> Filters
-      </Button>
-      {showDropdowns && (
-      <>
       <Select
         value={searchParams.get("status") ?? ALL}
         onValueChange={(v) => setParam("status", v ?? null)}
@@ -95,6 +79,29 @@ export function ProjectFilters({
               <span className="flex items-center gap-2">
                 <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${STATUS_DOT[s]}`} />
                 {humanize(s)}
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={searchParams.get("health") ?? ALL}
+        onValueChange={(v) => setParam("health", v ?? null)}
+      >
+        <SelectTrigger className="rounded-full border-transparent bg-muted/60 shadow-none">
+          <SelectValue>
+            {(v: string) =>
+              v === ALL ? "All health" : DERIVED_HEALTH_LABEL[v as DerivedHealthLevel]
+            }
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>All health</SelectItem>
+          {HEALTH_LEVELS.map((h) => (
+            <SelectItem key={h} value={h}>
+              <span className="flex items-center gap-2">
+                <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DERIVED_HEALTH_DOT[h]}`} />
+                {DERIVED_HEALTH_LABEL[h]}
               </span>
             </SelectItem>
           ))}
@@ -167,8 +174,6 @@ export function ProjectFilters({
             ))}
           </SelectContent>
         </Select>
-      )}
-      </>
       )}
       {hasActiveFilters && (
         <Button variant="ghost" size="sm" onClick={clearAll}>

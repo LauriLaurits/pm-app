@@ -10,10 +10,9 @@ import { updateProjectFieldAction } from "@/app/actions/projects";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { InlineEditSelect } from "@/components/inline-edit-select";
 import { SortableHead } from "@/components/data-table/sortable-head";
@@ -111,7 +110,6 @@ export function ProjectsTable({
   progressById: ProgressById;
 }) {
   const editable = useMemo(() => new Set(editableProjectIds), [editableProjectIds]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [hidden, setHidden] = useState<Set<ColumnKey>>(new Set());
   const show = (key: ColumnKey) => !hidden.has(key);
@@ -156,39 +154,12 @@ export function ProjectsTable({
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pageRows = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const pageIds = pageRows.map((r) => r.id).filter((id): id is string => !!id);
-  const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
-
-  function toggleAllOnPage() {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (allOnPageSelected) for (const id of pageIds) next.delete(id);
-      else for (const id of pageIds) next.add(id);
-      return next;
-    });
-  }
-
-  function toggleOne(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
 
   return (
     <div className="space-y-2">
       <Table className="[&_tbody_td]:py-4">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-8">
-              <Checkbox
-                checked={allOnPageSelected}
-                onCheckedChange={toggleAllOnPage}
-                aria-label="Select all projects on this page"
-              />
-            </TableHead>
             <SortableHead label="Project" sortKey="name" sort={sort} onToggle={toggle} />
             {show("client") && <SortableHead label="Client" sortKey="client" sort={sort} onToggle={toggle} />}
             {show("pm") && <SortableHead label="PM" sortKey="pm" sort={sort} onToggle={toggle} />}
@@ -252,19 +223,12 @@ export function ProjectsTable({
             return (
               <TableRow key={row.id} className="group">
                 <TableCell className={accent}>
-                  <Checkbox
-                    checked={selected.has(projectId)}
-                    onCheckedChange={() => toggleOne(projectId)}
-                    aria-label={`Select ${row.name}`}
-                  />
-                </TableCell>
-                <TableCell>
                   <div className="flex items-center gap-3">
                     <span
                       aria-hidden
-                      className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-muted-foreground"
+                      className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-muted-foreground"
                     >
-                      <Icon className="size-4" />
+                      <Icon className="size-4.5" />
                     </span>
                     <div className="min-w-0">
                       <Link
@@ -348,21 +312,31 @@ export function ProjectsTable({
                   </TableCell>
                 )}
                 <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      aria-label={`Actions for ${row.name}`}
-                      className="rounded p-1 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2"
+                  {/* Actions surface on row hover (GitHub/Linear style) -- and stay visible
+                      while focused or while the menu is open, so keyboard users aren't locked out. */}
+                  <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      render={<Link href={`/projects/${projectId}`} />}
                     >
-                      <MoreHorizontal className="size-4" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem render={<Link href={`/projects/${projectId}`}>Open project</Link>} />
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem render={<Link href={`/projects/${projectId}/parts`}>Parts</Link>} />
-                      <DropdownMenuItem render={<Link href={`/projects/${projectId}/budget`}>Budget</Link>} />
-                      <DropdownMenuItem render={<Link href={`/projects/${projectId}/people`}>People</Link>} />
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                      Open
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        aria-label={`Actions for ${row.name}`}
+                        className="rounded p-1 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2"
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem render={<Link href={`/projects/${projectId}/parts`}>Parts</Link>} />
+                        <DropdownMenuItem render={<Link href={`/projects/${projectId}/budget`}>Budget</Link>} />
+                        <DropdownMenuItem render={<Link href={`/projects/${projectId}/people`}>People</Link>} />
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </TableCell>
               </TableRow>
             );
@@ -372,7 +346,6 @@ export function ProjectsTable({
 
       <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-sm text-muted-foreground">
         <span>
-          {selected.size > 0 && <span className="mr-3 font-medium text-foreground">{selected.size} selected</span>}
           Showing {sorted.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1} to{" "}
           {Math.min(currentPage * PAGE_SIZE, sorted.length)} of {sorted.length} project
           {sorted.length === 1 ? "" : "s"}
@@ -446,11 +419,13 @@ function DatesCell({
         : days <= 14
           ? "text-orange-600 dark:text-orange-400"
           : "text-emerald-600 dark:text-emerald-500";
+  // Compact: deadline only; the full range lives in the hover title.
   return (
-    <div className="whitespace-nowrap">
-      <div className="text-sm">
-        {formatDate(start)} → {formatDate(deadline)}
-      </div>
+    <div
+      className="whitespace-nowrap"
+      title={`${formatDate(start)} → ${formatDate(deadline)}`}
+    >
+      <div className="text-sm">{formatDate(deadline)}</div>
       <div className={`text-xs ${tone}`}>{label}</div>
     </div>
   );
@@ -541,22 +516,18 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
     );
   }
   return (
-    <div className="min-w-36 text-xs">
-      <div className="flex items-center gap-2">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className={`h-full rounded-full ${consumptionBarClasses(pct)}`}
-            style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
-          />
-        </div>
-        <span className="text-muted-foreground tabular-nums whitespace-nowrap">
-          {pct.toFixed(0)}% used
-        </span>
+    <div className="min-w-44 text-xs">
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className={`h-full rounded-full ${consumptionBarClasses(pct)}`}
+          style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
+        />
       </div>
       <div className="mt-1 flex items-center gap-1.5 tabular-nums whitespace-nowrap">
         <span className="text-sm font-medium text-foreground">
           {formatMoney(row.budget_used)} / {formatMoney(row.budget_total)}
         </span>
+        <span className="text-muted-foreground">{pct.toFixed(0)}% used</span>
         {row.budget_type && <BudgetTypeBadge type={row.budget_type} />}
       </div>
     </div>
@@ -570,21 +541,17 @@ function ProgressCell({ progress }: { progress?: { pct: number | null; label: st
   }
   const [first, ...rest] = progress.label.split(" ");
   return (
-    <div className="min-w-36 text-xs">
-      <div className="flex items-center gap-2">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-[var(--viz-series-1)]"
-            style={{ width: `${Math.min(Math.max(progress.pct, 0), 100)}%` }}
-          />
-        </div>
-        <span className="text-muted-foreground tabular-nums whitespace-nowrap">
-          {progress.pct}% done
-        </span>
+    <div className="min-w-44 text-xs">
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-[var(--viz-series-1)]"
+          style={{ width: `${Math.min(Math.max(progress.pct, 0), 100)}%` }}
+        />
       </div>
       <div className="mt-1 tabular-nums whitespace-nowrap">
         <span className="text-sm font-medium text-foreground">{first}</span>{" "}
         <span className="text-muted-foreground">{rest.join(" ")}</span>
+        <span className="ml-1.5 text-muted-foreground">{progress.pct}% done</span>
       </div>
     </div>
   );

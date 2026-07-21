@@ -20,6 +20,7 @@ import type { BudgetType, ProjectListRow, ProjectStatus } from "./types";
 
 type ProjectsSearchParams = {
   status?: string;
+  health?: string;
   budget_type?: string;
   pm?: string;
   client?: string;
@@ -168,9 +169,9 @@ export default async function ProjectsPage({
   // At-risk derives the same way the table's Health column does; budget total only renders
   // when this viewer can actually see budget numbers (RLS nulls them otherwise).
   const validRows = (rows ?? []).filter((r): r is ProjectListRow & { id: string } => !!r.id);
-  const activeCount = validRows.filter((r) => r.status === "active").length;
-  const atRiskCount = validRows.filter(
-    (r) =>
+  const levelById = new Map(
+    validRows.map((r) => [
+      r.id,
       deriveHealth({
         status: r.status,
         startDate: r.start_date,
@@ -178,8 +179,21 @@ export default async function ProjectsPage({
         consumptionPct:
           r.budget_total && r.budget_used !== null ? (r.budget_used / r.budget_total) * 100 : null,
         progressPct: progressById[r.id]?.pct ?? null,
-      }).level !== "healthy"
-  ).length;
+      }).level,
+    ])
+  );
+  const activeCount = validRows.filter((r) => r.status === "active").length;
+  const atRiskCount = validRows.filter((r) => levelById.get(r.id) !== "healthy").length;
+
+  // Health filter is applied HERE (not in the DB query): health is derived, so the stored
+  // column can't be filtered server-side. Summary metrics above stay portfolio-wide.
+  const healthParam =
+    params.health === "healthy" || params.health === "warning" || params.health === "critical"
+      ? params.health
+      : undefined;
+  const displayRows = healthParam
+    ? validRows.filter((r) => levelById.get(r.id) === healthParam)
+    : validRows;
   const budgetRows = validRows.filter((r) => r.budget_total !== null);
   const totalBudget = budgetRows.length
     ? budgetRows.reduce((sum, r) => sum + (r.budget_total ?? 0), 0)
@@ -187,7 +201,7 @@ export default async function ProjectsPage({
 
   const view = params.view === "cards" ? "cards" : "table";
   const hasFilters = Boolean(
-    params.status || params.budget_type || params.pm || params.client || params.q
+    params.status || params.health || params.budget_type || params.pm || params.client || params.q
   );
 
   return (
@@ -245,13 +259,13 @@ export default async function ProjectsPage({
 
       {error ? (
         <p className="text-destructive">Failed to load projects. Try again.</p>
-      ) : !rows || rows.length === 0 ? (
+      ) : displayRows.length === 0 ? (
         <EmptyState hasFilters={hasFilters} canCreate={!!canCreate} />
       ) : view === "cards" ? (
-        <ProjectsCards rows={rows as ProjectListRow[]} />
+        <ProjectsCards rows={displayRows} />
       ) : (
         <ProjectsTable
-          rows={rows as ProjectListRow[]}
+          rows={displayRows}
           editableProjectIds={[...editableProjectIds]}
           links={links}
           progressById={progressById}
