@@ -27,10 +27,9 @@ import {
   DERIVED_HEALTH_BADGE_CLASS, DERIVED_HEALTH_DOT, DERIVED_HEALTH_LABEL, deriveHealth,
   healthTitle, type DerivedHealth,
 } from "@/lib/health";
-import { BudgetTypeBadge } from "./budget-type-badge";
 import {
   PRIORITY_DOT, STATUS_INLINE_OPTIONS,
-  formatDate, formatMoney, initials,
+  formatDate, formatMoney, humanize, initials,
 } from "./types";
 import type { ProjectListRow } from "./types";
 
@@ -500,21 +499,22 @@ export function HealthBadge({ health }: { health?: DerivedHealth }) {
   );
 }
 
-// Budget and Progress share ONE anatomy: bar + % on the first line, "X / Y" value pair on the
-// second in identical type (euros here, hours there). Pricing model rides along as muted text
-// instead of a chip.
+// Budget and Progress share ONE anatomy: bar on the first line, "X / Y · %" value pair on the
+// second in identical type (euros here, hours there). The pricing model is deliberately NOT a
+// per-row badge -- floating in a varying position it made the column read as scattered; it
+// lives in the hover title, the filter chip, and the detail page.
 function BudgetCell({ row }: { row: ProjectListRow }) {
   const pct = consumptionPct(row);
+  const typeTitle = row.budget_type ? `${humanize(row.budget_type)} budget` : undefined;
   if (pct === null) {
     return (
-      <div className="flex min-w-36 items-center gap-1.5 text-xs text-muted-foreground">
-        {row.budget_type && <BudgetTypeBadge type={row.budget_type} />}
+      <div className="min-w-44 text-xs text-muted-foreground" title={typeTitle}>
         no budget set
       </div>
     );
   }
   return (
-    <div className="min-w-44 text-xs">
+    <div className="min-w-44 text-xs" title={typeTitle}>
       <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
         <div
           className={`h-full rounded-full ${consumptionBarClasses(pct)}`}
@@ -526,7 +526,6 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
           {formatMoney(row.budget_used)} / {formatMoney(row.budget_total)}
         </span>
         <span className="text-muted-foreground">{pct.toFixed(0)}% used</span>
-        {row.budget_type && <BudgetTypeBadge type={row.budget_type} />}
       </div>
     </div>
   );

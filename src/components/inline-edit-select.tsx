@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2Icon } from "lucide-react";
+import { ChevronDownIcon, Loader2Icon } from "lucide-react";
 import { Badge, type badgeVariants } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -63,6 +63,8 @@ export function InlineEditSelect({
         <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", active.dotClassName)} />
       )}
       {active?.label ?? current}
+      {/* Editability must be discoverable: editors always see a small chevron on the chip. */}
+      {canEdit && <ChevronDownIcon aria-hidden className="size-3 opacity-50" />}
     </Badge>
   );
 
@@ -97,8 +99,16 @@ export function InlineEditSelect({
             <SelectValue>{(v: string) => options.find((o) => o.value === v)?.label ?? v}</SelectValue>
           </SelectTrigger>
           <SelectContent>
+            {/* Options look exactly like the values they set -- same badge, same dot. */}
             {options.map((o) => (
-              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              <SelectItem key={o.value} value={o.value}>
+                <Badge variant={o.badgeVariant ?? "outline"} className={o.badgeClassName}>
+                  {o.dotClassName && (
+                    <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", o.dotClassName)} />
+                  )}
+                  {o.label}
+                </Badge>
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
