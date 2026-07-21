@@ -23,12 +23,41 @@ export async function upsertClientAction(
   const parsed = clientSchema.safeParse(input);
   if (!parsed.success) return { error: "Invalid client details." };
 
+  // Exactly one primary among the submitted contacts: first row flagged primary wins, else the
+  // first row. Server-side normalization -- the form enforces the same rule but isn't trusted.
+  const primaryIndex = Math.max(0, parsed.data.contacts.findIndex((c) => c.is_primary));
+  const contacts = parsed.data.contacts.map((c, i) => ({ ...c, is_primary: i === primaryIndex }));
+  const primary = contacts[primaryIndex] ?? null;
+
   const supabase = await createClient();
+  // Legacy clients.contact_name/contact_email/phone stay synced from the primary contact --
+  // views/pages elsewhere (projects list, budgets) still read them.
+  const clientRow = {
+    name: parsed.data.name,
+    notes: parsed.data.notes,
+    contact_name: primary?.name ?? null,
+    contact_email: primary?.email ?? null,
+    phone: primary?.phone ?? null,
+  };
   const write = clientId
-    ? supabase.from("clients").update(parsed.data).eq("id", clientId)
-    : supabase.from("clients").insert(parsed.data);
+    ? supabase.from("clients").update(clientRow).eq("id", clientId)
+    : supabase.from("clients").insert(clientRow);
   const { data: client, error } = await write.select("id, name").single();
   if (error || !client) return { error: "Save failed. Try again." };
+
+  // Replace-all write for the contact rows: tiny lists, and it keeps removals/reorders/primary
+  // flips one code path. RLS ("manage client_contacts" = manage_clients) is the real backstop.
+  const { error: clearError } = await supabase
+    .from("client_contacts")
+    .delete()
+    .eq("client_id", client.id);
+  if (clearError) return { error: "Save failed. Try again." };
+  if (contacts.length > 0) {
+    const { error: contactsError } = await supabase
+      .from("client_contacts")
+      .insert(contacts.map((c) => ({ ...c, client_id: client.id })));
+    if (contactsError) return { error: "Save failed. Try again." };
+  }
 
   await writeAudit({
     action: clientId ? "client.updated" : "client.created",
@@ -36,10 +65,11 @@ export async function upsertClientAction(
     actorEmail: current.profile.email,
     resourceType: "client",
     resourceId: client.id,
-    metadata: { name: client.name },
+    metadata: { name: client.name, contact_count: contacts.length },
   });
 
   revalidatePath("/clients");
+  revalidatePath(`/clients/${client.id}`);
   revalidatePath("/projects/new");
   return { success: true as const, id: client.id, name: client.name };
 }

@@ -14,7 +14,7 @@ import { DESTRUCTIVE_ACTION_CLASS } from "@/lib/action-styles";
 export function ClientRowActions({ client }: { client: ClientListRow }) {
   return (
     <div className="flex items-center justify-end gap-2">
-      <ClientFormDialog client={client} />
+      <ClientFormDialog client={client} contacts={client.contacts} />
       <ConfirmDialog
         trigger={<Button size="sm" variant="ghost" className={DESTRUCTIVE_ACTION_CLASS} />}
         triggerLabel="Delete"

@@ -363,3 +363,21 @@ select distinct 'role_title', role_title from public.people where role_title is 
 union
 select distinct 'team', department from public.people where department is not null
 on conflict (kind, value) do nothing;
+
+-- ===== 14. client contacts =====
+-- Same backfill as migration 20260721000002_client_contacts.sql -- that one runs before this
+-- file has inserted any clients locally, so re-run the primary-contact backfill here, plus a
+-- couple of secondary contacts per client so the multi-contact UI has something to show.
+insert into public.client_contacts (client_id, name, email, phone, is_primary)
+select id, contact_name, contact_email, phone, true
+from public.clients
+where contact_name is not null
+  and not exists (select 1 from public.client_contacts cc where cc.client_id = clients.id);
+
+insert into public.client_contacts (id, client_id, name, email, phone, role, is_primary) values
+  ('90000001-0000-4000-8000-000000000001','20000001-0000-4000-8000-000000000001','Marko Saar','marko@balticretail.ee','+372 5301 2244','CTO',false),
+  ('90000002-0000-4000-8000-000000000002','20000001-0000-4000-8000-000000000001','Liis Oja','liis@balticretail.ee',null,'Accounting',false),
+  ('90000003-0000-4000-8000-000000000003','20000002-0000-4000-8000-000000000002','Mette Sørensen','mette@nordlog.dk','+45 2611 7788','Operations lead',false),
+  ('90000004-0000-4000-8000-000000000004','20000003-0000-4000-8000-000000000003','Jaan Kuusk','jaan@finserv.ee',null,'Head of IT',false),
+  ('90000005-0000-4000-8000-000000000005','20000003-0000-4000-8000-000000000003','Maria Lepp','maria@finserv.ee','+372 5512 3390','Compliance',false)
+on conflict (id) do nothing;

@@ -7,12 +7,18 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { ClientForm } from "./client-form";
-import type { ClientRow } from "./types";
+import type { ClientContactRow, ClientRow } from "./types";
 
 /** Self-contained add/edit dialog for the /clients screen -- own trigger button, own open
  * state. For the inline "＋ New client…" flow inside the project forms, see
  * client-quick-create-dialog.tsx (same underlying ClientForm, no trigger of its own). */
-export function ClientFormDialog({ client }: { client?: ClientRow }) {
+export function ClientFormDialog({
+  client,
+  contacts,
+}: {
+  client?: ClientRow;
+  contacts?: ClientContactRow[];
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -29,7 +35,7 @@ export function ClientFormDialog({ client }: { client?: ClientRow }) {
           <DialogTitle>{client ? `Edit ${client.name}` : "Add client"}</DialogTitle>
           <DialogDescription>Changes are saved immediately and audited.</DialogDescription>
         </DialogHeader>
-        <ClientForm client={client} onSuccess={() => setOpen(false)} />
+        <ClientForm client={client} contacts={contacts} onSuccess={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
   );

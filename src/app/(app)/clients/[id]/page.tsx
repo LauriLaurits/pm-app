@@ -11,7 +11,7 @@ import { deadlineCountdown } from "@/lib/deadline";
 import { ClientFormDialog } from "../client-form-dialog";
 import { STATUS_BADGE, formatDate, humanize } from "../../projects/types";
 import type { ProjectListRow } from "../../projects/types";
-import type { ClientRow } from "../types";
+import type { ClientContactRow, ClientRow } from "../types";
 
 // Minimal client detail: who they are + every project of theirs the viewer can see. This is the
 // destination for every client-name link across the app (projects list, budgets, clients list).
@@ -34,9 +34,10 @@ export default async function ClientDetailPage({
   const current = await getCurrentUser();
 
   // The projects chain (refs -> list rows, via the same gated list view the projects screen
-  // uses) and the manage-clients permission check are independent, so they run as one parallel
-  // wave (perf feedback: these used to run in series, each adding a full DB round trip to TTFB).
-  const [projects, { data: canManage }] = await Promise.all([
+  // uses), the contacts read, and the manage-clients permission check are independent, so they
+  // run as one parallel wave (perf feedback: these used to run in series, each adding a full DB
+  // round trip to TTFB).
+  const [projects, { data: contactRows }, { data: canManage }] = await Promise.all([
     (async () => {
       const { data: projectRefs } = await supabase
         .from("projects")
@@ -52,10 +53,18 @@ export default async function ClientDetailPage({
         : { data: [] as ProjectListRow[] };
       return data;
     })(),
+    // Primary first, then alphabetical -- the Contact card renders this order as-is.
+    supabase
+      .from("client_contacts")
+      .select("*")
+      .eq("client_id", id)
+      .order("is_primary", { ascending: false })
+      .order("name"),
     current
       ? supabase.rpc("has_permission", { uid: current.user.id, perm: "manage_clients" })
       : Promise.resolve({ data: false }),
   ]);
+  const contacts = (contactRows ?? []) as ClientContactRow[];
 
   return (
     <div className="space-y-4">
@@ -69,17 +78,33 @@ export default async function ClientDetailPage({
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">{client.name}</h1>
-        {canManage && <ClientFormDialog client={client} />}
+        {canManage && <ClientFormDialog client={client} contacts={contacts} />}
       </div>
 
       <Card size="sm">
         <CardHeader>
-          <CardTitle className="text-sm">Contact</CardTitle>
+          <CardTitle className="text-sm">Contacts</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
-          <InfoRow label="Contact person" value={client.contact_name} />
-          <InfoRow label="Email" value={client.contact_email} link={client.contact_email ? `mailto:${client.contact_email}` : null} />
-          <InfoRow label="Phone" value={client.phone} link={client.phone ? `tel:${client.phone}` : null} />
+        <CardContent className="text-sm">
+          {contacts.length === 0 ? (
+            <div className="text-muted-foreground">—</div>
+          ) : (
+            <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+              {contacts.map((contact) => (
+                <div key={contact.id} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{contact.name}</span>
+                    {contact.is_primary && <Badge variant="secondary">Primary</Badge>}
+                  </div>
+                  {contact.role && (
+                    <div className="text-xs text-muted-foreground">{contact.role}</div>
+                  )}
+                  <InfoRow label="Email" value={contact.email} link={contact.email ? `mailto:${contact.email}` : null} />
+                  <InfoRow label="Phone" value={contact.phone} link={contact.phone ? `tel:${contact.phone}` : null} />
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -1,26 +1,47 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { PlusIcon, XIcon } from "lucide-react";
 import { upsertClientAction } from "@/app/actions/clients";
-import { clientSchema, type ClientInput } from "@/lib/validation/client";
-import type { ClientRow } from "./types";
+import {
+  clientSchema, type ClientContactInput, type ClientInput,
+} from "@/lib/validation/client";
+import type { ClientContactRow, ClientRow } from "./types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { DESTRUCTIVE_ACTION_CLASS, NEUTRAL_ACTION_CLASS } from "@/lib/action-styles";
 
-function toDefaults(client?: ClientRow): ClientInput {
+const BLANK_CONTACT: ClientContactInput = {
+  name: "", email: null, phone: null, role: null, is_primary: false,
+};
+
+function toDefaults(client?: ClientRow, contacts?: ClientContactRow[]): ClientInput {
   return {
     name: client?.name ?? "",
-    contact_name: client?.contact_name ?? null,
-    contact_email: client?.contact_email ?? null,
-    phone: client?.phone ?? null,
     notes: client?.notes ?? null,
+    contacts: contacts?.length
+      ? contacts.map((c) => ({
+          name: c.name,
+          email: c.email,
+          phone: c.phone,
+          role: c.role,
+          is_primary: c.is_primary,
+        }))
+      : [{ ...BLANK_CONTACT, is_primary: true }],
   };
+}
+
+/** A row someone added but never typed into -- dropped silently on submit instead of failing
+ * "Name is required" on a row they never meant to keep. */
+function isBlankContact(c: ClientContactInput): boolean {
+  return ![c.name, c.email, c.phone, c.role].some((v) => v && v.trim() !== "");
 }
 
 /** Shared form for both the /clients screen (full add/edit dialog) and the inline "＋ New
@@ -28,22 +49,45 @@ function toDefaults(client?: ClientRow): ClientInput {
  * id/name back so the quick-create caller can select it immediately without a page reload. */
 export function ClientForm({
   client,
+  contacts,
   onSuccess,
 }: {
   client?: ClientRow;
+  contacts?: ClientContactRow[];
   onSuccess: (client: { id: string; name: string }) => void;
 }) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const form = useForm<ClientInput>({
     resolver: zodResolver(clientSchema),
-    defaultValues: toDefaults(client),
+    defaultValues: toDefaults(client, contacts),
   });
+  const contactRows = useFieldArray({ control: form.control, name: "contacts" });
+  // useWatch (not form.watch -- React Compiler flags the latter as unmemoizable, same note as
+  // log-time-form.tsx) drives the per-row Primary badge/button swap.
+  const watchedContacts = useWatch({ control: form.control, name: "contacts" });
+
+  function setPrimary(index: number) {
+    contactRows.fields.forEach((_, i) => {
+      form.setValue(`contacts.${i}.is_primary`, i === index, { shouldDirty: true });
+    });
+  }
+
+  function removeContact(index: number) {
+    const wasPrimary = watchedContacts[index]?.is_primary;
+    contactRows.remove(index);
+    // Keep the exactly-one-primary invariant when the primary row itself is removed: after the
+    // removal the array has shifted, so the surviving first row is always index 0.
+    if (wasPrimary && watchedContacts.length > 1) {
+      form.setValue("contacts.0.is_primary", true, { shouldDirty: true });
+    }
+  }
 
   function onSubmit(values: ClientInput) {
     setServerError(null);
+    const kept = values.contacts.filter((c) => !isBlankContact(c));
     startTransition(async () => {
-      const result = await upsertClientAction(values, client?.id);
+      const result = await upsertClientAction({ ...values, contacts: kept }, client?.id);
       if ("error" in result) setServerError(result.error);
       else onSuccess({ id: result.id, name: result.name });
     });
@@ -83,41 +127,101 @@ export function ClientForm({
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-2 gap-3">
-          <FormField
-            control={form.control}
-            name="contact_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Contact name</FormLabel>
-                <FormControl render={<Input {...field} value={field.value ?? ""} />} />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="contact_email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Contact email</FormLabel>
-                <FormControl render={<Input type="email" {...field} value={field.value ?? ""} />} />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Contacts</span>
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              className={NEUTRAL_ACTION_CLASS}
+              onClick={() =>
+                contactRows.append({ ...BLANK_CONTACT, is_primary: contactRows.fields.length === 0 })
+              }
+            >
+              <PlusIcon /> Add contact
+            </Button>
+          </div>
+          {contactRows.fields.map((row, index) => (
+            <div key={row.id} className="space-y-2 rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-2">
+                {watchedContacts[index]?.is_primary ? (
+                  <Badge variant="secondary">Primary</Badge>
+                ) : (
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    className={NEUTRAL_ACTION_CLASS}
+                    onClick={() => setPrimary(index)}
+                  >
+                    Set primary
+                  </Button>
+                )}
+                {contactRows.fields.length > 1 && (
+                  <Button
+                    type="button"
+                    size="icon-xs"
+                    variant="ghost"
+                    className={DESTRUCTIVE_ACTION_CLASS}
+                    aria-label="Remove contact"
+                    onClick={() => removeContact(index)}
+                  >
+                    <XIcon />
+                  </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name={`contacts.${index}.name`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl render={<Input {...field} />} />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`contacts.${index}.email`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl render={<Input type="email" {...field} value={field.value ?? ""} />} />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`contacts.${index}.phone`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone</FormLabel>
+                      <FormControl render={<Input {...field} value={field.value ?? ""} />} />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`contacts.${index}.role`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <FormControl render={<Input {...field} value={field.value ?? ""} />} />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          ))}
         </div>
-        <FormField
-          control={form.control}
-          name="phone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Phone</FormLabel>
-              <FormControl render={<Input {...field} value={field.value ?? ""} />} />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+
         <FormField
           control={form.control}
           name="notes"

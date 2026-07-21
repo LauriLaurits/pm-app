@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { ClientFormDialog } from "./client-form-dialog";
 import { ClientsTable } from "./clients-table";
-import type { ClientListRow, ClientRow } from "./types";
+import type { ClientContactRow, ClientListRow, ClientRow } from "./types";
 
 export default async function ClientsPage() {
   const supabase = await createClient();
@@ -19,27 +19,45 @@ export default async function ClientsPage() {
   // and admin -- a member/viewer simply gets zero rows back, same as every other permission-gated
   // list in this app (see /budgets). No redirect: the page renders an empty state instead.
   //
-  // Project counts are derived from an RLS'd read of `projects` (view_project, per-project
-  // scope) rather than a raw count() -- a caller who can't see every project will undercount,
-  // same caveat as project_list_rows' member_count/budget rollups. Good enough for display;
-  // the actual delete-guard (deleteClientAction) relies on the DB foreign key, not this number.
-  const [{ data, error }, { data: projectRows }, { data: canManageClients }] = await Promise.all([
-    supabase.from("clients").select("*").order("name"),
-    supabase.from("projects").select("client_id"),
-    current
-      ? supabase.rpc("has_permission", { uid: current.user.id, perm: "manage_clients" })
-      : Promise.resolve({ data: false }),
-  ]);
+  // Project counts/names are derived from an RLS'd read of `projects` (view_project,
+  // per-project scope) rather than a raw count() -- a caller who can't see every project will
+  // undercount, same caveat as project_list_rows' member_count/budget rollups. Good enough for
+  // display; the actual delete-guard (deleteClientAction) relies on the DB foreign key, not
+  // this number. Names feed the projects-badge tooltip.
+  const [{ data, error }, { data: projectRows }, { data: contactRows }, { data: canManageClients }] =
+    await Promise.all([
+      supabase.from("clients").select("*").order("name"),
+      supabase.from("projects").select("client_id, name").order("name"),
+      // Primary first, then alphabetical -- the table renders the list in this order as-is.
+      supabase
+        .from("client_contacts")
+        .select("*")
+        .order("is_primary", { ascending: false })
+        .order("name"),
+      current
+        ? supabase.rpc("has_permission", { uid: current.user.id, perm: "manage_clients" })
+        : Promise.resolve({ data: false }),
+    ]);
   const clients = (data ?? []) as ClientRow[];
 
-  const countByClientId = new Map<string, number>();
+  const projectNamesByClientId = new Map<string, string[]>();
   for (const p of projectRows ?? []) {
     if (!p.client_id) continue;
-    countByClientId.set(p.client_id, (countByClientId.get(p.client_id) ?? 0) + 1);
+    const names = projectNamesByClientId.get(p.client_id) ?? [];
+    names.push(p.name);
+    projectNamesByClientId.set(p.client_id, names);
+  }
+  const contactsByClientId = new Map<string, ClientContactRow[]>();
+  for (const c of (contactRows ?? []) as ClientContactRow[]) {
+    const list = contactsByClientId.get(c.client_id) ?? [];
+    list.push(c);
+    contactsByClientId.set(c.client_id, list);
   }
   const rows: ClientListRow[] = clients.map((c) => ({
     ...c,
-    project_count: countByClientId.get(c.id) ?? 0,
+    project_count: projectNamesByClientId.get(c.id)?.length ?? 0,
+    project_names: projectNamesByClientId.get(c.id) ?? [],
+    contacts: contactsByClientId.get(c.id) ?? [],
   }));
 
   const canManage = !!canManageClients;
