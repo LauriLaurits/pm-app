@@ -89,9 +89,9 @@
      properties resolve at paint time, so a single chart component works in both modes without
      re-rendering. */
   --viz-surface: #fcfcfb;
-  --viz-series-1: #2a78d6; /* categorical slot 1 -- blue */
-  --viz-series-2: #1baf7a; /* categorical slot 2 -- aqua */
-  --viz-track: #e1e0d9; /* unfilled meter/track, gridlines */
+  --viz-series-1: #0071e3; /* categorical slot 1 -- blue */
+  --viz-series-2: #23a566; /* categorical slot 2 -- green */
+  --viz-track: #e9e8e2; /* unfilled meter/track, gridlines */
   --viz-status-good: #0ca30c;
   --viz-status-warning: #fab219;
   --viz-status-serious: #ec835a;
@@ -136,9 +136,9 @@
   /* dataviz tokens, dark step -- status colors are fixed/unthemed (same 4 hex both modes per
      the dataviz skill); only surface/series/track/ink shift for the dark chart surface. */
   --viz-surface: #1a1a19;
-  --viz-series-1: #3987e5;
-  --viz-series-2: #199e70;
-  --viz-track: #2c2c2a;
+  --viz-series-1: #0a84ff;
+  --viz-series-2: #22aa6e;
+  --viz-track: #272725;
   --viz-status-good: #0ca30c;
   --viz-status-warning: #fab219;
   --viz-status-serious: #ec835a;

@@ -18,18 +18,20 @@ export type FinanceSummary = {
 
 type Tone = "neutral" | "info" | "good" | "warn" | "critical";
 
+// Color is reserved for "something needs you": healthy/informational tiles stay monochrome
+// (graphite chip, ink value) so an amber or red tile is the only thing that pulls the eye.
 const VALUE_TONE: Record<Tone, string> = {
   neutral: "",
-  info: "text-blue-700 dark:text-blue-400",
-  good: "text-emerald-700 dark:text-emerald-400",
+  info: "",
+  good: "",
   warn: "text-amber-700 dark:text-amber-400",
   critical: "text-red-700 dark:text-red-400",
 };
 
 const ICON_TONE: Record<Tone, string> = {
-  neutral: "bg-foreground/5 text-foreground/60",
-  info: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  good: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  neutral: "bg-foreground/[0.04] text-foreground/55",
+  info: "bg-foreground/[0.04] text-foreground/55",
+  good: "bg-foreground/[0.04] text-foreground/55",
   warn: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   critical: "bg-red-500/10 text-red-600 dark:text-red-400",
 };

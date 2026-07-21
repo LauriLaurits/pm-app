@@ -6,14 +6,13 @@ import type { CSSProperties } from "react";
 // the dataviz skill's validated reference palette (see references/palette.md); this file just
 // names the roles each chart wrapper uses instead of repeating var(...) strings everywhere.
 //
-// Categorical slots 1/2 (blue/aqua) validated via scripts/validate_palette.js for both modes
-// (light: CVD deutan ΔE 73.6, WARN on aqua contrast -- mitigated by always pairing a visible
-// legend + direct value labels, never color alone; dark: all PASS). Status colors are the fixed,
-// never-themed four-step scale -- reserved for severity-coded marks (consumption/utilization),
-// never reused as "series N".
+// Categorical slots 1/2 (blue/green) validated via scripts/validate_palette.js for both modes
+// (light #0071e3/#23a566 on #fcfcfb: ALL PASS, deutan ΔE 89.8; dark #0a84ff/#22aa6e on #1a1a19:
+// ALL PASS, protan ΔE 91.5). Status colors are the fixed, never-themed four-step scale --
+// reserved for severity-coded marks (consumption/utilization), never reused as "series N".
 
 export const VIZ_SERIES_1 = "var(--viz-series-1)"; // blue
-export const VIZ_SERIES_2 = "var(--viz-series-2)"; // aqua
+export const VIZ_SERIES_2 = "var(--viz-series-2)"; // green
 export const VIZ_TRACK = "var(--viz-track)";
 export const VIZ_INK_SECONDARY = "var(--viz-ink-secondary)";
 export const VIZ_INK_MUTED = "var(--viz-ink-muted)";
