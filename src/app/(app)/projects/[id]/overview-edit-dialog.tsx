@@ -8,6 +8,7 @@ import {
 import { OverviewEditForm } from "./overview-edit-form";
 import type { ClientOption, PmOption } from "./overview-edit-admin-fields";
 import type { ProjectRow } from "./types";
+import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
 
 export function OverviewEditDialog({
   project,
@@ -26,7 +27,7 @@ export function OverviewEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" variant="outline" />}>Edit project</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" variant="outline" className={EDIT_ACTION_CLASS} />}>Edit project</DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit {project.name}</DialogTitle>

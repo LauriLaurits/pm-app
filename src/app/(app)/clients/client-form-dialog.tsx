@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -16,7 +17,11 @@ export function ClientFormDialog({ client }: { client?: ClientRow }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" variant={client ? "outline" : "default"} />}>
+      <DialogTrigger
+        render={
+          <Button size="sm" variant={client ? "outline" : "default"} className={client ? EDIT_ACTION_CLASS : undefined} />
+        }
+      >
         {client ? "Edit" : "Add client"}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">

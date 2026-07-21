@@ -47,10 +47,11 @@ export default async function ProjectPartsPage({
     .select("project_part_id, hours")
     .eq("project_id", id)
     .not("project_part_id", "is", null);
-  const actualByPartId = new Map<string, number>();
+  // Plain Record (not Map): PartsTable is a client component now (sorting), props must serialize.
+  const actualByPartId: Record<string, number> = {};
   for (const r of timeRows ?? []) {
     if (r.project_part_id) {
-      actualByPartId.set(r.project_part_id, (actualByPartId.get(r.project_part_id) ?? 0) + Number(r.hours));
+      actualByPartId[r.project_part_id] = (actualByPartId[r.project_part_id] ?? 0) + Number(r.hours);
     }
   }
 
@@ -62,7 +63,9 @@ export default async function ProjectPartsPage({
   const { data: assignedPeople } = personIds.length
     ? await supabase.from("people").select("id, full_name").in("id", personIds)
     : { data: [] as PersonOption[] };
-  const nameByPersonId = new Map((assignedPeople ?? []).map((p) => [p.id, p.full_name]));
+  const nameByPersonId: Record<string, string> = Object.fromEntries(
+    (assignedPeople ?? []).map((p) => [p.id, p.full_name])
+  );
 
   // Full people list for the add/edit form's picker -- only fetched for editors.
   const { data: allPeople } = canEdit

@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { updateMemberRoleAction } from "@/app/actions/project-members";
 import { setPersonAllocationAction } from "@/app/actions/project-people";
 import { pctToDays } from "@/lib/allocation";
+import { avatarTint } from "@/lib/avatar-tint";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InlineEditText } from "@/components/inline-edit-text";
 import {
@@ -43,9 +45,17 @@ export function MembersTable({
               <div className="flex items-center gap-2">
                 <Avatar size="sm">
                   <AvatarImage src={member.avatar_url ?? undefined} alt={member.full_name ?? ""} />
-                  <AvatarFallback>{initials(member.full_name)}</AvatarFallback>
+                  <AvatarFallback className={avatarTint(member.full_name)}>
+                    {initials(member.full_name)}
+                  </AvatarFallback>
                 </Avatar>
-                <span className="font-medium">{member.full_name ?? "Unknown"}</span>
+                {member.person_id ? (
+                  <Link href={`/people/${member.person_id}`} className="font-medium hover:underline">
+                    {member.full_name ?? "Unknown"}
+                  </Link>
+                ) : (
+                  <span className="font-medium">{member.full_name ?? "Unknown"}</span>
+                )}
               </div>
             </TableCell>
             <TableCell>

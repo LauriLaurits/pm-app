@@ -3,6 +3,7 @@
 import { deleteBudgetItemAction } from "@/app/actions/budget-items";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DESTRUCTIVE_ACTION_CLASS } from "@/lib/action-styles";
 
 export function BudgetItemDeleteButton({
   projectId,
@@ -15,7 +16,7 @@ export function BudgetItemDeleteButton({
 }) {
   return (
     <ConfirmDialog
-      trigger={<Button size="sm" variant="ghost" />}
+      trigger={<Button size="sm" variant="ghost" className={DESTRUCTIVE_ACTION_CLASS} />}
       triggerLabel="Delete"
       title="Delete this budget item?"
       description={`Delete "${itemName}"? This can't be undone.`}

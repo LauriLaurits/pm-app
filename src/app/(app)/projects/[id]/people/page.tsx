@@ -69,6 +69,7 @@ export default async function ProjectPeoplePage({
       full_name: person?.full_name ?? null,
       avatar_url: person?.avatar_url ?? null,
       allocation_pct: person ? allocationByPersonId.get(person.id) ?? null : null,
+      person_id: person?.id ?? null,
     };
   });
 

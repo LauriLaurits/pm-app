@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { consumptionSeverity, formatMoney } from "@/lib/budget";
-import { daysUntil } from "@/lib/dashboard";
+import { deadlineCountdown } from "@/lib/deadline";
 import { progressBasisLabel, type DerivedProgress } from "@/lib/progress";
 import { formatDate } from "../types";
 
@@ -32,17 +32,7 @@ export function ProjectHeaderStrip({
   budget: ProjectBudgetCell;
   teamCount: number;
 }) {
-  const days = deadline ? daysUntil(deadline) : null;
-  const deadlineContext =
-    days === null
-      ? "No deadline set"
-      : days < 0
-        ? `${-days} ${-days === 1 ? "day" : "days"} overdue`
-        : days === 0
-          ? "due today"
-          : `in ${days} ${days === 1 ? "day" : "days"}`;
-  const deadlineTone =
-    days === null ? "text-muted-foreground" : days < 0 ? "text-red-700 dark:text-red-400" : days <= 14 ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground";
+  const countdown = deadlineCountdown(deadline);
 
   const severity = budget ? consumptionSeverity(budget.consumptionPct) : "ok";
 
@@ -64,8 +54,8 @@ export function ProjectHeaderStrip({
           <Cell
             label="Deadline"
             value={formatDate(deadline)}
-            context={deadlineContext}
-            contextClass={deadlineTone}
+            context={countdown.label}
+            contextClass={countdown.toneClass}
           />
 
           {budget && (

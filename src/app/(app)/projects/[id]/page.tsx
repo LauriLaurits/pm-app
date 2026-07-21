@@ -79,14 +79,16 @@ export default async function ProjectOverviewPage({
   const { data: people } = userIds.length
     ? await supabase
         .from("people")
-        .select("user_id, full_name, avatar_url")
+        .select("id, user_id, full_name, avatar_url")
         .in("user_id", userIds)
-    : { data: [] as { user_id: string | null; full_name: string; avatar_url: string | null }[] };
+    : { data: [] as { id: string; user_id: string | null; full_name: string; avatar_url: string | null }[] };
 
   const personByUserId = new Map((people ?? []).map((p) => [p.user_id, p]));
   const toPersonRef = (userId: string | null): PersonRef => {
     const person = userId ? personByUserId.get(userId) : undefined;
-    return person ? { full_name: person.full_name, avatar_url: person.avatar_url } : null;
+    return person
+      ? { full_name: person.full_name, avatar_url: person.avatar_url, person_id: person.id }
+      : null;
   };
   const currentPmName = toPersonRef(row.pm_id)?.full_name ?? "Unassigned";
 

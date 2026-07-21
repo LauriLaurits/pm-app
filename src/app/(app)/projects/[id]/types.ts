@@ -6,4 +6,6 @@ export type StatusUpdateRow = Database["public"]["Tables"]["project_status_updat
 export type PersonRef = {
   full_name: string;
   avatar_url: string | null;
+  /** people.id -- links the name to the person's detail page. */
+  person_id: string;
 } | null;

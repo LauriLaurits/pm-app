@@ -14,6 +14,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
+import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
 
 // Combined client form only -- each section is submitted through its own server action
 // (upsertPartBillingAction / upsertPartCostsAction), matching the DB's own table split
@@ -88,7 +89,7 @@ export function PartBudgetEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" variant="outline" />}>Edit billing</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" variant="outline" className={EDIT_ACTION_CLASS} />}>Edit billing</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit billing — {part.part_name}</DialogTitle>

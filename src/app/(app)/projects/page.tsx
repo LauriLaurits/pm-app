@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
 import { ProjectFilters } from "./project-filters";
 import { ProjectsCards } from "./projects-cards";
-import { ProjectsTable } from "./projects-table";
+import { ProjectsTable, type ProjectRowLinks } from "./projects-table";
 import { ViewToggle } from "./view-toggle";
 import {
   BUDGET_TYPE_OPTIONS, HEALTH_OPTIONS, STATUS_OPTIONS,
@@ -101,6 +101,25 @@ export default async function ProjectsPage({
     }
   }
 
+  // Cross-link targets: the list view carries names only, so resolve client ids and the PM's
+  // people-directory id here (RLS-scoped -- rows the viewer can't see simply stay unlinked).
+  const links: ProjectRowLinks = {};
+  if (projectIds.length > 0) {
+    const [{ data: projectRefs }, { data: peopleRefs }] = await Promise.all([
+      supabase.from("projects").select("id, client_id, pm_id").in("id", projectIds),
+      supabase.from("people").select("id, user_id").not("user_id", "is", null),
+    ]);
+    const personIdByUserId = new Map(
+      (peopleRefs ?? []).map((p) => [p.user_id as string, p.id])
+    );
+    for (const p of projectRefs ?? []) {
+      links[p.id] = {
+        clientId: p.client_id,
+        pmPersonId: p.pm_id ? (personIdByUserId.get(p.pm_id) ?? null) : null,
+      };
+    }
+  }
+
   const view = params.view === "cards" ? "cards" : "table";
   const hasFilters = Boolean(
     params.status || params.health || params.budget_type || params.pm || params.client || params.q
@@ -129,7 +148,11 @@ export default async function ProjectsPage({
       ) : view === "cards" ? (
         <ProjectsCards rows={rows as ProjectListRow[]} />
       ) : (
-        <ProjectsTable rows={rows as ProjectListRow[]} editableProjectIds={editableProjectIds} />
+        <ProjectsTable
+          rows={rows as ProjectListRow[]}
+          editableProjectIds={[...editableProjectIds]}
+          links={links}
+        />
       )}
     </div>
   );

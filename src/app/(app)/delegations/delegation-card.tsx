@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { avatarTint } from "@/lib/avatar-tint";
 import { RevokeButton } from "./revoke-button";
 import { formatDate, humanize, initials } from "./types";
 import type { DelegationListItem } from "./types";
@@ -29,9 +31,11 @@ export function DelegationCard({ item }: { item: DelegationListItem }) {
         </p>
         <div className="flex flex-wrap gap-1">
           {item.projects.map((p) => (
-            <Badge key={p.id} variant="secondary">
-              {p.name}
-            </Badge>
+            <Link key={p.id} href={`/projects/${p.id}`}>
+              <Badge variant="secondary" className="transition-colors hover:bg-secondary/70">
+                {p.name}
+              </Badge>
+            </Link>
           ))}
         </div>
         <div className="flex flex-wrap gap-1">
@@ -52,7 +56,7 @@ function PersonBadge({ name, avatar }: { name: string; avatar: string | null }) 
     <div className="flex items-center gap-1.5">
       <Avatar size="sm">
         <AvatarImage src={avatar ?? undefined} alt={name} />
-        <AvatarFallback>{initials(name)}</AvatarFallback>
+        <AvatarFallback className={avatarTint(name)}>{initials(name)}</AvatarFallback>
       </Avatar>
       <span className="text-sm font-medium">{name}</span>
     </div>

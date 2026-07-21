@@ -1,5 +1,11 @@
+"use client";
+
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import { updatePartFieldAction } from "@/app/actions/project-parts";
 import { InlineEditSelect, type InlineEditOption } from "@/components/inline-edit-select";
+import { SortableHead } from "@/components/data-table/sortable-head";
+import { useSort, type SortAccessors } from "@/components/data-table/use-sort";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -43,6 +49,13 @@ function fmtHrs(n: number | null): string {
   return String(Math.round(n * 10) / 10);
 }
 
+const STATUS_RANK: Record<PartRow["status"], number> = {
+  in_progress: 0,
+  blocked: 1,
+  not_started: 2,
+  done: 3,
+};
+
 export function PartsTable({
   parts,
   nameByPersonId,
@@ -53,13 +66,23 @@ export function PartsTable({
   people,
 }: {
   parts: PartRow[];
-  nameByPersonId: Map<string, string>;
-  actualByPartId: Map<string, number>;
+  nameByPersonId: Record<string, string>;
+  actualByPartId: Record<string, number>;
   canEdit: boolean;
   canViewBudget: boolean;
   projectId: string;
   people: PersonOption[];
 }) {
+  // Accessors close over the page-provided rollups, so build them here (stable per props).
+  const accessors: SortAccessors<PartRow, "part" | "status" | "responsible" | "hours" | "price"> = {
+    part: (p) => p.name,
+    status: (p) => STATUS_RANK[p.status],
+    responsible: (p) => (p.responsible_person_id ? (nameByPersonId[p.responsible_person_id] ?? null) : null),
+    hours: (p) => actualByPartId[p.id] ?? 0,
+    price: (p) => p.part_billing?.client_price ?? null,
+  };
+  const { rows: sorted, sort, toggle } = useSort(parts, accessors, null);
+
   if (parts.length === 0) {
     return <p className="text-muted-foreground">No parts yet.</p>;
   }
@@ -75,12 +98,12 @@ export function PartsTable({
       ]
     : [
         { value: "none", label: "Unassigned", badgeVariant: "outline" },
-        ...[...nameByPersonId.entries()].map(([id, name]) => ({
+        ...Object.entries(nameByPersonId).map(([id, name]) => ({
           value: id, label: name, badgeVariant: "outline" as const,
         })),
       ];
 
-  const totalActual = parts.reduce((sum, p) => sum + (actualByPartId.get(p.id) ?? 0), 0);
+  const totalActual = parts.reduce((sum, p) => sum + (actualByPartId[p.id] ?? 0), 0);
   const totalEst = parts.reduce((sum, p) => sum + (p.estimated_hours ?? 0), 0);
   const progress = deriveProgress(parts);
 
@@ -89,19 +112,19 @@ export function PartsTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Part</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Responsible</TableHead>
-            <TableHead>Hours (actual / est.)</TableHead>
+            <SortableHead label="Part" sortKey="part" sort={sort} onToggle={toggle} />
+            <SortableHead label="Status" sortKey="status" sort={sort} onToggle={toggle} />
+            <SortableHead label="Responsible" sortKey="responsible" sort={sort} onToggle={toggle} />
+            <SortableHead label="Hours (actual / est.)" sortKey="hours" sort={sort} onToggle={toggle} />
             <TableHead>Billing</TableHead>
-            <TableHead>Client price</TableHead>
+            <SortableHead label="Client price" sortKey="price" sort={sort} onToggle={toggle} />
             {canEdit && <TableHead className="text-right">Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {parts.map((part) => {
+          {sorted.map((part) => {
             const est = part.estimated_hours;
-            const actual = actualByPartId.get(part.id) ?? 0;
+            const actual = actualByPartId[part.id] ?? 0;
             const tone = HOURS_TONE[hoursOverrun(actual, est)];
             const noHours = est === null && actual === 0;
             return (
@@ -122,13 +145,24 @@ export function PartsTable({
                   />
                 </TableCell>
                 <TableCell>
-                  <InlineEditSelect
-                    value={part.responsible_person_id ?? "none"}
-                    options={responsibleOptions}
-                    canEdit={canEdit}
-                    ariaLabel="part responsible person"
-                    onSave={updatePartFieldAction.bind(null, projectId, part.id, "responsible_person_id")}
-                  />
+                  <span className="inline-flex items-center gap-1">
+                    <InlineEditSelect
+                      value={part.responsible_person_id ?? "none"}
+                      options={responsibleOptions}
+                      canEdit={canEdit}
+                      ariaLabel="part responsible person"
+                      onSave={updatePartFieldAction.bind(null, projectId, part.id, "responsible_person_id")}
+                    />
+                    {part.responsible_person_id && (
+                      <Link
+                        href={`/people/${part.responsible_person_id}`}
+                        className="text-muted-foreground transition-colors hover:text-foreground"
+                        aria-label="open person"
+                      >
+                        <ArrowUpRight className="size-3.5" />
+                      </Link>
+                    )}
+                  </span>
                 </TableCell>
                 <TableCell>
                   {noHours ? (

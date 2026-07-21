@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { LogTimeForm } from "./log-time-form";
 import type { AssignedProjectOption, PartOption, TimeEntryWithProject } from "./types";
+import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
 
 export function TimeEntryEditDialog({
   entry,
@@ -21,7 +22,7 @@ export function TimeEntryEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" variant="ghost" />}>Edit</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" variant="ghost" className={EDIT_ACTION_CLASS} />}>Edit</DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit time entry</DialogTitle>

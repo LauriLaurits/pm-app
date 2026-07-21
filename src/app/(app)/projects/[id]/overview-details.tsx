@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { avatarTint } from "@/lib/avatar-tint";
 import { formatDate, initials } from "../types";
 import type { PersonRef } from "./types";
 import type { ProjectRow } from "./types";
@@ -58,13 +60,15 @@ function PersonRow({ label, person }: { label: string; person: PersonRef }) {
     <div className="flex items-center justify-between gap-3">
       <span className="text-sm text-muted-foreground">{label}</span>
       {person ? (
-        <div className="flex items-center gap-2">
+        <Link href={`/people/${person.person_id}`} className="flex items-center gap-2 hover:underline">
           <Avatar size="sm">
             <AvatarImage src={person.avatar_url ?? undefined} alt={person.full_name} />
-            <AvatarFallback>{initials(person.full_name)}</AvatarFallback>
+            <AvatarFallback className={avatarTint(person.full_name)}>
+              {initials(person.full_name)}
+            </AvatarFallback>
           </Avatar>
           <span className="text-sm font-medium">{person.full_name}</span>
-        </div>
+        </Link>
       ) : (
         <span className="text-sm text-muted-foreground">—</span>
       )}

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PersonFormDialog } from "./person-form-dialog";
 import type { PersonListRow } from "./types";
+import { DESTRUCTIVE_ACTION_CLASS } from "@/lib/action-styles";
 
 /** Managers-only row controls: Edit, a status toggle (the primary, non-destructive "remove"),
  * and a guarded hard-delete. The delete action itself refuses (with a friendly error) whenever
@@ -32,7 +33,7 @@ export function PersonRowActions({ person }: { person: PersonListRow }) {
           {person.status === "active" ? "Deactivate" : "Activate"}
         </Button>
         <ConfirmDialog
-          trigger={<Button size="sm" variant="ghost" />}
+          trigger={<Button size="sm" variant="ghost" className={DESTRUCTIVE_ACTION_CLASS} />}
           triggerLabel="Delete"
           title="Permanently delete this person?"
           description={`Permanently delete "${person.full_name}"? This can't be undone. People with assignments or logged time can't be deleted -- deactivate them instead.`}

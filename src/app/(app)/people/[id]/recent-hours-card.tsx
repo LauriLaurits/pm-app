@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "./types";
@@ -38,7 +39,15 @@ export function RecentHoursCard({
             {entries.map((e) => (
               <div key={e.id} className="flex items-center justify-between gap-3 text-sm">
                 <div className="min-w-0">
-                  <div className="truncate">{e.project_name ?? "Untitled project"}</div>
+                  <div className="truncate">
+                    {e.project_id ? (
+                      <Link href={`/projects/${e.project_id}`} className="hover:underline">
+                        {e.project_name ?? "Untitled project"}
+                      </Link>
+                    ) : (
+                      (e.project_name ?? "Untitled project")
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     {formatDate(e.entry_date)}
                     {e.description ? ` · ${e.description}` : ""}

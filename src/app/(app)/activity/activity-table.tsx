@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -5,6 +6,7 @@ import {
   categoryOf,
   formatDateTime,
   humanizeAction,
+  resolveProjectId,
   shortId,
   summarizeMetadata,
   truncate,
@@ -54,7 +56,22 @@ export function ActivityTable({ items }: { items: ActivityListItem[] }) {
                   {item.resource_type ?? "—"}
                   {item.resource_type && item.resource_id ? ` · ${shortId(item.resource_id)}` : null}
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{item.project_name ?? "—"}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {item.project_name ? (
+                    (() => {
+                      const projectId = resolveProjectId(item);
+                      return projectId ? (
+                        <Link href={`/projects/${projectId}`} className="hover:underline">
+                          {item.project_name}
+                        </Link>
+                      ) : (
+                        item.project_name
+                      );
+                    })()
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
                 <TableCell className="font-mono text-xs text-muted-foreground">{item.ip ?? "—"}</TableCell>
                 <TableCell className="max-w-48 truncate text-xs text-muted-foreground" title={item.user_agent ?? undefined}>
                   {truncate(item.user_agent) ?? "—"}

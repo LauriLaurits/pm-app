@@ -5,6 +5,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { deleteClientAction } from "@/app/actions/clients";
 import { ClientFormDialog } from "./client-form-dialog";
 import type { ClientListRow } from "./types";
+import { DESTRUCTIVE_ACTION_CLASS } from "@/lib/action-styles";
 
 /** Managers-only row controls: Edit + a guarded hard-delete. The delete action itself refuses
  * (with a friendly error, surfaced inline by ConfirmDialog) whenever the client still has
@@ -15,7 +16,7 @@ export function ClientRowActions({ client }: { client: ClientListRow }) {
     <div className="flex items-center justify-end gap-2">
       <ClientFormDialog client={client} />
       <ConfirmDialog
-        trigger={<Button size="sm" variant="ghost" />}
+        trigger={<Button size="sm" variant="ghost" className={DESTRUCTIVE_ACTION_CLASS} />}
         triggerLabel="Delete"
         title="Delete this client?"
         description={`Delete "${client.name}"? This can't be undone. Clients with projects can't be deleted -- reassign or archive those projects first.`}

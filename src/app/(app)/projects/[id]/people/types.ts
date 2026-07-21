@@ -8,6 +8,8 @@ export type MemberRow = ProjectMemberRow & {
   full_name: string | null;
   avatar_url: string | null;
   allocation_pct: number | null;
+  /** people.id for the person-detail link (null if the user has no people row). */
+  person_id: string | null;
 };
 
 /** Row in the "Manage members" checklist -- a `people` row that has a linked user account

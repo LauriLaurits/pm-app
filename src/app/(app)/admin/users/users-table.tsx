@@ -1,10 +1,15 @@
+"use client";
+
 import { changeUserRoleAction } from "@/app/actions/admin";
 import { APP_ROLES } from "@/lib/validation/auth";
 import { Badge } from "@/components/ui/badge";
 import { InlineEditSelect, type InlineEditOption } from "@/components/inline-edit-select";
+import { SortableHead } from "@/components/data-table/sortable-head";
+import { useSort, type SortAccessors } from "@/components/data-table/use-sort";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { formatDate } from "../../projects/types";
 import { ApproveDialog } from "./approve-dialog";
 import { UserActions } from "./user-actions";
 
@@ -23,11 +28,23 @@ const statusVariant = {
   disabled: "destructive",
 } as const;
 
+// Pending first -- the row an admin actually needs to act on.
+const STATUS_RANK = { pending: 0, active: 1, disabled: 2 } as const;
+
 const ROLE_INLINE_OPTIONS: InlineEditOption[] = APP_ROLES.map((r) => ({
   value: r,
   label: r.replace("_", " "),
   badgeVariant: "outline",
 }));
+
+type SortKey = "user" | "status" | "role" | "joined";
+
+const ACCESSORS: SortAccessors<UserRow, SortKey> = {
+  user: (u) => u.full_name ?? u.email,
+  status: (u) => STATUS_RANK[u.status],
+  role: (u) => u.role,
+  joined: (u) => u.created_at,
+};
 
 export function UsersTable({
   users,
@@ -38,6 +55,7 @@ export function UsersTable({
    * by changeUserRoleAction) so an admin can never accidentally lock themselves out. */
   currentUserId: string | null;
 }) {
+  const { rows: sorted, sort, toggle } = useSort(users, ACCESSORS, { key: "status", dir: "asc" });
   if (users.length === 0) {
     return <p className="text-muted-foreground">No users yet.</p>;
   }
@@ -45,15 +63,15 @@ export function UsersTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>User</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Role</TableHead>
-          <TableHead>Joined</TableHead>
+          <SortableHead label="User" sortKey="user" sort={sort} onToggle={toggle} />
+          <SortableHead label="Status" sortKey="status" sort={sort} onToggle={toggle} />
+          <SortableHead label="Role" sortKey="role" sort={sort} onToggle={toggle} />
+          <SortableHead label="Joined" sortKey="joined" sort={sort} onToggle={toggle} />
           <TableHead className="text-right">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {users.map((user) => (
+        {sorted.map((user) => (
           <TableRow key={user.id}>
             <TableCell>
               <div className="font-medium">{user.full_name ?? "—"}</div>
@@ -75,8 +93,8 @@ export function UsersTable({
                 />
               )}
             </TableCell>
-            <TableCell>
-              {new Date(user.created_at).toLocaleDateString()}
+            <TableCell className="text-sm text-muted-foreground">
+              {formatDate(user.created_at)}
             </TableCell>
             <TableCell className="text-right">
               {user.status === "pending" ? (

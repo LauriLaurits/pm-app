@@ -1,40 +1,71 @@
+"use client";
+
 import Link from "next/link";
+import { setPersonStatusAction } from "@/app/actions/people";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { InlineEditSelect, type InlineEditOption } from "@/components/inline-edit-select";
+import { SortableHead } from "@/components/data-table/sortable-head";
+import { useSort, type SortAccessors } from "@/components/data-table/use-sort";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { avatarTint } from "@/lib/avatar-tint";
 import { utilizationBadgeClasses, utilizationLabel } from "@/lib/workload";
 import { formatMoney, humanize, initials } from "./types";
 import type { PersonListRow } from "./types";
 import { PersonRowActions } from "./person-row-actions";
 
+type SortKey =
+  | "name" | "department" | "type" | "status" | "capacity"
+  | "allocation" | "projects" | "cost" | "billing";
+
+const ACCESSORS: SortAccessors<PersonListRow, SortKey> = {
+  name: (r) => r.full_name,
+  department: (r) => r.department,
+  type: (r) => r.employment_type,
+  status: (r) => r.status,
+  capacity: (r) => r.weekly_capacity_hours,
+  allocation: (r) => r.current_allocation_pct,
+  projects: (r) => r.active_project_count,
+  cost: (r) => r.internal_cost,
+  billing: (r) => r.billing_rate,
+};
+
+const STATUS_OPTIONS: InlineEditOption[] = [
+  { value: "active", label: "active", badgeVariant: "outline" },
+  { value: "inactive", label: "inactive", badgeVariant: "secondary" },
+];
+
 export function PeopleTable({ rows, canManage }: { rows: PersonListRow[]; canManage: boolean }) {
+  const { rows: sorted, sort, toggle } = useSort(rows, ACCESSORS, { key: "name", dir: "asc" });
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Person</TableHead>
-          <TableHead>Department</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Capacity</TableHead>
-          <TableHead>Allocation</TableHead>
+          <SortableHead label="Person" sortKey="name" sort={sort} onToggle={toggle} />
+          <SortableHead label="Department" sortKey="department" sort={sort} onToggle={toggle} />
+          <SortableHead label="Type" sortKey="type" sort={sort} onToggle={toggle} />
+          <SortableHead label="Status" sortKey="status" sort={sort} onToggle={toggle} />
+          <SortableHead label="Capacity" sortKey="capacity" sort={sort} onToggle={toggle} />
+          <SortableHead label="Allocation" sortKey="allocation" sort={sort} onToggle={toggle} />
           <TableHead>Availability</TableHead>
-          <TableHead>Projects</TableHead>
-          <TableHead>Cost</TableHead>
-          <TableHead>Billing</TableHead>
+          <SortableHead label="Projects" sortKey="projects" sort={sort} onToggle={toggle} />
+          <SortableHead label="Cost" sortKey="cost" sort={sort} onToggle={toggle} />
+          <SortableHead label="Billing" sortKey="billing" sort={sort} onToggle={toggle} />
           {canManage && <TableHead className="text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map((row) => (
+        {sorted.map((row) => (
           <TableRow key={row.id}>
             <TableCell>
               <div className="flex items-center gap-2">
                 <Avatar size="sm">
                   <AvatarImage src={row.avatar_url ?? undefined} alt={row.full_name ?? ""} />
-                  <AvatarFallback>{initials(row.full_name)}</AvatarFallback>
+                  <AvatarFallback className={avatarTint(row.full_name)}>
+                    {initials(row.full_name)}
+                  </AvatarFallback>
                 </Avatar>
                 <div>
                   <Link href={`/people/${row.id}`} className="font-medium hover:underline">
@@ -49,9 +80,17 @@ export function PeopleTable({ rows, canManage }: { rows: PersonListRow[]; canMan
               {row.employment_type ? humanize(row.employment_type) : "—"}
             </TableCell>
             <TableCell>
-              <Badge variant={row.status === "inactive" ? "secondary" : "outline"}>
-                {row.status ? humanize(row.status) : "—"}
-              </Badge>
+              {row.status ? (
+                <InlineEditSelect
+                  value={row.status}
+                  options={STATUS_OPTIONS}
+                  canEdit={canManage}
+                  ariaLabel={`${row.full_name} status`}
+                  onSave={(value) => setPersonStatusAction(row.id, value as "active" | "inactive")}
+                />
+              ) : (
+                <Badge variant="outline">—</Badge>
+              )}
             </TableCell>
             <TableCell className="text-sm">{row.weekly_capacity_hours}h/wk</TableCell>
             <TableCell>

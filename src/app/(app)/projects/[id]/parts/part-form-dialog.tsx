@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
 import { PartForm } from "./part-form";
 import type { PartRow, PersonOption } from "./types";
 
@@ -23,7 +24,11 @@ export function PartFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" variant={part ? "outline" : "default"} />}>
+      <DialogTrigger
+        render={
+          <Button size="sm" variant={part ? "outline" : "default"} className={part ? EDIT_ACTION_CLASS : undefined} />
+        }
+      >
         {part ? "Edit" : "Add part"}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">

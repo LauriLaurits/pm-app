@@ -25,6 +25,12 @@ export default async function BudgetsPage({
 
   const rows = (data ?? []) as ProjectBudgetRow[];
 
+  // Client-name -> id for the client sublink (the budget view carries names only). RLS-scoped:
+  // viewers without the clients permission get zero rows and the names render unlinked.
+  const { data: clientRefs } = await supabase.from("clients").select("id, name");
+  const clientIdByName: Record<string, string> = {};
+  for (const c of clientRefs ?? []) clientIdByName[c.name] = c.id;
+
   const severity: SeverityFilter =
     params.severity === "at_risk" || params.severity === "over" ? params.severity : "all";
   const filteredRows = rows.filter((row) => {
@@ -91,7 +97,7 @@ export default async function BudgetsPage({
       ) : filteredRows.length === 0 ? (
         <EmptyState hasFilters />
       ) : (
-        <BudgetPortfolioTable rows={filteredRows} />
+        <BudgetPortfolioTable rows={filteredRows} clientIdByName={clientIdByName} />
       )}
     </div>
   );
