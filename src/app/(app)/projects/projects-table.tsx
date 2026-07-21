@@ -425,7 +425,7 @@ export function ProjectsTable({
 // Date range on top, semantic urgency underneath: green when comfortably out, orange within
 // 14 days, red the moment it's overdue. Completed/archived projects show no countdown at all --
 // a red "Overdue" next to a green "On track" on a finished project read as a contradiction.
-function DatesCell({
+export function DatesCell({
   start,
   deadline,
   status,
@@ -534,7 +534,7 @@ export function HealthBadge({ health }: { health?: DerivedHealth }) {
 // second in identical type (euros here, hours there). The pricing model is deliberately NOT a
 // per-row badge -- floating in a varying position it made the column read as scattered; it
 // lives in the hover title, the filter chip, and the detail page.
-function BudgetCell({ row }: { row: ProjectListRow }) {
+export function BudgetCell({ row }: { row: ProjectListRow }) {
   const pct = consumptionPct(row);
   const typeTitle = row.budget_type ? `${humanize(row.budget_type)} budget` : undefined;
   if (pct === null) {
@@ -568,7 +568,7 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
 }
 
 // Progress derived from parts (done est-hours / total est-hours; part-count fallback).
-function ProgressCell({ progress }: { progress?: { pct: number | null; label: string } }) {
+export function ProgressCell({ progress }: { progress?: { pct: number | null; label: string } }) {
   if (!progress || progress.pct === null) {
     return (
       <span className="text-sm text-muted-foreground" title={progress?.label ?? undefined}>

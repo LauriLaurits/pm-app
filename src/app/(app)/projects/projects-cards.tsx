@@ -2,20 +2,27 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { avatarTint } from "@/lib/avatar-tint";
-import { Badge } from "@/components/ui/badge";
 import { DotBadge } from "@/components/dot-badge";
-import { DERIVED_HEALTH_BADGE_CLASS, DERIVED_HEALTH_LABEL, deriveHealth, healthTitle } from "@/lib/health";
+import { deriveHealth } from "@/lib/health";
 import {
-  STATUS_DOT, formatDate, formatMoney, humanize, initials,
-} from "./types";
+  BudgetCell, DatesCell, HealthBadge, ProgressCell, type ProgressById,
+} from "./projects-table";
+import { STATUS_DOT, initials } from "./types";
 import type { ProjectListRow } from "./types";
 
-export function ProjectsCards({ rows }: { rows: ProjectListRow[] }) {
+// Card view reuses the TABLE's cell components (dates, budget, progress, health) so the two
+// views can never drift apart -- same bars, same countdown colors, same derived health.
+export function ProjectsCards({
+  rows,
+  progressById,
+}: {
+  rows: ProjectListRow[];
+  progressById: ProgressById;
+}) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {rows.map((row) => {
-        // Same derived health as the table/detail header (no parts data in card view, so the
-        // progress-lag signal is simply absent here -- deadline + budget still apply).
+        if (!row.id) return null;
         const health = deriveHealth({
           status: row.status,
           startDate: row.start_date,
@@ -24,24 +31,18 @@ export function ProjectsCards({ rows }: { rows: ProjectListRow[] }) {
             row.budget_total && row.budget_used !== null
               ? (row.budget_used / row.budget_total) * 100
               : null,
-          progressPct: null,
+          progressPct: progressById[row.id]?.pct ?? null,
         });
         return (
           <Card key={row.id}>
             <CardHeader>
               <div className="flex items-start justify-between gap-2">
                 <CardTitle>
-                  <Link href={`/projects/${row.id}`} className="hover:underline">
+                  <Link href={`/projects/${row.id}`} className="transition-opacity hover:opacity-70">
                     {row.name}
                   </Link>
                 </CardTitle>
-                <Badge
-                  variant="outline"
-                  className={DERIVED_HEALTH_BADGE_CLASS[health.level]}
-                  title={healthTitle(health)}
-                >
-                  {DERIVED_HEALTH_LABEL[health.level]}
-                </Badge>
+                <HealthBadge health={health} />
               </div>
               <p className="text-sm text-muted-foreground">{row.client_name ?? "—"}</p>
             </CardHeader>
@@ -57,25 +58,20 @@ export function ProjectsCards({ rows }: { rows: ProjectListRow[] }) {
                   <span className="text-sm">{row.pm_name ?? "—"}</span>
                 </div>
                 {row.status && (
-                  <DotBadge dotClassName={STATUS_DOT[row.status]}>{humanize(row.status)}</DotBadge>
+                  <DotBadge dotClassName={STATUS_DOT[row.status]}>{row.status.replace(/_/g, " ")}</DotBadge>
                 )}
               </div>
 
-              <div className="text-xs text-muted-foreground">
-                {formatDate(row.start_date)} → {formatDate(row.deadline)} · {row.member_count ?? 0}{" "}
-                member{row.member_count === 1 ? "" : "s"}
+              <DatesCell start={row.start_date} deadline={row.deadline} status={row.status} />
+
+              <div>
+                <p className="mb-1 text-xs font-medium text-foreground/70">Budget</p>
+                <BudgetCell row={row} />
               </div>
 
-              <div className="rounded-lg bg-muted/50 p-2 text-xs">
-                <div className="font-medium text-foreground">{humanize(row.budget_type ?? "")} budget</div>
-                <div className="text-muted-foreground">
-                  {formatMoney(row.budget_used)} used of {formatMoney(row.budget_total)}
-                </div>
-                <div className="text-muted-foreground">{formatMoney(row.budget_remaining)} remaining</div>
-              </div>
-
-              <div className="text-right text-xs text-muted-foreground">
-                Updated {formatDate(row.updated_at)}
+              <div>
+                <p className="mb-1 text-xs font-medium text-foreground/70">Progress</p>
+                <ProgressCell progress={progressById[row.id]} />
               </div>
             </CardContent>
           </Card>

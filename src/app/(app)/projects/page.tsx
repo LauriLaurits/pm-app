@@ -262,7 +262,7 @@ export default async function ProjectsPage({
       ) : displayRows.length === 0 ? (
         <EmptyState hasFilters={hasFilters} canCreate={!!canCreate} />
       ) : view === "cards" ? (
-        <ProjectsCards rows={displayRows} />
+        <ProjectsCards rows={displayRows} progressById={progressById} />
       ) : (
         <ProjectsTable
           rows={displayRows}
