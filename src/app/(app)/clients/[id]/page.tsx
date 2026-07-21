@@ -97,7 +97,7 @@ export default async function ClientDetailPage({
             <TableBody>
               {projects.map((p) => {
                 if (!p.id) return null;
-                const countdown = deadlineCountdown(p.deadline, "short");
+                const countdown = deadlineCountdown(p.deadline);
                 return (
                   <TableRow key={p.id}>
                     <TableCell>
@@ -113,7 +113,7 @@ export default async function ClientDetailPage({
                     <TableCell className="text-muted-foreground">{p.pm_name ?? "—"}</TableCell>
                     <TableCell>
                       <span className="text-sm">{formatDate(p.deadline)}</span>{" "}
-                      {countdown.label && (
+                      {countdown.days !== null && (
                         <span className={`text-xs ${countdown.toneClass}`}>{countdown.label}</span>
                       )}
                     </TableCell>

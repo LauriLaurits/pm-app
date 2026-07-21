@@ -18,7 +18,7 @@ import { PersonRowActions } from "./person-row-actions";
 
 type SortKey =
   | "name" | "department" | "type" | "status" | "capacity"
-  | "allocation" | "projects" | "cost" | "billing";
+  | "allocation" | "availability" | "projects" | "cost" | "billing";
 
 const ACCESSORS: SortAccessors<PersonListRow, SortKey> = {
   name: (r) => r.full_name,
@@ -27,6 +27,8 @@ const ACCESSORS: SortAccessors<PersonListRow, SortKey> = {
   status: (r) => r.status,
   capacity: (r) => r.weekly_capacity_hours,
   allocation: (r) => r.current_allocation_pct,
+  // Vacation sorts before everyone, then least-loaded first -- "who can take work" order.
+  availability: (r) => (r.on_vacation_now ? -1 : (r.current_allocation_pct ?? 0)),
   projects: (r) => r.active_project_count,
   cost: (r) => r.internal_cost,
   billing: (r) => r.billing_rate,
@@ -49,7 +51,7 @@ export function PeopleTable({ rows, canManage }: { rows: PersonListRow[]; canMan
           <SortableHead label="Status" sortKey="status" sort={sort} onToggle={toggle} />
           <SortableHead label="Capacity" sortKey="capacity" sort={sort} onToggle={toggle} />
           <SortableHead label="Allocation" sortKey="allocation" sort={sort} onToggle={toggle} />
-          <TableHead>Availability</TableHead>
+          <SortableHead label="Availability" sortKey="availability" sort={sort} onToggle={toggle} />
           <SortableHead label="Projects" sortKey="projects" sort={sort} onToggle={toggle} />
           <SortableHead label="Cost" sortKey="cost" sort={sort} onToggle={toggle} />
           <SortableHead label="Billing" sortKey="billing" sort={sort} onToggle={toggle} />
@@ -119,6 +121,8 @@ export function PeopleTable({ rows, canManage }: { rows: PersonListRow[]; canMan
   );
 }
 
+// Same color language as the Allocation badge next door (utilization classes), so the two
+// columns visibly agree: green Available, blue Partial, amber Full, red Overallocated.
 function AvailabilityCell({ row }: { row: PersonListRow }) {
   if (row.on_vacation_now) {
     return (
@@ -130,5 +134,10 @@ function AvailabilityCell({ row }: { row: PersonListRow }) {
       </Badge>
     );
   }
-  return <span className="text-sm text-muted-foreground">{utilizationLabel(row.current_allocation_pct ?? 0)}</span>;
+  const pct = row.current_allocation_pct ?? 0;
+  return (
+    <Badge variant="outline" className={utilizationBadgeClasses(pct)}>
+      {utilizationLabel(pct)}
+    </Badge>
+  );
 }

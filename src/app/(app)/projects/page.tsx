@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
 import { ProjectFilters } from "./project-filters";
 import { ProjectsCards } from "./projects-cards";
+import { deriveProgress, progressBasisLabel, type ProgressPart } from "@/lib/progress";
 import { ProjectsTable, type ProjectRowLinks } from "./projects-table";
 import { ViewToggle } from "./view-toggle";
 import {
@@ -120,6 +121,26 @@ export default async function ProjectsPage({
     }
   }
 
+  // Derived progress for the list -- the same deriveProgress the project page uses, so the list
+  // never shows the deprecated hand-typed `progress` column while the detail shows parts-derived.
+  const progressById: Record<string, { pct: number | null; label: string }> = {};
+  if (projectIds.length > 0) {
+    const { data: partRows } = await supabase
+      .from("project_parts")
+      .select("project_id, status, estimated_hours")
+      .in("project_id", projectIds);
+    const partsByProject = new Map<string, ProgressPart[]>();
+    for (const p of partRows ?? []) {
+      const list = partsByProject.get(p.project_id) ?? [];
+      list.push({ status: p.status, estimated_hours: p.estimated_hours });
+      partsByProject.set(p.project_id, list);
+    }
+    for (const id of projectIds) {
+      const derived = deriveProgress(partsByProject.get(id) ?? []);
+      progressById[id] = { pct: derived.pct, label: progressBasisLabel(derived) };
+    }
+  }
+
   const view = params.view === "cards" ? "cards" : "table";
   const hasFilters = Boolean(
     params.status || params.health || params.budget_type || params.pm || params.client || params.q
@@ -152,6 +173,7 @@ export default async function ProjectsPage({
           rows={rows as ProjectListRow[]}
           editableProjectIds={[...editableProjectIds]}
           links={links}
+          progressById={progressById}
         />
       )}
     </div>
