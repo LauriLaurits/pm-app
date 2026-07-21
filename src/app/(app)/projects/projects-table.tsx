@@ -97,10 +97,11 @@ type SortKey =
 // Ascending = most important first, so the first click on the flag surfaces high priority.
 const PRIORITY_RANK = { high: 0, medium: 1, low: 2 } as const;
 
-const PRIORITY_FLAG_CLASS: Record<"high" | "medium" | "low", string> = {
-  high: "text-red-500 fill-red-500",
-  medium: "text-blue-500 fill-blue-500",
-  low: "text-muted-foreground/40",
+// Tiny GitHub-style priority dots -- small enough that the eye lands on the project name first.
+const PRIORITY_DOT_CLASS: Record<"high" | "medium" | "low", string> = {
+  high: "bg-red-500",
+  medium: "bg-blue-500",
+  low: "bg-muted-foreground/30",
 };
 
 export function ProjectsTable({
@@ -248,14 +249,24 @@ export function ProjectsTable({
             const canEdit = editable.has(projectId);
             const rowLinks = links[projectId];
             const Icon = projectIcon(row.name);
+            // Health drives the row's edge accent (thin amber/red line) -- health is where a PM
+            // must ACT; priority (the dot) only says how important the project is.
+            const level = healthById[projectId]?.level ?? "healthy";
+            const healthAccent =
+              level === "critical"
+                ? "border-l-2 border-l-red-400"
+                : level === "warning"
+                  ? "border-l-2 border-l-amber-400/80"
+                  : "border-l-2 border-l-transparent";
             return (
               <TableRow key={row.id} className="group">
-                {/* Priority flag (red high / blue medium / faint gray low) under the flag header. */}
-                <TableCell className="w-8 px-1">
+                {/* Priority dot (red high / blue medium / faint low) under the flag header. */}
+                <TableCell className={`w-8 px-1 ${healthAccent}`}>
                   {row.priority && (
-                    <Flag
+                    <span
                       aria-label={`${row.priority} priority`}
-                      className={`size-3.5 ${PRIORITY_FLAG_CLASS[row.priority]}`}
+                      title={`${row.priority.charAt(0).toUpperCase()}${row.priority.slice(1)} priority`}
+                      className={`block size-2 rounded-full ${PRIORITY_DOT_CLASS[row.priority]}`}
                     />
                   )}
                 </TableCell>
@@ -263,7 +274,7 @@ export function ProjectsTable({
                   <div className="flex items-center gap-3">
                     <span
                       aria-hidden
-                      className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-muted-foreground"
+                      className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/40 bg-muted/30 text-muted-foreground"
                     >
                       <Icon className="size-4.5" />
                     </span>
@@ -333,13 +344,13 @@ export function ProjectsTable({
                   </TableCell>
                 )}
                 {show("progress") && (
-                  <TableCell className="w-44">
+                  <TableCell className="w-52">
                     <ProgressCell progress={progressById[projectId]} />
                   </TableCell>
                 )}
                 {show("updated") && (
-                  <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
-                    {formatDate(row.updated_at)}
+                  <TableCell className="whitespace-nowrap text-muted-foreground">
+                    <UpdatedCell date={row.updated_at} />
                   </TableCell>
                 )}
                 <TableCell className="text-right">
@@ -535,8 +546,11 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
   const typeTitle = row.budget_type ? `${humanize(row.budget_type)} budget` : undefined;
   if (pct === null) {
     return (
-      <div className="min-w-44 text-xs text-muted-foreground" title={typeTitle}>
-        no budget set
+      <div
+        className="min-w-44 text-sm text-muted-foreground"
+        title={typeTitle ? `No budget set · ${typeTitle}` : "No budget set"}
+      >
+        —
       </div>
     );
   }
@@ -548,10 +562,13 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
           style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
         />
       </div>
-      <div className="mt-1 tabular-nums whitespace-nowrap">
-        <span className="text-sm font-medium text-foreground">{formatMoney(row.budget_used)}</span>{" "}
-        <span className="text-muted-foreground">/ {formatMoney(row.budget_total)}</span>
-        <span className="ml-1.5 text-muted-foreground">{pct.toFixed(0)}% used</span>
+      {/* justify-between pins the % to the column's right edge -- vertically aligned across rows. */}
+      <div className="mt-1 flex items-baseline justify-between gap-2 tabular-nums whitespace-nowrap">
+        <span>
+          <span className="text-sm font-medium text-foreground">{formatMoney(row.budget_used)}</span>{" "}
+          <span className="text-muted-foreground">/ {formatMoney(row.budget_total)}</span>
+        </span>
+        <span className="text-muted-foreground">{pct.toFixed(0)}%</span>
       </div>
     </div>
   );
@@ -560,22 +577,41 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
 // Progress derived from parts (done est-hours / total est-hours; part-count fallback).
 function ProgressCell({ progress }: { progress?: { pct: number | null; label: string } }) {
   if (!progress || progress.pct === null) {
-    return <span className="text-xs text-muted-foreground">{progress?.label ?? "—"}</span>;
+    return (
+      <span className="text-sm text-muted-foreground" title={progress?.label ?? undefined}>
+        —
+      </span>
+    );
   }
   const [first, ...rest] = progress.label.split(" ");
   return (
-    <div className="min-w-44 text-xs">
+    <div className="min-w-52 text-xs">
       <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full bg-[var(--viz-series-1)]"
           style={{ width: `${Math.min(Math.max(progress.pct, 0), 100)}%` }}
         />
       </div>
-      <div className="mt-1 tabular-nums whitespace-nowrap">
-        <span className="text-sm font-medium text-foreground">{first}</span>{" "}
-        <span className="text-muted-foreground">{rest.join(" ")}</span>
-        <span className="ml-1.5 text-muted-foreground">{progress.pct}% done</span>
+      <div className="mt-1 flex items-baseline justify-between gap-2 tabular-nums whitespace-nowrap">
+        <span>
+          <span className="text-sm font-medium text-foreground">{first}</span>{" "}
+          <span className="text-muted-foreground">{rest.join(" ")}</span>
+        </span>
+        <span className="text-muted-foreground">{progress.pct}%</span>
       </div>
+    </div>
+  );
+}
+
+// "20 Jul" over a muted "2026" -- more compact than one long line.
+function UpdatedCell({ date }: { date: string | null }) {
+  if (!date) return <span className="text-sm">—</span>;
+  const d = new Date(date);
+  const dayMonth = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  return (
+    <div className="text-sm leading-tight">
+      <div>{dayMonth}</div>
+      <div className="text-xs text-muted-foreground/80">{d.getFullYear()}</div>
     </div>
   );
 }

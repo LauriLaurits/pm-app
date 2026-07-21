@@ -91,11 +91,13 @@ export function humanize(value: string) {
 // Inline-edit option lists (InlineEditSelect) -- one place mapping each enum's values to the
 // same badge look the read-only cells already used, so the editable cell and the plain badge
 // are visually identical when the caller can't edit.
+// Pill-less in tables: dot + capitalized text only, so Health stays the single colored badge
+// in a row. (Detail header/cards keep the soft chip via DotBadge.)
 export const STATUS_INLINE_OPTIONS: InlineEditOption[] = STATUS_OPTIONS.map((s) => ({
   value: s,
-  label: humanize(s),
+  label: humanize(s).replace(/^./, (c) => c.toUpperCase()),
   badgeVariant: "outline",
-  badgeClassName: STATUS_SOFT_BADGE_CLASS,
+  badgeClassName: "border-transparent bg-transparent px-0 font-normal text-foreground/80",
   dotClassName: STATUS_DOT[s],
 }));
 

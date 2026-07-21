@@ -75,7 +75,7 @@ export function ProjectFilters({
         placeholder="Search projects or clients…"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        className="w-64 rounded-full border-transparent bg-muted/60 shadow-none"
+        className="mr-3 w-84 rounded-full border-transparent bg-muted/60 shadow-none"
       />
       <Select
         value={statusValue ?? ALL}
