@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PersonFormDialog } from "./person-form-dialog";
 import type { PersonListRow } from "./types";
-import { DESTRUCTIVE_ACTION_CLASS } from "@/lib/action-styles";
+import { DESTRUCTIVE_ACTION_CLASS, NEUTRAL_ACTION_CLASS } from "@/lib/action-styles";
 
 /** Managers-only row controls: Edit, a status toggle (the primary, non-destructive "remove"),
  * and a guarded hard-delete. The delete action itself refuses (with a friendly error) whenever
@@ -29,7 +29,7 @@ export function PersonRowActions({ person }: { person: PersonListRow }) {
     <div className="flex flex-col items-end gap-1">
       <div className="flex items-center gap-2">
         <PersonFormDialog person={person} />
-        <Button size="sm" variant="ghost" onClick={onToggleStatus} disabled={isPending}>
+        <Button size="sm" variant="ghost" className={NEUTRAL_ACTION_CLASS} onClick={onToggleStatus} disabled={isPending}>
           {person.status === "active" ? "Deactivate" : "Activate"}
         </Button>
         <ConfirmDialog

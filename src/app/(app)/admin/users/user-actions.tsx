@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { NEUTRAL_ACTION_CLASS } from "@/lib/action-styles";
 
 export function UserActions({
   userId,
@@ -41,7 +42,7 @@ export function UserActions({
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button size="sm" variant="ghost" disabled={isPending}>
+            <Button size="sm" variant="ghost" className={NEUTRAL_ACTION_CLASS} disabled={isPending}>
               {isPending ? "Working…" : "Manage"}
             </Button>
           }
