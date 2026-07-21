@@ -337,7 +337,7 @@ export function ProjectsTable({
                   </TableCell>
                 )}
                 {show("progress") && (
-                  <TableCell className="w-64">
+                  <TableCell className="w-48">
                     <ProgressCell progress={progressById[projectId]} />
                   </TableCell>
                 )}
@@ -548,7 +548,7 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
     );
   }
   return (
-    <div className="min-w-56 text-xs" title={typeTitle}>
+    <div className="min-w-40 text-xs" title={typeTitle}>
       <div className="h-[11px] w-full overflow-hidden rounded-full bg-muted">
         <div
           className={`h-full rounded-full ${consumptionBarClasses(pct)}`}
@@ -578,7 +578,7 @@ function ProgressCell({ progress }: { progress?: { pct: number | null; label: st
   }
   const [first, ...rest] = progress.label.split(" ");
   return (
-    <div className="min-w-64 text-xs">
+    <div className="min-w-44 text-xs">
       <div className="h-[11px] w-full overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full bg-[var(--viz-series-1)]"
