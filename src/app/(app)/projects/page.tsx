@@ -52,11 +52,18 @@ export default async function ProjectsPage({
     : { data: false };
 
   // Unfiltered (RLS-only) pass -- just used to build the PM/client filter dropdown
-  // options from whatever this caller can actually see.
+  // options from whatever this caller can actually see. PM options carry the avatar so the
+  // dropdown items look like the table's PM cells.
   const { data: optionRows } = await supabase
     .from("project_list_rows")
-    .select("pm_name, client_name");
-  const pmOptions = distinct((optionRows ?? []).map((r) => r.pm_name));
+    .select("pm_name, pm_avatar_url, client_name");
+  const pmAvatarByName = new Map<string, string | null>();
+  for (const r of optionRows ?? []) {
+    if (r.pm_name && !pmAvatarByName.has(r.pm_name)) pmAvatarByName.set(r.pm_name, r.pm_avatar_url);
+  }
+  const pmOptions = [...pmAvatarByName.entries()]
+    .map(([name, avatarUrl]) => ({ name, avatarUrl }))
+    .sort((a, b) => a.name.localeCompare(b.name));
   const clientOptions = distinct((optionRows ?? []).map((r) => r.client_name));
 
   const status = STATUS_OPTIONS.find((s) => s === params.status);

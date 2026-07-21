@@ -29,7 +29,7 @@ import {
   healthTitle, type DerivedHealth,
 } from "@/lib/health";
 import {
-  BUDGET_TYPE_CHIP_CLASS, PRIORITY_INLINE_OPTIONS, STATUS_INLINE_OPTIONS,
+  PRIORITY_INLINE_OPTIONS, STATUS_INLINE_OPTIONS,
   formatDate, formatMoney, humanize, initials,
 } from "./types";
 import type { ProjectListRow } from "./types";
@@ -320,7 +320,7 @@ export function ProjectsTable({
                 )}
                 {show("dates") && (
                   <TableCell>
-                    <DatesCell start={row.start_date} deadline={row.deadline} />
+                    <DatesCell start={row.start_date} deadline={row.deadline} status={row.status} />
                   </TableCell>
                 )}
                 {show("team") && (
@@ -414,14 +414,31 @@ export function ProjectsTable({
 }
 
 // Date range on top, semantic urgency underneath: green when comfortably out, orange within
-// 14 days, red the moment it's overdue.
-function DatesCell({ start, deadline }: { start: string | null; deadline: string | null }) {
-  const countdown = deadline ? deadlineCountdown(deadline) : null;
+// 14 days, red the moment it's overdue. Completed/archived projects show no countdown at all --
+// a red "Overdue" next to a green "On track" on a finished project read as a contradiction.
+function DatesCell({
+  start,
+  deadline,
+  status,
+}: {
+  start: string | null;
+  deadline: string | null;
+  status: string | null;
+}) {
+  const closed = status === "completed" || status === "archived";
+  const countdown = !closed && deadline ? deadlineCountdown(deadline) : null;
   const days = countdown?.days ?? null;
-  const label =
-    days === null ? "No end date" : days < 0 ? "Overdue" : `${days} ${days === 1 ? "day" : "days"} left`;
+  const label = closed
+    ? status === "completed"
+      ? "Completed"
+      : "Archived"
+    : days === null
+      ? "No end date"
+      : days < 0
+        ? "Overdue"
+        : `${days} ${days === 1 ? "day" : "days"} left`;
   const tone =
-    days === null
+    closed || days === null
       ? "text-muted-foreground"
       : days < 0
         ? "text-red-600 dark:text-red-400 font-medium"
@@ -509,40 +526,44 @@ export function HealthBadge({ health }: { health?: DerivedHealth }) {
   );
 }
 
-// Budget cell: pricing-model chip (mixed purple / fixed blue / hourly teal), severity bar,
-// "spent / total" with "% used" grayed.
+// Budget and Progress share ONE anatomy: bar + % on the first line, "X / Y" value pair on the
+// second in identical type (euros here, hours there). Pricing model rides along as muted text
+// instead of a chip.
 function BudgetCell({ row }: { row: ProjectListRow }) {
   const pct = consumptionPct(row);
+  if (pct === null) {
+    return (
+      <div className="min-w-36 text-xs text-muted-foreground">
+        {row.budget_type ? humanize(row.budget_type) : "—"} · no budget set
+      </div>
+    );
+  }
   return (
-    <div className="min-w-32 text-xs">
-      {row.budget_type && (
-        <Badge
-          variant="outline"
-          className={`px-1.5 py-0 text-[10px] ${BUDGET_TYPE_CHIP_CLASS[row.budget_type]}`}
-        >
-          {humanize(row.budget_type)}
-        </Badge>
-      )}
-      {pct !== null && (
-        <div className="mt-1 h-1.5 w-full max-w-32 overflow-hidden rounded-full bg-muted">
+    <div className="min-w-36 text-xs">
+      <div className="flex items-center gap-2">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
           <div
             className={`h-full rounded-full ${consumptionBarClasses(pct)}`}
             style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
           />
         </div>
-      )}
-      <div className="mt-0.5 tabular-nums whitespace-nowrap">
-        <span className="font-medium text-foreground">
+        <span className="text-muted-foreground tabular-nums whitespace-nowrap">
+          {pct.toFixed(0)}% used
+        </span>
+      </div>
+      <div className="mt-1 tabular-nums whitespace-nowrap">
+        <span className="text-sm font-medium text-foreground">
           {formatMoney(row.budget_used)} / {formatMoney(row.budget_total)}
         </span>
-        {pct !== null && <span className="ml-1 text-muted-foreground">{pct.toFixed(0)}% used</span>}
+        {row.budget_type && (
+          <span className="ml-1 text-muted-foreground">· {humanize(row.budget_type)}</span>
+        )}
       </div>
     </div>
   );
 }
 
 // Progress derived from parts (done est-hours / total est-hours; part-count fallback).
-// Deliberately more visual weight than budget: a full-width blue bar with % beside it.
 function ProgressCell({ progress }: { progress?: { pct: number | null; label: string } }) {
   if (!progress || progress.pct === null) {
     return <span className="text-xs text-muted-foreground">{progress?.label ?? "—"}</span>;
@@ -557,7 +578,9 @@ function ProgressCell({ progress }: { progress?: { pct: number | null; label: st
             style={{ width: `${Math.min(Math.max(progress.pct, 0), 100)}%` }}
           />
         </div>
-        <span className="text-muted-foreground tabular-nums">{progress.pct}%</span>
+        <span className="text-muted-foreground tabular-nums whitespace-nowrap">
+          {progress.pct}% done
+        </span>
       </div>
       <div className="mt-1 tabular-nums whitespace-nowrap">
         <span className="text-sm font-medium text-foreground">{first}</span>{" "}

@@ -8,8 +8,10 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ListFilter, XIcon } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { avatarTint } from "@/lib/avatar-tint";
 import {
-  BUDGET_TYPE_OPTIONS, STATUS_OPTIONS, humanize,
+  BUDGET_TYPE_CHIP_CLASS, BUDGET_TYPE_OPTIONS, STATUS_DOT, STATUS_OPTIONS, humanize, initials,
 } from "./types";
 
 const ALL = "__all__";
@@ -21,7 +23,7 @@ export function ProjectFilters({
   pmOptions,
   clientOptions,
 }: {
-  pmOptions: string[];
+  pmOptions: { name: string; avatarUrl: string | null }[];
   clientOptions: string[];
 }) {
   const router = useRouter();
@@ -88,7 +90,12 @@ export function ProjectFilters({
         <SelectContent>
           <SelectItem value={ALL}>All statuses</SelectItem>
           {STATUS_OPTIONS.map((s) => (
-            <SelectItem key={s} value={s}>{humanize(s)}</SelectItem>
+            <SelectItem key={s} value={s}>
+              <span className="flex items-center gap-2">
+                <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${STATUS_DOT[s]}`} />
+                {humanize(s)}
+              </span>
+            </SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -102,7 +109,13 @@ export function ProjectFilters({
         <SelectContent>
           <SelectItem value={ALL}>All budget types</SelectItem>
           {BUDGET_TYPE_OPTIONS.map((b) => (
-            <SelectItem key={b} value={b}>{humanize(b)}</SelectItem>
+            <SelectItem key={b} value={b}>
+              <span
+                className={`inline-flex items-center rounded-md border px-1.5 text-xs ${BUDGET_TYPE_CHIP_CLASS[b]}`}
+              >
+                {humanize(b)}
+              </span>
+            </SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -117,7 +130,17 @@ export function ProjectFilters({
           <SelectContent>
             <SelectItem value={ALL}>All PMs</SelectItem>
             {pmOptions.map((pm) => (
-              <SelectItem key={pm} value={pm}>{pm}</SelectItem>
+              <SelectItem key={pm.name} value={pm.name}>
+                <span className="flex items-center gap-2">
+                  <Avatar size="sm" className="size-5">
+                    <AvatarImage src={pm.avatarUrl ?? undefined} alt={pm.name} />
+                    <AvatarFallback className={`text-[9px] ${avatarTint(pm.name)}`}>
+                      {initials(pm.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {pm.name}
+                </span>
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -133,7 +156,17 @@ export function ProjectFilters({
           <SelectContent>
             <SelectItem value={ALL}>All clients</SelectItem>
             {clientOptions.map((client) => (
-              <SelectItem key={client} value={client}>{client}</SelectItem>
+              <SelectItem key={client} value={client}>
+                <span className="flex items-center gap-2">
+                  <span
+                    aria-hidden
+                    className={`flex size-5 shrink-0 items-center justify-center rounded-md text-[9px] font-medium ${avatarTint(client)}`}
+                  >
+                    {initials(client)}
+                  </span>
+                  {client}
+                </span>
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
