@@ -224,7 +224,7 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
       </div>
       {pct !== null && (
         <div className="mt-1 flex items-center gap-2">
-          <div className="h-2 w-full max-w-28 overflow-hidden rounded-full bg-muted">
+          <div className="h-2 w-full max-w-24 overflow-hidden rounded-full bg-muted">
             <div
               className={`h-full rounded-full ${consumptionBarClasses(pct)}`}
               style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
@@ -245,11 +245,15 @@ function ProgressCell({ progress }: { progress?: { pct: number | null; label: st
   if (!progress || progress.pct === null) {
     return <span className="text-xs text-muted-foreground">{progress?.label ?? "—"}</span>;
   }
+  // Bold the leading number, mirroring BudgetCell's "€8,000 of …" emphasis.
+  const [first, ...rest] = progress.label.split(" ");
   return (
     <div className="min-w-32 text-xs">
-      <div className="text-muted-foreground">{progress.label}</div>
+      <div className="text-muted-foreground">
+        <span className="font-medium text-foreground">{first}</span> {rest.join(" ")}
+      </div>
       <div className="mt-1 flex items-center gap-2">
-        <div className="h-2 w-full max-w-28 overflow-hidden rounded-full bg-muted">
+        <div className="h-2 w-full max-w-24 overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-[var(--viz-series-1)]"
             style={{ width: `${Math.min(Math.max(progress.pct, 0), 100)}%` }}

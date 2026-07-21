@@ -55,7 +55,7 @@ export function deriveProgress(parts: ProgressPart[]): DerivedProgress {
 // or "3 of 7 parts" or "No parts yet".
 export function progressBasisLabel(p: DerivedProgress): string {
   if (p.basis === "none") return "No parts yet";
-  if (p.basis === "hours") return `${round1(p.doneHours)} of ${round1(p.totalHours)} estimated hours`;
+  if (p.basis === "hours") return `${round1(p.doneHours)} of ${round1(p.totalHours)} est. hours`;
   return `${p.donePartCount} of ${p.totalPartCount} parts`;
 }
 
