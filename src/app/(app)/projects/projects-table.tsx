@@ -267,7 +267,7 @@ export function ProjectsTable({
                   <div className="flex items-center gap-3">
                     <span
                       aria-hidden
-                      className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/40 bg-muted/30 text-muted-foreground"
+                      className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/25 bg-muted/30 text-muted-foreground"
                     >
                       <Icon className="size-4.5" />
                     </span>
@@ -337,7 +337,7 @@ export function ProjectsTable({
                   </TableCell>
                 )}
                 {show("progress") && (
-                  <TableCell className="w-52">
+                  <TableCell className="w-64">
                     <ProgressCell progress={progressById[projectId]} />
                   </TableCell>
                 )}
@@ -457,7 +457,7 @@ function DatesCell({
   // Compact: deadline only; the full range lives in the hover title.
   return (
     <div
-      className="whitespace-nowrap"
+      className="whitespace-nowrap tabular-nums"
       title={`${formatDate(start)} → ${formatDate(deadline)}`}
     >
       <div className="text-sm">{formatDate(deadline)}</div>
@@ -548,8 +548,8 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
     );
   }
   return (
-    <div className="min-w-44 text-xs" title={typeTitle}>
-      <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+    <div className="min-w-56 text-xs" title={typeTitle}>
+      <div className="h-[11px] w-full overflow-hidden rounded-full bg-muted">
         <div
           className={`h-full rounded-full ${consumptionBarClasses(pct)}`}
           style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
@@ -578,8 +578,8 @@ function ProgressCell({ progress }: { progress?: { pct: number | null; label: st
   }
   const [first, ...rest] = progress.label.split(" ");
   return (
-    <div className="min-w-52 text-xs">
-      <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+    <div className="min-w-64 text-xs">
+      <div className="h-[11px] w-full overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full bg-[var(--viz-series-1)]"
           style={{ width: `${Math.min(Math.max(progress.pct, 0), 100)}%` }}
@@ -602,7 +602,7 @@ function UpdatedCell({ date }: { date: string | null }) {
   const d = new Date(date);
   const dayMonth = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
   return (
-    <div className="text-sm leading-tight">
+    <div className="text-sm leading-tight tabular-nums">
       <div>{dayMonth}</div>
       <div className="text-xs text-muted-foreground/80">{d.getFullYear()}</div>
     </div>
