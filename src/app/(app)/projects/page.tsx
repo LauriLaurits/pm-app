@@ -48,24 +48,6 @@ export default async function ProjectsPage({
   // createProjectAction, which re-checks has_permission('create_project') server-side
   // regardless of what's rendered here.
   const current = await getCurrentUser();
-  const { data: canCreate } = current
-    ? await supabase.rpc("has_permission", { uid: current.user.id, perm: "create_project" })
-    : { data: false };
-
-  // Unfiltered (RLS-only) pass -- just used to build the PM/client filter dropdown
-  // options from whatever this caller can actually see. PM options carry the avatar so the
-  // dropdown items look like the table's PM cells.
-  const { data: optionRows } = await supabase
-    .from("project_list_rows")
-    .select("pm_name, pm_avatar_url, client_name");
-  const pmAvatarByName = new Map<string, string | null>();
-  for (const r of optionRows ?? []) {
-    if (r.pm_name && !pmAvatarByName.has(r.pm_name)) pmAvatarByName.set(r.pm_name, r.pm_avatar_url);
-  }
-  const pmOptions = [...pmAvatarByName.entries()]
-    .map(([name, avatarUrl]) => ({ name, avatarUrl }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  const clientOptions = distinct((optionRows ?? []).map((r) => r.client_name));
 
   const status = STATUS_OPTIONS.find((s) => s === params.status);
   const budgetType = BUDGET_TYPE_OPTIONS.find((b) => b === params.budget_type);
@@ -81,7 +63,27 @@ export default async function ProjectsPage({
     if (term) query = query.or(`name.ilike.%${term}%,client_name.ilike.%${term}%`);
   }
 
-  const { data: rows, error } = await query.order("updated_at", { ascending: false });
+  // One parallel round trip for everything that doesn't depend on the row list (perf feedback:
+  // these used to run in series, each adding a full DB round trip to TTFB).
+  const [canCreateRes, optionRes, rowsRes] = await Promise.all([
+    current
+      ? supabase.rpc("has_permission", { uid: current.user.id, perm: "create_project" })
+      : Promise.resolve({ data: false }),
+    supabase.from("project_list_rows").select("pm_name, pm_avatar_url, client_name"),
+    query.order("updated_at", { ascending: false }),
+  ]);
+  const canCreate = canCreateRes.data;
+  const optionRows = optionRes.data;
+  const { data: rows, error } = rowsRes;
+
+  const pmAvatarByName = new Map<string, string | null>();
+  for (const r of optionRows ?? []) {
+    if (r.pm_name && !pmAvatarByName.has(r.pm_name)) pmAvatarByName.set(r.pm_name, r.pm_avatar_url);
+  }
+  const pmOptions = [...pmAvatarByName.entries()]
+    .map(([name, avatarUrl]) => ({ name, avatarUrl }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const clientOptions = distinct((optionRows ?? []).map((r) => r.client_name));
 
   // UX gating only for the inline status/health/priority editors -- InlineEditSelect renders a
   // plain badge for any row not in this set, but the real boundary is requirePermission inside
@@ -92,6 +94,14 @@ export default async function ProjectsPage({
   // covers the remaining ad-hoc-grant case (e.g. a viewer given edit_project on one project).
   const editableProjectIds = new Set<string>();
   const projectIds = (rows ?? []).map((r) => r.id).filter((id): id is string => !!id);
+  const links: ProjectRowLinks = {};
+  const progressById: Record<string, { pct: number | null; label: string }> = {};
+  let plannedHours = 0;
+
+  // All row-dependent lookups run as ONE parallel wave (they used to be three sequential
+  // waves of round trips -- the other half of the perf feedback).
+  await Promise.all([
+    (async () => {
   if (current && projectIds.length > 0) {
     if (current.role === "admin") {
       for (const id of projectIds) editableProjectIds.add(id);
@@ -116,10 +126,10 @@ export default async function ProjectsPage({
       }
     }
   }
-
+    })(),
+    (async () => {
   // Cross-link targets: the list view carries names only, so resolve client ids and the PM's
   // people-directory id here (RLS-scoped -- rows the viewer can't see simply stay unlinked).
-  const links: ProjectRowLinks = {};
   if (projectIds.length > 0) {
     const [{ data: projectRefs }, { data: peopleRefs }] = await Promise.all([
       supabase.from("projects").select("id, client_id, pm_id").in("id", projectIds),
@@ -136,10 +146,10 @@ export default async function ProjectsPage({
     }
   }
 
+    })(),
+    (async () => {
   // Derived progress for the list -- the same deriveProgress the project page uses, so the list
   // never shows the deprecated hand-typed `progress` column while the detail shows parts-derived.
-  const progressById: Record<string, { pct: number | null; label: string }> = {};
-  let plannedHours = 0;
   if (projectIds.length > 0) {
     const { data: partRows } = await supabase
       .from("project_parts")
@@ -164,6 +174,8 @@ export default async function ProjectsPage({
       progressById[id] = { pct: derived.pct, label };
     }
   }
+    })(),
+  ]);
 
   // Muted summary strip under the title: portfolio at a glance without leaving the list.
   // At-risk derives the same way the table's Health column does; budget total only renders
