@@ -2,8 +2,9 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { avatarTint } from "@/lib/avatar-tint";
+import { Badge } from "@/components/ui/badge";
 import { DotBadge } from "@/components/dot-badge";
-import { DERIVED_HEALTH_DOT, DERIVED_HEALTH_LABEL, deriveHealth, healthTitle } from "@/lib/health";
+import { DERIVED_HEALTH_BADGE_CLASS, DERIVED_HEALTH_LABEL, deriveHealth, healthTitle } from "@/lib/health";
 import {
   STATUS_DOT, formatDate, formatMoney, humanize, initials,
 } from "./types";
@@ -34,9 +35,13 @@ export function ProjectsCards({ rows }: { rows: ProjectListRow[] }) {
                     {row.name}
                   </Link>
                 </CardTitle>
-                <DotBadge dotClassName={DERIVED_HEALTH_DOT[health.level]} title={healthTitle(health)}>
+                <Badge
+                  variant="outline"
+                  className={DERIVED_HEALTH_BADGE_CLASS[health.level]}
+                  title={healthTitle(health)}
+                >
                   {DERIVED_HEALTH_LABEL[health.level]}
-                </DotBadge>
+                </Badge>
               </div>
               <p className="text-sm text-muted-foreground">{row.client_name ?? "—"}</p>
             </CardHeader>

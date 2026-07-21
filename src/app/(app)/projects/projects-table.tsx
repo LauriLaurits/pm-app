@@ -8,18 +8,20 @@ import { InlineEditSelect } from "@/components/inline-edit-select";
 import { SortableHead } from "@/components/data-table/sortable-head";
 import { useSort, type SortAccessors } from "@/components/data-table/use-sort";
 import {
-  Table, TableBody, TableCell, TableHeader, TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { DotBadge } from "@/components/dot-badge";
+import { ArrowRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { consumptionBarClasses } from "@/lib/budget";
 import { avatarTint } from "@/lib/avatar-tint";
 import { deadlineCountdown } from "@/lib/deadline";
 import {
-  DERIVED_HEALTH_DOT, DERIVED_HEALTH_LABEL, deriveHealth, healthTitle, type DerivedHealth,
+  DERIVED_HEALTH_BADGE_CLASS, DERIVED_HEALTH_LABEL, deriveHealth, healthTitle,
+  type DerivedHealth,
 } from "@/lib/health";
 import {
-  PRIORITY_INLINE_OPTIONS, STATUS_INLINE_OPTIONS,
-  formatDate, formatMoney, humanize, initials,
+  BUDGET_TYPE_CHIP_CLASS, PRIORITY_INLINE_OPTIONS, STATUS_INLINE_OPTIONS,
+  formatDate, formatMoney, formatMoneyCompact, humanize, initials,
 } from "./types";
 import type { ProjectListRow } from "./types";
 
@@ -115,6 +117,7 @@ export function ProjectsTable({
           <SortableHead label="Budget" sortKey="budget" sort={sort} onToggle={toggle} className="text-right" />
           <SortableHead label="Progress" sortKey="progress" sort={sort} onToggle={toggle} className="text-right" />
           <SortableHead label="Updated" sortKey="updated" sort={sort} onToggle={toggle} className="text-right" />
+          <TableHead aria-hidden className="w-8" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -126,9 +129,18 @@ export function ProjectsTable({
           const projectId = row.id;
           const canEdit = editable.has(projectId);
           const rowLinks = links[projectId];
+          // At-risk rows get a whisper of a left accent so attention-needing projects catch the
+          // eye while scanning -- never a colored row.
+          const level = healthById[projectId]?.level ?? "healthy";
+          const accent =
+            level === "critical"
+              ? "border-l-2 border-l-red-400/70"
+              : level === "warning"
+                ? "border-l-2 border-l-amber-400/70"
+                : "border-l-2 border-l-transparent";
           return (
-            <TableRow key={row.id}>
-              <TableCell>
+            <TableRow key={row.id} className="group">
+              <TableCell className={accent}>
                 <Link
                   href={`/projects/${row.id}`}
                   className="text-base leading-tight font-semibold hover:underline"
@@ -184,6 +196,15 @@ export function ProjectsTable({
               </TableCell>
               <TableCell className="text-right text-sm whitespace-nowrap text-muted-foreground">
                 {formatDate(row.updated_at)}
+              </TableCell>
+              <TableCell className="pr-3">
+                <Link
+                  href={`/projects/${row.id}`}
+                  aria-label={`Open ${row.name}`}
+                  className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100"
+                >
+                  <ArrowRight className="size-4" />
+                </Link>
               </TableCell>
             </TableRow>
           );
@@ -261,38 +282,53 @@ function PersonCell({
   );
 }
 
-// Lean budget cell (spent leads, everything else grays out): bold spent figure, thin severity
-// bar, "% used" under it. Total + type live in the hover title so the cell stays scannable.
+// Budget cell: pricing-model chip (mixed purple / fixed blue / hourly teal), severity bar,
+// compact "spent / total" with "% used" grayed. Full figures stay in the hover title.
 function BudgetCell({ row }: { row: ProjectListRow }) {
   const pct = consumptionPct(row);
-  const title = `${formatMoney(row.budget_used)} of ${formatMoney(row.budget_total)} · ${humanize(row.budget_type ?? "")}`;
+  const title = `${formatMoney(row.budget_used)} of ${formatMoney(row.budget_total)}`;
   return (
-    <div className="min-w-28 text-xs" title={title}>
-      <div className="text-sm font-medium tabular-nums">{formatMoney(row.budget_used)}</div>
-      {pct !== null && (
-        <>
-          <div className="mt-1 ml-auto h-1.5 w-full max-w-24 overflow-hidden rounded-full bg-muted">
-            <div
-              className={`h-full rounded-full ${consumptionBarClasses(pct)}`}
-              style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
-            />
-          </div>
-          <div className="mt-0.5 text-muted-foreground tabular-nums">{pct.toFixed(0)}% used</div>
-        </>
+    <div className="min-w-32 text-xs" title={title}>
+      {row.budget_type && (
+        <Badge
+          variant="outline"
+          className={`px-1.5 py-0 text-[10px] ${BUDGET_TYPE_CHIP_CLASS[row.budget_type]}`}
+        >
+          {humanize(row.budget_type)}
+        </Badge>
       )}
+      {pct !== null && (
+        <div className="mt-1 ml-auto h-1.5 w-full max-w-28 overflow-hidden rounded-full bg-muted">
+          <div
+            className={`h-full rounded-full ${consumptionBarClasses(pct)}`}
+            style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }}
+          />
+        </div>
+      )}
+      <div className="mt-0.5 tabular-nums whitespace-nowrap">
+        <span className="font-medium text-foreground">
+          {formatMoneyCompact(row.budget_used)} / {formatMoneyCompact(row.budget_total)}
+        </span>
+        {pct !== null && <span className="ml-1 text-muted-foreground">· {pct.toFixed(0)}% used</span>}
+      </div>
     </div>
   );
 }
 
-// Derived health badge: the dot says how bad, the second line says WHY ("due in 8 days ·
-// over budget"), so the signal is explained right where it appears.
+// Derived health badge -- the one column that stays loudly colorful (soft filled green/orange/
+// red): it's the "where is my attention needed" signal. The second line says WHY ("due in 8
+// days · over budget"), so the color is explained right where it appears.
 export function HealthBadge({ health }: { health?: DerivedHealth }) {
   if (!health) return null;
   return (
     <div className="min-w-0">
-      <DotBadge dotClassName={DERIVED_HEALTH_DOT[health.level]} title={healthTitle(health)}>
+      <Badge
+        variant="outline"
+        className={DERIVED_HEALTH_BADGE_CLASS[health.level]}
+        title={healthTitle(health)}
+      >
         {DERIVED_HEALTH_LABEL[health.level]}
-      </DotBadge>
+      </Badge>
       {health.reasons.length > 0 && (
         <div className="mt-0.5 max-w-36 truncate text-xs text-muted-foreground" title={healthTitle(health)}>
           {healthTitle(health)}
@@ -302,25 +338,26 @@ export function HealthBadge({ health }: { health?: DerivedHealth }) {
   );
 }
 
-// Progress derived from parts (done est-hours / total est-hours; part-count fallback). Same
-// lean anatomy as BudgetCell: bold leading figure, thin bar, "% done" grayed under it.
+// Progress derived from parts (done est-hours / total est-hours; part-count fallback).
+// Deliberately more visual weight than budget: a full-width blue bar, then hours + %.
 function ProgressCell({ progress }: { progress?: { pct: number | null; label: string } }) {
   if (!progress || progress.pct === null) {
     return <span className="text-xs text-muted-foreground">{progress?.label ?? "—"}</span>;
   }
   const [first, ...rest] = progress.label.split(" ");
   return (
-    <div className="min-w-28 text-xs">
-      <div className="tabular-nums text-muted-foreground">
-        <span className="text-sm font-medium text-foreground">{first}</span> {rest.join(" ")}
-      </div>
-      <div className="mt-1 ml-auto h-1.5 w-full max-w-24 overflow-hidden rounded-full bg-muted">
+    <div className="min-w-36 text-xs">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full bg-[var(--viz-series-1)]"
           style={{ width: `${Math.min(Math.max(progress.pct, 0), 100)}%` }}
         />
       </div>
-      <div className="mt-0.5 text-muted-foreground tabular-nums">{progress.pct}% done</div>
+      <div className="mt-1 tabular-nums whitespace-nowrap">
+        <span className="text-sm font-medium text-foreground">{first}</span>{" "}
+        <span className="text-muted-foreground">{rest.join(" ")}</span>
+        <span className="ml-1 text-muted-foreground">· {progress.pct}%</span>
+      </div>
     </div>
   );
 }

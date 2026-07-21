@@ -38,9 +38,31 @@ export const STATUS_DOT: Record<ProjectStatus, string> = {
   planning: "bg-muted-foreground/60",
   active: "bg-emerald-500",
   on_hold: "bg-orange-400",
-  completed: "bg-muted-foreground/60",
+  completed: "bg-blue-500",
   archived: "bg-muted-foreground/40",
 };
+
+// Budget-type chip colors (mixed purple / fixed blue / hourly teal) -- the pricing model reads
+// at a glance in the budget cell without a word of extra text weight.
+export const BUDGET_TYPE_CHIP_CLASS: Record<BudgetType, string> = {
+  mixed: "border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-400",
+  fixed: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  hourly: "border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-400",
+};
+
+// Hand-rolled (NOT Intl compact notation): Node and browsers ship different ICU data, so
+// Intl's "€8K" vs "€8.0K" caused a hydration mismatch. This is deterministic everywhere.
+export function formatMoneyCompact(amount: number | null): string {
+  if (amount === null || amount === undefined) return "—";
+  const fmt = (v: number) => {
+    const r = Math.round(v * 10) / 10;
+    return Number.isInteger(r) ? String(r) : r.toFixed(1);
+  };
+  const abs = Math.abs(amount);
+  if (abs >= 1_000_000) return `€${fmt(amount / 1_000_000)}M`;
+  if (abs >= 1_000) return `€${fmt(amount / 1_000)}K`;
+  return `€${Math.round(amount)}`;
+}
 
 export const HEALTH_BADGE_CLASS: Record<ProjectHealth, string> = {
   healthy:
@@ -53,12 +75,11 @@ export const HEALTH_BADGE_CLASS: Record<ProjectHealth, string> = {
 export const PRIORITY_OPTIONS: ProjectPriority[] = ["low", "medium", "high"];
 
 // One priority color scheme for EVERY surface (list inline chip + detail header badge must
-// match). Priority is importance, not alarm -- high is orange, never the destructive red that
-// delete buttons and critical health own; low/medium stay grayscale to keep the palette calm.
+// match): high red, medium blue, low gray -- semantic color where it drives a decision.
 export const PRIORITY_BADGE_CLASS: Record<ProjectPriority, string> = {
-  low: "border-transparent bg-transparent font-normal text-muted-foreground",
-  medium: "border-transparent bg-muted/70 font-normal text-foreground/70",
-  high: "border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-400",
+  low: "border-transparent bg-muted/70 font-normal text-muted-foreground",
+  medium: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  high: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400",
 };
 
 export function humanize(value: string) {

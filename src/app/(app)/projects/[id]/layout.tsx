@@ -11,7 +11,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { DotBadge } from "@/components/dot-badge";
-import { DERIVED_HEALTH_DOT, DERIVED_HEALTH_LABEL, deriveHealth, healthTitle } from "@/lib/health";
+import { DERIVED_HEALTH_BADGE_CLASS, DERIVED_HEALTH_LABEL, deriveHealth, healthTitle } from "@/lib/health";
 import { deriveProgress } from "@/lib/progress";
 import { PRIORITY_BADGE_CLASS, STATUS_DOT, humanize } from "../types";
 import { TabNav } from "./tab-nav";
@@ -70,9 +70,13 @@ export default async function ProjectDetailLayout({
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="text-2xl font-semibold">{project.name}</h1>
         <DotBadge dotClassName={STATUS_DOT[project.status]}>{humanize(project.status)}</DotBadge>
-        <DotBadge dotClassName={DERIVED_HEALTH_DOT[health.level]} title={healthTitle(health)}>
+        <Badge
+          variant="outline"
+          className={DERIVED_HEALTH_BADGE_CLASS[health.level]}
+          title={healthTitle(health)}
+        >
           {DERIVED_HEALTH_LABEL[health.level]}
-        </DotBadge>
+        </Badge>
         <Badge variant="outline" className={PRIORITY_BADGE_CLASS[project.priority]}>
           {humanize(project.priority)} priority
         </Badge>

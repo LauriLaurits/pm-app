@@ -127,6 +127,7 @@ export default async function ProjectsPage({
   // Derived progress for the list -- the same deriveProgress the project page uses, so the list
   // never shows the deprecated hand-typed `progress` column while the detail shows parts-derived.
   const progressById: Record<string, { pct: number | null; label: string }> = {};
+  let plannedHours = 0;
   if (projectIds.length > 0) {
     const { data: partRows } = await supabase
       .from("project_parts")
@@ -137,6 +138,7 @@ export default async function ProjectsPage({
       const list = partsByProject.get(p.project_id) ?? [];
       list.push({ status: p.status, estimated_hours: p.estimated_hours });
       partsByProject.set(p.project_id, list);
+      plannedHours += p.estimated_hours ?? 0;
     }
     for (const id of projectIds) {
       const derived = deriveProgress(partsByProject.get(id) ?? []);
@@ -193,6 +195,12 @@ export default async function ProjectsPage({
                 <>
                   <span className="mx-1.5 text-border">·</span>
                   {formatMoney(totalBudget)} budget
+                </>
+              )}
+              {plannedHours > 0 && (
+                <>
+                  <span className="mx-1.5 text-border">·</span>
+                  {Math.round(plannedHours).toLocaleString("en-US")} planned hours
                 </>
               )}
             </p>
