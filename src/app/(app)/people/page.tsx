@@ -1,28 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
-import { PeopleFilters } from "./people-filters";
+// PeopleFilters is intentionally NOT rendered: client feedback round 1 wants the whole filter
+// row (search + department/availability/skill dropdowns) hidden for now. The component file
+// stays in the tree so it can come straight back when the client changes their mind.
 import { PeopleTable } from "./people-table";
 import { PersonFormDialog } from "./person-form-dialog";
-import { utilizationClass } from "./types";
 import type { PersonListRow, PersonWorkloadRow } from "./types";
 
-type PeopleSearchParams = {
-  q?: string;
-  department?: string;
-  availability?: string;
-  skill?: string;
-};
-
-function distinct(values: (string | null)[]) {
-  return Array.from(new Set(values.filter((v): v is string => !!v))).sort();
-}
-
-export default async function PeoplePage({
-  searchParams,
-}: {
-  searchParams: Promise<PeopleSearchParams>;
-}) {
-  const params = await searchParams;
+export default async function PeoplePage() {
   const supabase = await createClient();
 
   // UX gating only -- the real security boundary is requirePermission() inside
@@ -30,35 +15,23 @@ export default async function PeoplePage({
   // has_permission server-side regardless of what's rendered here.
   const current = await getCurrentUser();
 
-  let query = supabase.from("person_workload_rows").select("*");
-  if (params.department) query = query.eq("department", params.department);
-  if (params.skill) query = query.contains("skills", [params.skill]);
-  if (params.q) {
-    // Strip PostgREST filter metacharacters so a search term can't inject predicates.
-    const term = params.q.replace(/[,()*\\]/g, " ").trim();
-    if (term) query = query.or(`full_name.ilike.%${term}%,role_title.ilike.%${term}%`);
-  }
-
   // One parallel round trip for everything independent (perf feedback: these used to run in
-  // series, each adding a full DB round trip to TTFB). The unfiltered (RLS-only) pass is just
-  // used to build the department/skill filter dropdown options from whatever this caller can
-  // actually see.
-  const [{ data: optionRows }, { data, error }, { data: canManagePeople }] = await Promise.all([
-    supabase.from("person_workload_rows").select("department, skills"),
-    query.order("full_name", { ascending: true }),
+  // series, each adding a full DB round trip to TTFB). managed_options feeds the person form's
+  // Role title / Team selects (admin-curated in Settings -> Lists).
+  const [{ data, error }, { data: canManagePeople }, { data: optionRows }] = await Promise.all([
+    supabase.from("person_workload_rows").select("*").order("full_name", { ascending: true }),
     current
       ? supabase.rpc("has_permission", { uid: current.user.id, perm: "manage_people" })
       : Promise.resolve({ data: false }),
+    supabase.from("managed_options").select("kind, value").order("sort").order("value"),
   ]);
-  const departmentOptions = distinct((optionRows ?? []).map((r) => r.department));
-  const skillOptions = distinct((optionRows ?? []).flatMap((r) => r.skills ?? []));
 
-  const workloadRows = ((data ?? []) as PersonWorkloadRow[]).filter(
-    (row) =>
-      !params.availability ||
-      utilizationClass(row.current_allocation_pct ?? 0) === params.availability
-  );
+  const roleTitleOptions = (optionRows ?? [])
+    .filter((o) => o.kind === "role_title")
+    .map((o) => o.value);
+  const teamOptions = (optionRows ?? []).filter((o) => o.kind === "team").map((o) => o.value);
 
+  const workloadRows = (data ?? []) as PersonWorkloadRow[];
   const canManage = !!canManagePeople;
 
   // person_workload_rows has no `email` column -- fetch it separately from `people` for
@@ -73,32 +46,29 @@ export default async function PeoplePage({
     .filter((r): r is PersonWorkloadRow & { id: string } => !!r.id)
     .map((r) => ({ ...r, email: emailByPersonId.get(r.id) ?? null }));
 
-  const hasFilters = Boolean(params.q || params.department || params.availability || params.skill);
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">People</h1>
-        {canManage && <PersonFormDialog />}
+        <h1 className="text-2xl font-semibold">Employees</h1>
+        {canManage && (
+          <PersonFormDialog roleTitleOptions={roleTitleOptions} teamOptions={teamOptions} />
+        )}
       </div>
 
-      <PeopleFilters departmentOptions={departmentOptions} skillOptions={skillOptions} />
-
       {error ? (
-        <p className="text-destructive">Failed to load people. Try again.</p>
+        <p className="text-destructive">Failed to load employees. Try again.</p>
       ) : rows.length === 0 ? (
-        <EmptyState hasFilters={hasFilters} />
+        <div className="rounded-xl border border-dashed p-12 text-center text-muted-foreground">
+          No employees yet.
+        </div>
       ) : (
-        <PeopleTable rows={rows} canManage={canManage} />
+        <PeopleTable
+          rows={rows}
+          canManage={canManage}
+          roleTitleOptions={roleTitleOptions}
+          teamOptions={teamOptions}
+        />
       )}
-    </div>
-  );
-}
-
-function EmptyState({ hasFilters }: { hasFilters: boolean }) {
-  return (
-    <div className="rounded-xl border border-dashed p-12 text-center text-muted-foreground">
-      {hasFilters ? "No people match your filters." : "No people yet."}
     </div>
   );
 }

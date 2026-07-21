@@ -25,7 +25,8 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Projects", href: "/projects", icon: FolderKanban },
   { label: "Clients", href: "/clients", icon: Building2 },
-  { label: "People", href: "/people", icon: Users },
+  // Client feedback round 1: user-facing name is "Employees" (route stays /people).
+  { label: "Employees", href: "/people", icon: Users },
   // comingSoon: temporarily hidden behind a "Soon" badge for the demo — flip back after.
   { label: "Workload", href: "/workload", icon: Gauge, comingSoon: true },
   { label: "Budgets", href: "/budgets", icon: Wallet, comingSoon: true },

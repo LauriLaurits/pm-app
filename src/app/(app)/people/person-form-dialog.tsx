@@ -6,17 +6,32 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
+import { cn } from "@/lib/utils";
 import { PersonForm } from "./person-form";
 import type { PersonListRow } from "./types";
 
-export function PersonFormDialog({ person }: { person?: PersonListRow }) {
+export function PersonFormDialog({
+  person,
+  roleTitleOptions,
+  teamOptions,
+  triggerClassName,
+}: {
+  person?: PersonListRow;
+  roleTitleOptions: string[];
+  teamOptions: string[];
+  triggerClassName?: string;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button size="sm" variant={person ? "ghost" : "default"} className={person ? EDIT_ACTION_CLASS : undefined} />
+          <Button
+            size="sm"
+            variant={person ? "ghost" : "default"}
+            className={person ? cn(EDIT_ACTION_CLASS, triggerClassName) : triggerClassName}
+          />
         }
       >
         {person ? "Edit" : "Add person"}
@@ -26,7 +41,12 @@ export function PersonFormDialog({ person }: { person?: PersonListRow }) {
           <DialogTitle>{person ? `Edit ${person.full_name}` : "Add person"}</DialogTitle>
           <DialogDescription>Changes are saved immediately and audited.</DialogDescription>
         </DialogHeader>
-        <PersonForm person={person} onSuccess={() => setOpen(false)} />
+        <PersonForm
+          person={person}
+          roleTitleOptions={roleTitleOptions}
+          teamOptions={teamOptions}
+          onSuccess={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );

@@ -354,3 +354,12 @@ from (values
   ('50000016-0000-4000-8000-000000000016'::uuid, 23)
 ) as v(id, img)
 where people.id = v.id;
+
+-- ===== 13. managed options (role titles + teams) =====
+-- Same backfill as migration 20260721000001_managed_options.sql -- that one runs before this
+-- file has inserted any people locally, so re-run it here for the demo dataset.
+insert into public.managed_options (kind, value)
+select distinct 'role_title', role_title from public.people where role_title is not null
+union
+select distinct 'team', department from public.people where department is not null
+on conflict (kind, value) do nothing;

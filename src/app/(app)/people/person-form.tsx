@@ -7,7 +7,9 @@ import { upsertPersonAction } from "@/app/actions/people";
 import {
   EMPLOYMENT_TYPE_OPTIONS, PERSON_STATUS_OPTIONS, personSchema, type PersonInput,
 } from "@/lib/validation/person";
-import { PersonEnumSelectField, WeeklyCapacityField } from "./person-form-fields";
+import {
+  ManagedOptionSelectField, PersonEnumSelectField, WeeklyCapacityField,
+} from "./person-form-fields";
 import type { PersonListRow } from "./types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -29,9 +31,13 @@ function toDefaults(person?: PersonListRow): PersonInput {
 
 export function PersonForm({
   person,
+  roleTitleOptions,
+  teamOptions,
   onSuccess,
 }: {
   person?: PersonListRow;
+  roleTitleOptions: string[];
+  teamOptions: string[];
   onSuccess: () => void;
 }) {
   const [serverError, setServerError] = useState<string | null>(null);
@@ -81,27 +87,18 @@ export function PersonForm({
           )}
         />
         <div className="grid grid-cols-2 gap-3">
-          <FormField
+          <ManagedOptionSelectField
             control={form.control}
             name="role_title"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Role title</FormLabel>
-                <FormControl render={<Input {...field} value={field.value ?? ""} />} />
-                <FormMessage />
-              </FormItem>
-            )}
+            label="Role title"
+            options={roleTitleOptions}
           />
-          <FormField
+          {/* Label is "Team" (client feedback round 1) -- the DB column stays `department`. */}
+          <ManagedOptionSelectField
             control={form.control}
             name="department"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Department</FormLabel>
-                <FormControl render={<Input {...field} value={field.value ?? ""} />} />
-                <FormMessage />
-              </FormItem>
-            )}
+            label="Team"
+            options={teamOptions}
           />
         </div>
         <div className="grid grid-cols-2 gap-3">

@@ -1,5 +1,9 @@
 "use client";
 
+// NOTE: currently NOT rendered anywhere. Client feedback round 1 wants the Employees list's
+// filter row (search + department/availability/skill dropdowns) hidden for now -- the file is
+// kept intact so the row can come straight back if the client changes their mind.
+
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";

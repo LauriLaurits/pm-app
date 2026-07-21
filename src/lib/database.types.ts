@@ -559,6 +559,27 @@ export type Database = {
           },
         ]
       }
+      managed_options: {
+        Row: {
+          id: string
+          kind: string
+          sort: number
+          value: string
+        }
+        Insert: {
+          id?: string
+          kind: string
+          sort?: number
+          value: string
+        }
+        Update: {
+          id?: string
+          kind?: string
+          sort?: number
+          value?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null

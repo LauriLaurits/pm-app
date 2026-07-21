@@ -7,14 +7,27 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SignOutButton } from "@/components/sign-out-button";
+import { ManagedListsCard, type ManagedOption } from "./managed-lists-card";
 
 export default async function SettingsPage() {
   const current = await requireActiveUser();
   const supabase = await createClient();
+  const isAdmin = current.role === "admin";
 
   // Session count only -- the full list/revoke UI already lives at /settings/sessions
   // (SessionsList), this just surfaces "how many" plus a link, rather than re-implementing it.
-  const { data: sessions } = await supabase.rpc("list_my_sessions");
+  // managed_options feeds the admin-only Lists card (role titles + teams for the person form).
+  const [{ data: sessions }, { data: managedOptions }] = await Promise.all([
+    supabase.rpc("list_my_sessions"),
+    isAdmin
+      ? supabase
+          .from("managed_options")
+          .select("id, kind, value")
+          .order("kind")
+          .order("sort")
+          .order("value")
+      : Promise.resolve({ data: [] as ManagedOption[] }),
+  ]);
   const sessionCount = sessions?.length ?? 0;
 
   return (
@@ -42,6 +55,8 @@ export default async function SettingsPage() {
           <ThemeToggle />
         </CardContent>
       </Card>
+
+      {isAdmin && <ManagedListsCard options={managedOptions ?? []} />}
 
       <Card>
         <CardHeader>

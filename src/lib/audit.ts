@@ -43,6 +43,8 @@ export type AuditAction =
   | "person_skill.removed"
   | "time_off.upserted"
   | "time_off.deleted"
+  | "managed_option.created"
+  | "managed_option.deleted"
   | "client.created"
   | "client.updated"
   | "client.deleted"

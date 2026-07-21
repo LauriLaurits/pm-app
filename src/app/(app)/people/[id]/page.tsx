@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { PersonWorkloadRow } from "../types";
-import { CapacitySummaryCard } from "./capacity-summary-card";
 import { CurrentProjectsCard } from "./current-projects-card";
 import { FinancialsCard } from "./financials-card";
 import { resolveLogTimeData } from "./log-time-data";
@@ -142,7 +141,7 @@ export default async function PersonDetailPage({
           />
         </div>
         <div className="space-y-4">
-          <CapacitySummaryCard person={row} />
+          {/* CapacitySummaryCard removed per client feedback round 1 (component file kept). */}
           <TimeOffCard timeOff={(timeOffRows ?? []) as TimeOffRow[]} personId={id} canManage={canManage} />
           {showFinancials && <FinancialsCard person={row} />}
         </div>
