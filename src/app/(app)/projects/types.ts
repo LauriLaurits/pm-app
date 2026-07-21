@@ -104,9 +104,11 @@ export const HEALTH_INLINE_OPTIONS: InlineEditOption[] = HEALTH_OPTIONS.map((h) 
   badgeClassName: HEALTH_BADGE_CLASS[h],
 }));
 
+// Label carries the full phrase ("High priority") so the chip reads as ONE piece -- a colored
+// "high" next to a plain gray "priority" looked broken.
 export const PRIORITY_INLINE_OPTIONS: InlineEditOption[] = PRIORITY_OPTIONS.map((p) => ({
   value: p,
-  label: humanize(p),
+  label: `${p.charAt(0).toUpperCase()}${p.slice(1)} priority`,
   badgeVariant: "outline",
   badgeClassName: PRIORITY_BADGE_CLASS[p],
 }));

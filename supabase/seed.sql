@@ -330,3 +330,26 @@ insert into public.audit_logs (actor_id, actor_email, action, resource_type, res
   ('10000001-0000-4000-8000-000000000001','admin.demo@pmcms.local','auth.login', null, null, '{}'::jsonb, now() - interval '1 day'),
   ('10000002-0000-4000-8000-000000000002','anna.pm@pmcms.local','auth.login', null, null, '{}'::jsonb, now() - interval '18 hours'),
   ('10000005-0000-4000-8000-000000000005','milo.dev@pmcms.local','auth.login', null, null, '{}'::jsonb, now() - interval '6 hours');
+
+-- ===== 12. demo avatar photos (stable placeholder portraits, one per person) =====
+-- i.pravatar.cc serves a fixed portrait per ?img=N -- deterministic, no auth, demo-only.
+update public.people set avatar_url = 'https://i.pravatar.cc/150?img=' || v.img
+from (values
+  ('50000001-0000-4000-8000-000000000001'::uuid, 47),
+  ('50000002-0000-4000-8000-000000000002'::uuid, 44),
+  ('50000003-0000-4000-8000-000000000003'::uuid, 12),
+  ('50000004-0000-4000-8000-000000000004'::uuid, 45),
+  ('50000005-0000-4000-8000-000000000005'::uuid, 13),
+  ('50000006-0000-4000-8000-000000000006'::uuid, 32),
+  ('50000007-0000-4000-8000-000000000007'::uuid, 14),
+  ('50000008-0000-4000-8000-000000000008'::uuid, 25),
+  ('50000009-0000-4000-8000-000000000009'::uuid, 15),
+  ('50000010-0000-4000-8000-000000000010'::uuid, 26),
+  ('50000011-0000-4000-8000-000000000011'::uuid, 17),
+  ('50000012-0000-4000-8000-000000000012'::uuid, 20),
+  ('50000013-0000-4000-8000-000000000013'::uuid, 18),
+  ('50000014-0000-4000-8000-000000000014'::uuid, 29),
+  ('50000015-0000-4000-8000-000000000015'::uuid, 33),
+  ('50000016-0000-4000-8000-000000000016'::uuid, 23)
+) as v(id, img)
+where people.id = v.id;

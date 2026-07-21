@@ -1,17 +1,26 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  ChevronLeft, ChevronRight, Database, Folder, Globe, Landmark, MoreHorizontal,
+  Package, Settings2, ShoppingCart, Star, Truck, Users, Wrench, type LucideIcon,
+} from "lucide-react";
 import { updateProjectFieldAction } from "@/app/actions/projects";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { InlineEditSelect } from "@/components/inline-edit-select";
 import { SortableHead } from "@/components/data-table/sortable-head";
 import { useSort, type SortAccessors } from "@/components/data-table/use-sort";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { ArrowRight, Users } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { consumptionBarClasses } from "@/lib/budget";
 import { avatarTint } from "@/lib/avatar-tint";
 import { deadlineCountdown } from "@/lib/deadline";
@@ -32,6 +41,12 @@ export type ProjectRowLinks = Record<
   { clientId: string | null; pmPersonId: string | null }
 >;
 
+/** Parts-derived progress per project, built server-side (same deriveProgress as the project
+ * page -- the stored `progress` column is deprecated and never shown). */
+export type ProgressById = Record<string, { pct: number | null; label: string }>;
+
+const PAGE_SIZE = 10;
+
 const HEALTH_RANK: Record<DerivedHealth["level"], number> = {
   healthy: 0,
   warning: 1,
@@ -43,13 +58,41 @@ function consumptionPct(row: ProjectListRow): number | null {
   return (row.budget_used / row.budget_total) * 100;
 }
 
+// Best-effort category icon from the project's name + tags (retail cart, fintech bank, ...).
+// Order matters where keywords overlap ("Data warehouse" must hit `data` before `warehouse`).
+const ICON_RULES: [RegExp, LucideIcon][] = [
+  [/(data|analytics|\bbi\b)/, Database],
+  [/(retail|shop|commerce)/, ShoppingCart],
+  [/(fin|bank|pay|kyc|invoice)/, Landmark],
+  [/(warehouse|scanner|logistics|inventory)/, Package],
+  [/(fleet|tracking|gps|transport)/, Truck],
+  [/(intranet|web|site|portal)/, Globe],
+  [/(loyalty|reward)/, Star],
+  [/(maintenance|support|crm)/, Wrench],
+];
+
+function projectIcon(name: string | null, tags?: string[] | null): LucideIcon {
+  const hay = `${name ?? ""} ${(tags ?? []).join(" ")}`.toLowerCase();
+  for (const [re, icon] of ICON_RULES) if (re.test(hay)) return icon;
+  return Folder;
+}
+
+const OPTIONAL_COLUMNS = [
+  { key: "client", label: "Client" },
+  { key: "pm", label: "PM" },
+  { key: "status", label: "Status" },
+  { key: "health", label: "Health" },
+  { key: "dates", label: "Dates" },
+  { key: "team", label: "Team" },
+  { key: "budget", label: "Budget" },
+  { key: "progress", label: "Progress" },
+  { key: "updated", label: "Updated" },
+] as const;
+type ColumnKey = (typeof OPTIONAL_COLUMNS)[number]["key"];
+
 type SortKey =
   | "name" | "client" | "pm" | "status" | "health" | "deadline"
   | "team" | "budget" | "progress" | "updated";
-
-/** Parts-derived progress per project, built server-side (same deriveProgress as the project
- * page -- the stored `progress` column is deprecated and never shown). */
-export type ProgressById = Record<string, { pct: number | null; label: string }>;
 
 export function ProjectsTable({
   rows,
@@ -61,12 +104,17 @@ export function ProjectsTable({
   /** Projects this viewer holds edit_project on -- computed server-side in page.tsx (same UX-
    * gating-only convention as every other page: the real boundary is requirePermission inside
    * updateProjectFieldAction, re-checked regardless of what's rendered here). Array (not Set)
-   * because this is now a client component and props must serialize. */
+   * because this is a client component and props must serialize. */
   editableProjectIds: string[];
   links: ProjectRowLinks;
   progressById: ProgressById;
 }) {
   const editable = useMemo(() => new Set(editableProjectIds), [editableProjectIds]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+  const [hidden, setHidden] = useState<Set<ColumnKey>>(new Set());
+  const show = (key: ColumnKey) => !hidden.has(key);
+
   // Health is derived (deadline + budget + parts progress -- see lib/health.ts), never the
   // stored hand-typed column: a flag a PM must remember to update is always stale.
   const healthById = useMemo(() => {
@@ -83,6 +131,7 @@ export function ProjectsTable({
     }
     return map;
   }, [rows, progressById]);
+
   const accessors = useMemo<SortAccessors<ProjectListRow, SortKey>>(
     () => ({
       name: (r) => r.name,
@@ -103,129 +152,264 @@ export function ProjectsTable({
     dir: "desc",
   });
 
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const pageIds = pageRows.map((r) => r.id).filter((id): id is string => !!id);
+  const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+
+  function toggleAllOnPage() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) for (const id of pageIds) next.delete(id);
+      else for (const id of pageIds) next.add(id);
+      return next;
+    });
+  }
+
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   return (
-    <Table className="[&_tbody_td]:py-4">
-      <TableHeader>
-        <TableRow>
-          <SortableHead label="Project" sortKey="name" sort={sort} onToggle={toggle} />
-          <SortableHead label="Client" sortKey="client" sort={sort} onToggle={toggle} />
-          <SortableHead label="PM" sortKey="pm" sort={sort} onToggle={toggle} />
-          <SortableHead label="Status" sortKey="status" sort={sort} onToggle={toggle} />
-          <SortableHead label="Health" sortKey="health" sort={sort} onToggle={toggle} />
-          <SortableHead label="Dates" sortKey="deadline" sort={sort} onToggle={toggle} />
-          <SortableHead label="Team" sortKey="team" sort={sort} onToggle={toggle} />
-          <SortableHead label="Budget" sortKey="budget" sort={sort} onToggle={toggle} />
-          <SortableHead label="Progress" sortKey="progress" sort={sort} onToggle={toggle} />
-          <SortableHead label="Updated" sortKey="updated" sort={sort} onToggle={toggle} />
-          <TableHead aria-hidden className="w-8" />
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {sorted.map((row) => {
-          // project_list_rows is a plain view, so every column's type is nullable even though
-          // `id` is never actually null in practice (it's the projects table's PK) -- guard so
-          // the rest of this row can treat it as a plain string.
-          if (!row.id) return null;
-          const projectId = row.id;
-          const canEdit = editable.has(projectId);
-          const rowLinks = links[projectId];
-          // At-risk rows get a whisper of a left accent so attention-needing projects catch the
-          // eye while scanning -- never a colored row.
-          const level = healthById[projectId]?.level ?? "healthy";
-          const accent =
-            level === "critical"
-              ? "border-l-2 border-l-red-400/70"
-              : level === "warning"
-                ? "border-l-2 border-l-amber-400/70"
-                : "border-l-2 border-l-transparent";
-          return (
-            <TableRow key={row.id} className="group">
-              <TableCell className={accent}>
-                <div className="flex items-center gap-3">
-                  <span
-                    aria-hidden
-                    className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-[11px] font-medium text-muted-foreground uppercase"
-                  >
-                    {initials(row.name)}
-                  </span>
-                  <div className="min-w-0">
-                    <Link
-                      href={`/projects/${row.id}`}
-                      className="text-base leading-tight font-semibold hover:underline"
-                    >
-                      {row.name}
-                    </Link>
-                    {row.priority && (
-                      <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <InlineEditSelect
-                          value={row.priority}
-                          options={PRIORITY_INLINE_OPTIONS}
-                          canEdit={canEdit}
-                          ariaLabel="project priority"
-                          onSave={updateProjectFieldAction.bind(null, projectId, "priority")}
-                        />
-                        <span>priority</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <ClientCell name={row.client_name} clientId={rowLinks?.clientId ?? null} />
-              </TableCell>
-              <TableCell>
-                <PersonCell
-                  name={row.pm_name}
-                  avatarUrl={row.pm_avatar_url}
-                  personId={rowLinks?.pmPersonId ?? null}
-                />
-              </TableCell>
-              <TableCell>
-                {row.status && (
-                  <InlineEditSelect
-                    value={row.status}
-                    options={STATUS_INLINE_OPTIONS}
-                    canEdit={canEdit}
-                    ariaLabel="project status"
-                    onSave={updateProjectFieldAction.bind(null, projectId, "status")}
-                  />
-                )}
-              </TableCell>
-              <TableCell>
-                <HealthBadge health={healthById[projectId]} />
-              </TableCell>
-              <TableCell>
-                <DatesCell start={row.start_date} deadline={row.deadline} />
-              </TableCell>
-              <TableCell>
-                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground tabular-nums">
-                  <Users className="size-3.5" />
-                  {row.member_count ?? 0}
-                </span>
-              </TableCell>
-              <TableCell>
-                <BudgetCell row={row} />
-              </TableCell>
-              <TableCell className="w-44">
-                <ProgressCell progress={progressById[projectId]} />
-              </TableCell>
-              <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
-                {formatDate(row.updated_at)}
-              </TableCell>
-              <TableCell className="pr-3">
-                <Link
-                  href={`/projects/${row.id}`}
-                  aria-label={`Open ${row.name}`}
-                  className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100"
+    <div className="space-y-2">
+      <Table className="[&_tbody_td]:py-4">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-8">
+              <Checkbox
+                checked={allOnPageSelected}
+                onCheckedChange={toggleAllOnPage}
+                aria-label="Select all projects on this page"
+              />
+            </TableHead>
+            <SortableHead label="Project" sortKey="name" sort={sort} onToggle={toggle} />
+            {show("client") && <SortableHead label="Client" sortKey="client" sort={sort} onToggle={toggle} />}
+            {show("pm") && <SortableHead label="PM" sortKey="pm" sort={sort} onToggle={toggle} />}
+            {show("status") && <SortableHead label="Status" sortKey="status" sort={sort} onToggle={toggle} />}
+            {show("health") && <SortableHead label="Health" sortKey="health" sort={sort} onToggle={toggle} />}
+            {show("dates") && <SortableHead label="Dates" sortKey="deadline" sort={sort} onToggle={toggle} />}
+            {show("team") && <SortableHead label="Team" sortKey="team" sort={sort} onToggle={toggle} />}
+            {show("budget") && <SortableHead label="Budget" sortKey="budget" sort={sort} onToggle={toggle} />}
+            {show("progress") && <SortableHead label="Progress" sortKey="progress" sort={sort} onToggle={toggle} />}
+            {show("updated") && <SortableHead label="Updated" sortKey="updated" sort={sort} onToggle={toggle} />}
+            <TableHead className="w-10 text-right">
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  aria-label="Configure columns"
+                  className="rounded p-1 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2"
                 >
-                  <ArrowRight className="size-4" />
-                </Link>
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+                  <Settings2 className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Columns</DropdownMenuLabel>
+                  {OPTIONAL_COLUMNS.map((c) => (
+                    <DropdownMenuCheckboxItem
+                      key={c.key}
+                      checked={show(c.key)}
+                      onCheckedChange={() =>
+                        setHidden((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(c.key)) next.delete(c.key);
+                          else next.add(c.key);
+                          return next;
+                        })
+                      }
+                    >
+                      {c.label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {pageRows.map((row) => {
+            // project_list_rows is a plain view, so every column's type is nullable even though
+            // `id` is never actually null in practice (it's the projects table's PK) -- guard so
+            // the rest of this row can treat it as a plain string.
+            if (!row.id) return null;
+            const projectId = row.id;
+            const canEdit = editable.has(projectId);
+            const rowLinks = links[projectId];
+            const Icon = projectIcon(row.name);
+            // At-risk rows get a whisper of a left accent so attention-needing projects catch
+            // the eye while scanning -- never a colored row.
+            const level = healthById[projectId]?.level ?? "healthy";
+            const accent =
+              level === "critical"
+                ? "border-l-2 border-l-red-400/70"
+                : level === "warning"
+                  ? "border-l-2 border-l-amber-400/70"
+                  : "border-l-2 border-l-transparent";
+            return (
+              <TableRow key={row.id} className="group">
+                <TableCell className={accent}>
+                  <Checkbox
+                    checked={selected.has(projectId)}
+                    onCheckedChange={() => toggleOne(projectId)}
+                    aria-label={`Select ${row.name}`}
+                  />
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <span
+                      aria-hidden
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-muted-foreground"
+                    >
+                      <Icon className="size-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <Link
+                        href={`/projects/${row.id}`}
+                        className="text-base leading-tight font-semibold hover:underline"
+                      >
+                        {row.name}
+                      </Link>
+                      {row.priority && (
+                        <div className="mt-0.5 text-[11px]">
+                          <InlineEditSelect
+                            value={row.priority}
+                            options={PRIORITY_INLINE_OPTIONS}
+                            canEdit={canEdit}
+                            ariaLabel="project priority"
+                            onSave={updateProjectFieldAction.bind(null, projectId, "priority")}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </TableCell>
+                {show("client") && (
+                  <TableCell>
+                    <ClientCell name={row.client_name} clientId={rowLinks?.clientId ?? null} />
+                  </TableCell>
+                )}
+                {show("pm") && (
+                  <TableCell>
+                    <PersonCell
+                      name={row.pm_name}
+                      avatarUrl={row.pm_avatar_url}
+                      personId={rowLinks?.pmPersonId ?? null}
+                    />
+                  </TableCell>
+                )}
+                {show("status") && (
+                  <TableCell>
+                    {row.status && (
+                      <InlineEditSelect
+                        value={row.status}
+                        options={STATUS_INLINE_OPTIONS}
+                        canEdit={canEdit}
+                        ariaLabel="project status"
+                        onSave={updateProjectFieldAction.bind(null, projectId, "status")}
+                      />
+                    )}
+                  </TableCell>
+                )}
+                {show("health") && (
+                  <TableCell>
+                    <HealthBadge health={healthById[projectId]} />
+                  </TableCell>
+                )}
+                {show("dates") && (
+                  <TableCell>
+                    <DatesCell start={row.start_date} deadline={row.deadline} />
+                  </TableCell>
+                )}
+                {show("team") && (
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground tabular-nums">
+                      <Users className="size-3.5" />
+                      {row.member_count ?? 0}
+                    </span>
+                  </TableCell>
+                )}
+                {show("budget") && (
+                  <TableCell>
+                    <BudgetCell row={row} />
+                  </TableCell>
+                )}
+                {show("progress") && (
+                  <TableCell className="w-44">
+                    <ProgressCell progress={progressById[projectId]} />
+                  </TableCell>
+                )}
+                {show("updated") && (
+                  <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
+                    {formatDate(row.updated_at)}
+                  </TableCell>
+                )}
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      aria-label={`Actions for ${row.name}`}
+                      className="rounded p-1 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2"
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem render={<Link href={`/projects/${projectId}`}>Open project</Link>} />
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem render={<Link href={`/projects/${projectId}/parts`}>Parts</Link>} />
+                      <DropdownMenuItem render={<Link href={`/projects/${projectId}/budget`}>Budget</Link>} />
+                      <DropdownMenuItem render={<Link href={`/projects/${projectId}/people`}>People</Link>} />
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-sm text-muted-foreground">
+        <span>
+          {selected.size > 0 && <span className="mr-3 font-medium text-foreground">{selected.size} selected</span>}
+          Showing {sorted.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1} to{" "}
+          {Math.min(currentPage * PAGE_SIZE, sorted.length)} of {sorted.length} project
+          {sorted.length === 1 ? "" : "s"}
+        </span>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => setPage(currentPage - 1)}
+              aria-label="Previous page"
+            >
+              <ChevronLeft />
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <Button
+                key={p}
+                variant={p === currentPage ? "default" : "outline"}
+                size="sm"
+                onClick={() => setPage(p)}
+              >
+                {p}
+              </Button>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === totalPages}
+              onClick={() => setPage(currentPage + 1)}
+              aria-label="Next page"
+            >
+              <ChevronRight />
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -301,13 +485,36 @@ function PersonCell({
   );
 }
 
+// Derived health badge -- the one column that stays loudly colorful (soft filled green/orange/
+// red): it's the "where is my attention needed" signal. The second line says WHY ("due in 8
+// days · over budget"), so the color is explained right where it appears.
+export function HealthBadge({ health }: { health?: DerivedHealth }) {
+  if (!health) return null;
+  return (
+    <div className="min-w-0">
+      <Badge
+        variant="outline"
+        className={DERIVED_HEALTH_BADGE_CLASS[health.level]}
+        title={healthTitle(health)}
+      >
+        <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DERIVED_HEALTH_DOT[health.level]}`} />
+        {DERIVED_HEALTH_LABEL[health.level]}
+      </Badge>
+      {health.reasons.length > 0 && (
+        <div className="mt-0.5 max-w-36 truncate text-xs text-muted-foreground" title={healthTitle(health)}>
+          {healthTitle(health)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Budget cell: pricing-model chip (mixed purple / fixed blue / hourly teal), severity bar,
-// compact "spent / total" with "% used" grayed. Full figures stay in the hover title.
+// "spent / total" with "% used" grayed.
 function BudgetCell({ row }: { row: ProjectListRow }) {
   const pct = consumptionPct(row);
-  const title = `${formatMoney(row.budget_used)} of ${formatMoney(row.budget_total)}`;
   return (
-    <div className="min-w-32 text-xs" title={title}>
+    <div className="min-w-32 text-xs">
       {row.budget_type && (
         <Badge
           variant="outline"
@@ -334,32 +541,8 @@ function BudgetCell({ row }: { row: ProjectListRow }) {
   );
 }
 
-// Derived health badge -- the one column that stays loudly colorful (soft filled green/orange/
-// red): it's the "where is my attention needed" signal. The second line says WHY ("due in 8
-// days · over budget"), so the color is explained right where it appears.
-export function HealthBadge({ health }: { health?: DerivedHealth }) {
-  if (!health) return null;
-  return (
-    <div className="min-w-0">
-      <Badge
-        variant="outline"
-        className={DERIVED_HEALTH_BADGE_CLASS[health.level]}
-        title={healthTitle(health)}
-      >
-        <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DERIVED_HEALTH_DOT[health.level]}`} />
-        {DERIVED_HEALTH_LABEL[health.level]}
-      </Badge>
-      {health.reasons.length > 0 && (
-        <div className="mt-0.5 max-w-36 truncate text-xs text-muted-foreground" title={healthTitle(health)}>
-          {healthTitle(health)}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // Progress derived from parts (done est-hours / total est-hours; part-count fallback).
-// Deliberately more visual weight than budget: a full-width blue bar, then hours + %.
+// Deliberately more visual weight than budget: a full-width blue bar with % beside it.
 function ProgressCell({ progress }: { progress?: { pct: number | null; label: string } }) {
   if (!progress || progress.pct === null) {
     return <span className="text-xs text-muted-foreground">{progress?.label ?? "—"}</span>;

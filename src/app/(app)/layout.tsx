@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -20,6 +21,15 @@ export default async function AppLayout({
 
   const isAdmin = current.role === "admin";
 
+  // Topbar avatar: the viewer's people-directory photo if they have one (RLS: view_people is
+  // global for every seeded role, and a missing row just falls back to tinted initials).
+  const supabase = await createClient();
+  const { data: me } = await supabase
+    .from("people")
+    .select("avatar_url")
+    .eq("user_id", current.user.id)
+    .maybeSingle();
+
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
@@ -35,6 +45,7 @@ export default async function AppLayout({
           <UserMenu
             name={current.profile.full_name ?? current.profile.email}
             email={current.profile.email}
+            avatarUrl={me?.avatar_url}
           />
         </header>
         <main className="flex-1 p-6">{children}</main>

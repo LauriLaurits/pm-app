@@ -7,7 +7,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { XIcon } from "lucide-react";
+import { ListFilter, XIcon } from "lucide-react";
 import {
   BUDGET_TYPE_OPTIONS, STATUS_OPTIONS, humanize,
 } from "./types";
@@ -28,6 +28,13 @@ export function ProjectFilters({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [q, setQ] = useState(searchParams.get("q") ?? "");
+  // Dropdowns start collapsed behind the Filters button (mock parity) -- but never hide a
+  // filter that's actually applied.
+  const hasDropdownFilters = ["status", "budget_type", "pm", "client"].some((k) =>
+    searchParams.get(k)
+  );
+  const [expanded, setExpanded] = useState(hasDropdownFilters);
+  const showDropdowns = expanded || hasDropdownFilters;
 
   function setParam(key: string, value: string | null) {
     const params = new URLSearchParams(searchParams.toString());
@@ -60,6 +67,17 @@ export function ProjectFilters({
         onChange={(e) => setQ(e.target.value)}
         className="w-64 rounded-full border-transparent bg-muted/60 shadow-none"
       />
+      <Button
+        variant="outline"
+        size="sm"
+        className={`rounded-full border-transparent bg-muted/60 shadow-none ${showDropdowns ? "text-foreground" : "text-muted-foreground"}`}
+        onClick={() => setExpanded((e) => !e)}
+        aria-expanded={showDropdowns}
+      >
+        <ListFilter /> Filters
+      </Button>
+      {showDropdowns && (
+      <>
       <Select
         value={searchParams.get("status") ?? ALL}
         onValueChange={(v) => setParam("status", v ?? null)}
@@ -119,6 +137,8 @@ export function ProjectFilters({
             ))}
           </SelectContent>
         </Select>
+      )}
+      </>
       )}
       {hasActiveFilters && (
         <Button variant="ghost" size="sm" onClick={clearAll}>
