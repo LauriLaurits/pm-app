@@ -38,35 +38,47 @@ export default async function ProjectBudgetPage({
   // never granted to PM/member) and must NEVER be used to render internal-cost inputs to anyone
   // else.
   const current = await getCurrentUser();
-  const [{ data: canManageBudget }, { data: canManageCost }] = current
-    ? await Promise.all([
-        supabase.rpc("has_permission", { uid: current.user.id, perm: "manage_budget", project: id }),
-        supabase.rpc("has_permission", { uid: current.user.id, perm: "view_internal_cost", project: id }),
-      ])
-    : [{ data: false }, { data: false }];
 
   // project_budget_rows / part_budget_rows are security_invoker views (migrations
   // 20260716000005 + 20260716000006): client-facing columns are null unless this caller has
   // view_budget on the project; internal cost/margin columns are null unless they ALSO have
   // view_internal_cost. Never re-derive margin from a separately fetched cost -- consume the
   // views' columns as-is, everywhere below.
-  const [{ data: budgetRow, error: budgetError }, { data: partRows }] = await Promise.all([
-    supabase.from("project_budget_rows").select("*").eq("id", id).maybeSingle(),
-    supabase.from("part_budget_rows").select("*").eq("project_id", id).order("part_name"),
-  ]);
-
+  //
   // budget_items carries its own RLS (view_budget for client-facing item types; ADDITIONALLY
   // view_internal_cost for planned_cost/actual_cost) -- so a non-finance viewer simply never
-  // gets cost-type rows back here, no extra filtering required on our part.
-  const { data: budgets } = await supabase.from("budgets").select("id").eq("project_id", id);
-  const budgetIds = (budgets ?? []).map((b) => b.id);
-  const { data: items } = budgetIds.length
-    ? await supabase
-        .from("budget_items")
-        .select("*")
-        .in("budget_id", budgetIds)
-        .order("occurred_on", { ascending: false })
-    : { data: [] as BudgetItemRow[] };
+  // gets cost-type rows back here, no extra filtering required on our part. The budgets ->
+  // budget_items chain stays sequential inside its branch (items need the budget ids), but the
+  // whole thing runs as ONE parallel wave with the permission checks and the budget/part views
+  // (perf feedback: these used to be four sequential waves of round trips).
+  const [
+    { data: canManageBudget },
+    { data: canManageCost },
+    { data: budgetRow, error: budgetError },
+    { data: partRows },
+    items,
+  ] = await Promise.all([
+    current
+      ? supabase.rpc("has_permission", { uid: current.user.id, perm: "manage_budget", project: id })
+      : Promise.resolve({ data: false }),
+    current
+      ? supabase.rpc("has_permission", { uid: current.user.id, perm: "view_internal_cost", project: id })
+      : Promise.resolve({ data: false }),
+    supabase.from("project_budget_rows").select("*").eq("id", id).maybeSingle(),
+    supabase.from("part_budget_rows").select("*").eq("project_id", id).order("part_name"),
+    (async () => {
+      const { data: budgets } = await supabase.from("budgets").select("id").eq("project_id", id);
+      const budgetIds = (budgets ?? []).map((b) => b.id);
+      const { data } = budgetIds.length
+        ? await supabase
+            .from("budget_items")
+            .select("*")
+            .in("budget_id", budgetIds)
+            .order("occurred_on", { ascending: false })
+        : { data: [] as BudgetItemRow[] };
+      return data;
+    })(),
+  ]);
 
   const parts = (partRows ?? []) as PartBudgetRow[];
   const allItems = (items ?? []) as BudgetItemRow[];

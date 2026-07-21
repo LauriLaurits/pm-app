@@ -35,10 +35,14 @@ export default async function DashboardPage({
 
   const supabase = await createClient();
 
-  const [base, latestStatusByProject, expiringCreds] = await Promise.all([
+  // fetchMonthlyHours only depends on the selected window, so it joins the first parallel wave
+  // (perf: it used to wait behind this wave for no reason). Only the cost chart stays in a second
+  // wave -- it's gated on finance visibility, which is derived from the base rows.
+  const [base, latestStatusByProject, expiringCreds, monthlyHoursRaw] = await Promise.all([
     fetchDashboardBase(supabase),
     fetchLatestStatusUpdateByProject(supabase),
     fetchExpiringCredentials(supabase),
+    fetchMonthlyHours(supabase, months),
   ]);
 
   const hasError = Boolean(base.projectsError || base.budgetError || base.workloadError);
@@ -60,10 +64,7 @@ export default async function DashboardPage({
 
   const summary = computeSummary(projects, budgetRows, people);
 
-  const [monthlyCostRaw, monthlyHoursRaw] = await Promise.all([
-    summary.finance ? fetchMonthlyActualCosts(supabase, months) : Promise.resolve(null),
-    fetchMonthlyHours(supabase, months),
-  ]);
+  const monthlyCostRaw = summary.finance ? await fetchMonthlyActualCosts(supabase, months) : null;
   const monthlyCost = monthlyCostRaw?.map((p) => ({ month: monthLabel(p.month), cost: p.cost })) ?? null;
   const monthlyHours = monthlyHoursRaw.map((p) => ({
     month: monthLabel(p.month),

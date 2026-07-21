@@ -31,24 +31,31 @@ export default async function ClientDetailPage({
     .maybeSingle<ClientRow>();
   if (!client) notFound();
 
-  // Their projects, via the same gated list view the projects screen uses.
-  const { data: projectRefs } = await supabase
-    .from("projects")
-    .select("id")
-    .eq("client_id", id);
-  const projectIds = (projectRefs ?? []).map((p) => p.id);
-  const { data: projects } = projectIds.length
-    ? await supabase
-        .from("project_list_rows")
-        .select("*")
-        .in("id", projectIds)
-        .order("updated_at", { ascending: false })
-    : { data: [] as ProjectListRow[] };
-
   const current = await getCurrentUser();
-  const { data: canManage } = current
-    ? await supabase.rpc("has_permission", { uid: current.user.id, perm: "manage_clients" })
-    : { data: false };
+
+  // The projects chain (refs -> list rows, via the same gated list view the projects screen
+  // uses) and the manage-clients permission check are independent, so they run as one parallel
+  // wave (perf feedback: these used to run in series, each adding a full DB round trip to TTFB).
+  const [projects, { data: canManage }] = await Promise.all([
+    (async () => {
+      const { data: projectRefs } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("client_id", id);
+      const projectIds = (projectRefs ?? []).map((p) => p.id);
+      const { data } = projectIds.length
+        ? await supabase
+            .from("project_list_rows")
+            .select("*")
+            .in("id", projectIds)
+            .order("updated_at", { ascending: false })
+        : { data: [] as ProjectListRow[] };
+      return data;
+    })(),
+    current
+      ? supabase.rpc("has_permission", { uid: current.user.id, perm: "manage_clients" })
+      : Promise.resolve({ data: false }),
+  ]);
 
   return (
     <div className="space-y-4">

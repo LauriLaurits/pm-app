@@ -7,17 +7,31 @@ import type { ClientListRow, ClientRow } from "./types";
 export default async function ClientsPage() {
   const supabase = await createClient();
 
-  // RLS-scoped: "view clients" grants this to project_manager + finance (global) and admin --
-  // a member/viewer simply gets zero rows back, same as every other permission-gated list in
-  // this app (see /budgets). No redirect: the page renders an empty state instead.
-  const { data, error } = await supabase.from("clients").select("*").order("name");
-  const clients = (data ?? []) as ClientRow[];
+  // UX gating only -- the real security boundary is requirePermission() inside
+  // upsertClientAction/deleteClientAction, which re-checks has_permission server-side
+  // regardless of what's rendered here.
+  const current = await getCurrentUser();
 
+  // One parallel round trip for all three independent reads (perf feedback: these used to run
+  // in series, each adding a full DB round trip to TTFB).
+  //
+  // Clients list is RLS-scoped: "view clients" grants this to project_manager + finance (global)
+  // and admin -- a member/viewer simply gets zero rows back, same as every other permission-gated
+  // list in this app (see /budgets). No redirect: the page renders an empty state instead.
+  //
   // Project counts are derived from an RLS'd read of `projects` (view_project, per-project
   // scope) rather than a raw count() -- a caller who can't see every project will undercount,
   // same caveat as project_list_rows' member_count/budget rollups. Good enough for display;
   // the actual delete-guard (deleteClientAction) relies on the DB foreign key, not this number.
-  const { data: projectRows } = await supabase.from("projects").select("client_id");
+  const [{ data, error }, { data: projectRows }, { data: canManageClients }] = await Promise.all([
+    supabase.from("clients").select("*").order("name"),
+    supabase.from("projects").select("client_id"),
+    current
+      ? supabase.rpc("has_permission", { uid: current.user.id, perm: "manage_clients" })
+      : Promise.resolve({ data: false }),
+  ]);
+  const clients = (data ?? []) as ClientRow[];
+
   const countByClientId = new Map<string, number>();
   for (const p of projectRows ?? []) {
     if (!p.client_id) continue;
@@ -28,13 +42,6 @@ export default async function ClientsPage() {
     project_count: countByClientId.get(c.id) ?? 0,
   }));
 
-  // UX gating only -- the real security boundary is requirePermission() inside
-  // upsertClientAction/deleteClientAction, which re-checks has_permission server-side
-  // regardless of what's rendered here.
-  const current = await getCurrentUser();
-  const { data: canManageClients } = current
-    ? await supabase.rpc("has_permission", { uid: current.user.id, perm: "manage_clients" })
-    : { data: false };
   const canManage = !!canManageClients;
 
   return (

@@ -38,15 +38,22 @@ export default async function PersonDetailPage({
   if (!person) notFound();
   const row = person as PersonWorkloadRow;
 
+  const viewer = await getCurrentUser();
+
   // "view assignments" / "read own time" / "view time_off" RLS already scopes each of these to
   // whatever the caller may see -- this page does not widen any of that. current_person_id()
   // also tells us if the VIEWER is on their OWN page -- the log-time form/delete controls are
-  // only ever wired in for that case (everyone else gets a read-only list).
+  // only ever wired in for that case (everyone else gets a read-only list). The manage_people
+  // check rides the same parallel wave (perf: it used to be its own round trip) -- UX gating
+  // only, the real security boundary is requirePermission("manage_people") inside
+  // upsertTimeOffAction/deleteTimeOffAction, which re-checks has_permission server-side
+  // regardless of what's rendered here. Same pattern as the People list page's canManage.
   const [
     { data: assignmentRows },
     { data: timeEntryRows },
     { data: timeOffRows },
     { data: myPersonId },
+    { data: canManagePeople },
   ] = await Promise.all([
     supabase
       .from("assignments")
@@ -65,16 +72,11 @@ export default async function PersonDetailPage({
       .eq("person_id", id)
       .order("starts_on", { ascending: false }),
     supabase.rpc("current_person_id"),
+    viewer
+      ? supabase.rpc("has_permission", { uid: viewer.user.id, perm: "manage_people" })
+      : Promise.resolve({ data: false }),
   ]);
   const isOwnPage = myPersonId === id;
-
-  // UX gating only -- the real security boundary is requirePermission("manage_people") inside
-  // upsertTimeOffAction/deleteTimeOffAction, which re-checks has_permission server-side
-  // regardless of what's rendered here. Same pattern as the People list page's canManage.
-  const viewer = await getCurrentUser();
-  const { data: canManagePeople } = viewer
-    ? await supabase.rpc("has_permission", { uid: viewer.user.id, perm: "manage_people" })
-    : { data: false };
   const canManage = !!canManagePeople;
 
   // Project names resolved via a separate `projects` query (RLS: "view project", scoped by

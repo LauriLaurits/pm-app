@@ -25,13 +25,10 @@ export default async function PeoplePage({
   const params = await searchParams;
   const supabase = await createClient();
 
-  // Unfiltered (RLS-only) pass -- just used to build the department/skill filter dropdown
-  // options from whatever this caller can actually see.
-  const { data: optionRows } = await supabase
-    .from("person_workload_rows")
-    .select("department, skills");
-  const departmentOptions = distinct((optionRows ?? []).map((r) => r.department));
-  const skillOptions = distinct((optionRows ?? []).flatMap((r) => r.skills ?? []));
+  // UX gating only -- the real security boundary is requirePermission() inside
+  // upsertPersonAction/setPersonStatusAction/deletePersonAction, which re-checks
+  // has_permission server-side regardless of what's rendered here.
+  const current = await getCurrentUser();
 
   let query = supabase.from("person_workload_rows").select("*");
   if (params.department) query = query.eq("department", params.department);
@@ -42,7 +39,19 @@ export default async function PeoplePage({
     if (term) query = query.or(`full_name.ilike.%${term}%,role_title.ilike.%${term}%`);
   }
 
-  const { data, error } = await query.order("full_name", { ascending: true });
+  // One parallel round trip for everything independent (perf feedback: these used to run in
+  // series, each adding a full DB round trip to TTFB). The unfiltered (RLS-only) pass is just
+  // used to build the department/skill filter dropdown options from whatever this caller can
+  // actually see.
+  const [{ data: optionRows }, { data, error }, { data: canManagePeople }] = await Promise.all([
+    supabase.from("person_workload_rows").select("department, skills"),
+    query.order("full_name", { ascending: true }),
+    current
+      ? supabase.rpc("has_permission", { uid: current.user.id, perm: "manage_people" })
+      : Promise.resolve({ data: false }),
+  ]);
+  const departmentOptions = distinct((optionRows ?? []).map((r) => r.department));
+  const skillOptions = distinct((optionRows ?? []).flatMap((r) => r.skills ?? []));
 
   const workloadRows = ((data ?? []) as PersonWorkloadRow[]).filter(
     (row) =>
@@ -50,13 +59,6 @@ export default async function PeoplePage({
       utilizationClass(row.current_allocation_pct ?? 0) === params.availability
   );
 
-  // UX gating only -- the real security boundary is requirePermission() inside
-  // upsertPersonAction/setPersonStatusAction/deletePersonAction, which re-checks
-  // has_permission server-side regardless of what's rendered here.
-  const current = await getCurrentUser();
-  const { data: canManagePeople } = current
-    ? await supabase.rpc("has_permission", { uid: current.user.id, perm: "manage_people" })
-    : { data: false };
   const canManage = !!canManagePeople;
 
   // person_workload_rows has no `email` column -- fetch it separately from `people` for

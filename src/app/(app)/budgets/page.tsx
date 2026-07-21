@@ -18,16 +18,19 @@ export default async function BudgetsPage({
   // populated for callers with view_budget, and internal_cost/margin/margin_pct only for callers
   // with view_internal_cost -- both already nulled by RLS before this ever reaches the server
   // component. Never re-derive margin here; only read the columns the view already gated.
-  const { data, error } = await supabase
-    .from("project_budget_rows")
-    .select("*")
-    .order("consumption_pct", { ascending: false, nullsFirst: false });
+  // Client-name -> id (second query) is for the client sublink (the budget view carries names
+  // only). RLS-scoped: viewers without the clients permission get zero rows and the names render
+  // unlinked. Both reads are independent, so they run as one parallel round trip (perf feedback:
+  // sequential awaits each added a full DB round trip to TTFB).
+  const [{ data, error }, { data: clientRefs }] = await Promise.all([
+    supabase
+      .from("project_budget_rows")
+      .select("*")
+      .order("consumption_pct", { ascending: false, nullsFirst: false }),
+    supabase.from("clients").select("id, name"),
+  ]);
 
   const rows = (data ?? []) as ProjectBudgetRow[];
-
-  // Client-name -> id for the client sublink (the budget view carries names only). RLS-scoped:
-  // viewers without the clients permission get zero rows and the names render unlinked.
-  const { data: clientRefs } = await supabase.from("clients").select("id, name");
   const clientIdByName: Record<string, string> = {};
   for (const c of clientRefs ?? []) clientIdByName[c.name] = c.id;
 
