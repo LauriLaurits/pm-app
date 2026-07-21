@@ -53,3 +53,5 @@ dev.log
 
 # Playwright MCP browser scratch dir
 .playwright-mcp/
+
+.vercel
