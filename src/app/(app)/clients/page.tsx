@@ -1,8 +1,5 @@
-import { Building2, FolderKanban, Users, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
-import { StatCard } from "@/components/stat-card";
-import { formatMoney } from "../projects/types";
 import { ClientFormDialog } from "./client-form-dialog";
 import { ClientsTable } from "./clients-table";
 import type { ClientContactRow, ClientListRow, ClientRow } from "./types";
@@ -27,15 +24,10 @@ export default async function ClientsPage() {
   // undercount, same caveat as project_list_rows' member_count/budget rollups. Good enough for
   // display; the actual delete-guard (deleteClientAction) relies on the DB foreign key, not
   // this number. Names feed the projects-badge tooltip.
-  //
-  // Budget totals come from project_list_rows (the same gated view the projects list uses):
-  // RLS nulls budget_total for viewers without view_budget, so the KPI card simply doesn't
-  // render for them -- same convention as the projects page.
   const [
     { data, error },
     { data: projectRows },
     { data: contactRows },
-    { data: budgetRows },
     { data: canManageClients },
   ] = await Promise.all([
     supabase.from("clients").select("*").order("name"),
@@ -46,7 +38,6 @@ export default async function ClientsPage() {
       .select("*")
       .order("is_primary", { ascending: false })
       .order("name"),
-    supabase.from("project_list_rows").select("id, budget_total"),
     current
       ? supabase.rpc("has_permission", { uid: current.user.id, perm: "manage_clients" })
       : Promise.resolve({ data: false }),
@@ -55,13 +46,11 @@ export default async function ClientsPage() {
 
   const projectNamesByClientId = new Map<string, string[]>();
   const activeCountByClientId = new Map<string, number>();
-  const clientIdByProjectId = new Map<string, string>();
   for (const p of projectRows ?? []) {
     if (!p.client_id) continue;
     const names = projectNamesByClientId.get(p.client_id) ?? [];
     names.push(p.name);
     projectNamesByClientId.set(p.client_id, names);
-    clientIdByProjectId.set(p.id, p.client_id);
     if (p.status === "active") {
       activeCountByClientId.set(p.client_id, (activeCountByClientId.get(p.client_id) ?? 0) + 1);
     }
@@ -80,21 +69,11 @@ export default async function ClientsPage() {
     contacts: contactsByClientId.get(c.id) ?? [],
   }));
 
-  // KPI + summary-strip rollups over the visible clients. Budget: sum of budget_total across
-  // the visible clients' projects; null (card hidden) when RLS nulled every amount.
-  const clientIds = new Set(clients.map((c) => c.id));
+  // Summary-strip rollups only -- no KPI cards here: at clients-list scale every candidate
+  // metric (client count, contact count, portfolio totals) is either visible in the list itself
+  // or belongs to the projects/budgets pages. Decoration-for-consistency was reviewed out.
   const totalContacts = rows.reduce((sum, r) => sum + r.contacts.length, 0);
   const totalActive = rows.reduce((sum, r) => sum + r.active_count, 0);
-  const visibleBudgetRows = (budgetRows ?? []).filter(
-    (b): b is { id: string; budget_total: number } => {
-      if (!b.id || b.budget_total === null) return false;
-      const clientId = clientIdByProjectId.get(b.id);
-      return !!clientId && clientIds.has(clientId);
-    }
-  );
-  const totalBudget = visibleBudgetRows.length
-    ? visibleBudgetRows.reduce((sum, b) => sum + b.budget_total, 0)
-    : null;
 
   const canManage = !!canManageClients;
 
@@ -115,17 +94,6 @@ export default async function ClientsPage() {
         </div>
         {canManage && <ClientFormDialog />}
       </div>
-
-      {rows.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard icon={Building2} label="Total clients" value={String(rows.length)} iconClass="bg-blue-500/10 text-blue-600 dark:text-blue-400" />
-          <StatCard icon={Users} label="Contacts" value={String(totalContacts)} iconClass="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" />
-          <StatCard icon={FolderKanban} label="Active projects" value={String(totalActive)} iconClass="bg-amber-500/10 text-amber-600 dark:text-amber-400" />
-          {totalBudget !== null && (
-            <StatCard icon={Wallet} label="Total budget" value={formatMoney(totalBudget)} iconClass="bg-violet-500/10 text-violet-600 dark:text-violet-400" />
-          )}
-        </div>
-      )}
 
       {error ? (
         <p className="text-destructive">Failed to load clients. Try again.</p>

@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { DotBadge } from "@/components/dot-badge";
 import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -22,13 +22,12 @@ import type { ClientContactRow, ClientListRow } from "./types";
 
 const PAGE_SIZE = 10;
 
-type SortKey = "name" | "contact" | "projects";
+type SortKey = "name" | "contact";
 
 const ACCESSORS: SortAccessors<ClientListRow, SortKey> = {
   name: (r) => r.name,
   // Rows arrive primary-first from page.tsx, so [0] is the primary contact.
   contact: (r) => r.contacts[0]?.name ?? null,
-  projects: (r) => r.active_count,
 };
 
 // The only client-side facet the schema supports (clients have no status/industry/PM fields):
@@ -51,6 +50,7 @@ function matchesQuery(row: ClientListRow, query: string): boolean {
 }
 
 export function ClientsTable({ rows, canManage }: { rows: ClientListRow[]; canManage: boolean }) {
+  const router = useRouter();
   // Client-side search (list is small): client name, any contact name, any contact email.
   const [q, setQ] = useState("");
   const [activity, setActivity] = useState<ActivityFilter>("all");
@@ -112,7 +112,6 @@ export function ClientsTable({ rows, canManage }: { rows: ClientListRow[]; canMa
               <TableRow>
                 <SortableHead label="Client" sortKey="name" sort={sort} onToggle={toggle} />
                 <SortableHead label="Contacts" sortKey="contact" sort={sort} onToggle={toggle} />
-                <SortableHead label="Projects" sortKey="projects" sort={sort} onToggle={toggle} />
                 <TableHead className="w-10 text-right">
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -120,7 +119,16 @@ export function ClientsTable({ rows, canManage }: { rows: ClientListRow[]; canMa
             </TableHeader>
             <TableBody>
               {pageRows.map((row) => (
-                <TableRow key={row.id} className="group">
+                <TableRow
+                  key={row.id}
+                  className="group cursor-pointer"
+                  onClick={(e) => {
+                    // Whole row navigates ("which client should I open next?") -- but never
+                    // when the click landed on a real control inside the row.
+                    if ((e.target as HTMLElement).closest("a, button, [role='menuitem']")) return;
+                    router.push(`/clients/${row.id}`);
+                  }}
+                >
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <span
@@ -136,19 +144,12 @@ export function ClientsTable({ rows, canManage }: { rows: ClientListRow[]; canMa
                         >
                           {row.name}
                         </Link>
-                        <div className="text-xs text-muted-foreground tabular-nums">
-                          {row.contacts.length} contact{row.contacts.length === 1 ? "" : "s"}
-                          <span className="mx-1 text-border">·</span>
-                          {row.active_count} active project{row.active_count === 1 ? "" : "s"}
-                        </div>
+                        <IdentitySubline row={row} />
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <ContactsCell contacts={row.contacts} />
-                  </TableCell>
-                  <TableCell>
-                    <ProjectsCell row={row} />
                   </TableCell>
                   <TableCell className="text-right">
                     <ClientRowActions client={row} canManage={canManage} />
@@ -203,8 +204,40 @@ export function ClientsTable({ rows, canManage }: { rows: ClientListRow[]; canMa
   );
 }
 
-// One mini-row per contact: tinted initials chip + name (role muted after it), email/phone
-// muted underneath. Primary sorts first (page.tsx orders the read).
+// The identity subline carries what used to be a whole Projects column: "N contacts · N active
+// projects", with the project names in a hover tooltip on the active-projects part.
+function IdentitySubline({ row }: { row: ClientListRow }) {
+  const activeText = (
+    <span className={row.active_count > 0 ? "text-emerald-700 dark:text-emerald-500" : undefined}>
+      {row.active_count} active project{row.active_count === 1 ? "" : "s"}
+    </span>
+  );
+  return (
+    <div className="text-xs text-muted-foreground tabular-nums">
+      {row.contacts.length} contact{row.contacts.length === 1 ? "" : "s"}
+      <span className="mx-1 text-border">·</span>
+      {row.project_names.length > 0 ? (
+        <Tooltip>
+          <TooltipTrigger render={<span aria-label={`${row.name} projects`} />}>
+            {activeText}
+          </TooltipTrigger>
+          <TooltipContent>
+            <div className="flex flex-col gap-0.5">
+              {row.project_names.map((name) => (
+                <span key={name}>{name}</span>
+              ))}
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        activeText
+      )}
+    </div>
+  );
+}
+
+// One mini-row per contact: tinted initials chip + medium-weight name, role muted after it,
+// email/phone secondary underneath. Primary sorts first (page.tsx orders the read).
 function ContactsCell({ contacts }: { contacts: ClientContactRow[] }) {
   if (contacts.length === 0) return <span className="text-muted-foreground">—</span>;
   return (
@@ -218,9 +251,9 @@ function ContactsCell({ contacts }: { contacts: ClientContactRow[] }) {
             {initials(c.name)}
           </span>
           <div className="min-w-0 leading-tight">
-            <div className="text-sm">
+            <div className="text-sm font-medium">
               {c.name}
-              {c.role && <span className="ml-1.5 text-xs text-muted-foreground">{c.role}</span>}
+              {c.role && <span className="ml-1.5 text-xs font-normal text-muted-foreground">{c.role}</span>}
             </div>
             {(c.email || c.phone) && (
               <div className="text-xs text-muted-foreground">
@@ -231,35 +264,5 @@ function ContactsCell({ contacts }: { contacts: ClientContactRow[] }) {
         </div>
       ))}
     </div>
-  );
-}
-
-// "N active" in the shared DotBadge language (emerald dot -- same as project status Active);
-// muted 0 otherwise. The hover tooltip lists every visible project name for the client.
-function ProjectsCell({ row }: { row: ClientListRow }) {
-  const badge =
-    row.active_count > 0 ? (
-      <DotBadge dotClassName="bg-emerald-500" className="tabular-nums">
-        {row.active_count} active
-      </DotBadge>
-    ) : (
-      <span className="text-sm text-muted-foreground tabular-nums">0</span>
-    );
-  if (row.project_names.length === 0) return badge;
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={<Link href={`/clients/${row.id}`} aria-label={`${row.name} projects`} />}
-      >
-        {badge}
-      </TooltipTrigger>
-      <TooltipContent>
-        <div className="flex flex-col gap-0.5">
-          {row.project_names.map((name) => (
-            <span key={name}>{name}</span>
-          ))}
-        </div>
-      </TooltipContent>
-    </Tooltip>
   );
 }
