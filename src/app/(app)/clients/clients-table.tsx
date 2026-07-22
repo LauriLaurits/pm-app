@@ -110,7 +110,8 @@ export function ClientsTable({ rows, canManage }: { rows: ClientListRow[]; canMa
           <Table className="[&_tbody_td]:py-4">
             <TableHeader>
               <TableRow>
-                <SortableHead label="Client" sortKey="name" sort={sort} onToggle={toggle} />
+                {/* Client is the page's primary focus -- it takes the wider share of the row. */}
+                <SortableHead label="Client" sortKey="name" sort={sort} onToggle={toggle} className="w-[45%]" />
                 <SortableHead label="Contacts" sortKey="contact" sort={sort} onToggle={toggle} />
                 <TableHead className="w-10 text-right">
                   <span className="sr-only">Actions</span>
@@ -133,7 +134,7 @@ export function ClientsTable({ rows, canManage }: { rows: ClientListRow[]; canMa
                     <div className="flex items-center gap-3">
                       <span
                         aria-hidden
-                        className={`flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium ${avatarTint(row.name)}`}
+                        className={`flex size-11 shrink-0 items-center justify-center rounded-lg text-sm font-medium ${avatarTint(row.name)}`}
                       >
                         {initials(row.name)}
                       </span>
@@ -250,13 +251,13 @@ function ContactsCell({ contacts }: { contacts: ClientContactRow[] }) {
           >
             {initials(c.name)}
           </span>
+          {/* Fixed three-level hierarchy so every contact block scans identically:
+              name (primary) / role (small muted) / email+phone (secondary, lighter). */}
           <div className="min-w-0 leading-tight">
-            <div className="text-sm font-medium">
-              {c.name}
-              {c.role && <span className="ml-1.5 text-xs font-normal text-muted-foreground">{c.role}</span>}
-            </div>
+            <div className="text-sm font-medium">{c.name}</div>
+            {c.role && <div className="text-xs text-muted-foreground">{c.role}</div>}
             {(c.email || c.phone) && (
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground/70">
                 {[c.email, c.phone].filter(Boolean).join(" · ")}
               </div>
             )}
