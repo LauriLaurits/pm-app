@@ -1,7 +1,5 @@
-import { Briefcase, CircleCheckBig, Gauge, Plane, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
-import { StatCard } from "@/components/stat-card";
 import { PeopleTable } from "./people-table";
 import { PersonFormDialog } from "./person-form-dialog";
 import { utilizationClass } from "./types";
@@ -72,10 +70,10 @@ export default async function PeoplePage() {
     .filter((r): r is PersonWorkloadRow & { id: string } => !!r.id)
     .map((r) => ({ ...r, email: emailByPersonId.get(r.id) ?? null }));
 
-  // KPI rollups straight off the workload view: Available = ACTIVE, under-90% utilization and
-  // not currently on vacation (a deactivated person can't take work, so they never count);
-  // Busy = full/overallocated; Away = on vacation today (derived, same as the table's Away
-  // status); Contractors = external engagement types.
+  // Summary-strip rollups only -- no KPI cards here, same call as the clients list: at this
+  // scale every candidate metric is already visible in the table itself (workload bars, Away
+  // badges, type chips), so cards were decoration. Available = ACTIVE, under-90% utilization
+  // and not currently on vacation; Busy = full/overallocated; Away = on vacation today.
   const util = (r: PersonListRow) => utilizationClass(r.current_allocation_pct ?? 0);
   const availableCount = rows.filter(
     (r) =>
@@ -85,9 +83,6 @@ export default async function PeoplePage() {
   ).length;
   const busyCount = rows.filter((r) => util(r) === "full" || util(r) === "overallocated").length;
   const awayCount = rows.filter((r) => r.on_vacation_now).length;
-  const contractorCount = rows.filter(
-    (r) => r.employment_type === "contractor" || r.employment_type === "freelance"
-  ).length;
 
   // Role filter options come from the values actually present in the visible list (the
   // managed_options list above is the FORM's curated vocabulary, not a filter facet).
@@ -114,16 +109,6 @@ export default async function PeoplePage() {
           <PersonFormDialog roleTitleOptions={roleTitleOptions} teamOptions={teamOptions} />
         )}
       </div>
-
-      {rows.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-          <StatCard icon={Users} label="Total employees" value={String(rows.length)} iconClass="bg-blue-500/10 text-blue-600 dark:text-blue-400" />
-          <StatCard icon={CircleCheckBig} label="Available" value={String(availableCount)} iconClass="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" />
-          <StatCard icon={Gauge} label="Busy" value={String(busyCount)} iconClass="bg-amber-500/10 text-amber-600 dark:text-amber-400" />
-          <StatCard icon={Plane} label="Away" value={String(awayCount)} iconClass="bg-violet-500/10 text-violet-600 dark:text-violet-400" />
-          <StatCard icon={Briefcase} label="Contractors" value={String(contractorCount)} iconClass="bg-teal-500/10 text-teal-600 dark:text-teal-400" />
-        </div>
-      )}
 
       {error ? (
         <p className="text-destructive">Failed to load employees. Try again.</p>

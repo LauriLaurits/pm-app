@@ -412,12 +412,13 @@ function PersonCell({ row }: { row: PersonListRow }) {
   );
 }
 
-// Green Active / red Deactivated stay inline-editable; "Away" (currently on vacation) is a
-// derived state, so it renders as a plain amber DotBadge instead of the select.
+// Green Active / red Deactivated stay inline-editable. "Away" (currently on vacation) is a
+// derived state layered ON TOP of the stored status, so the amber badge renders above the
+// select rather than replacing it -- the underlying status must stay editable while someone
+// is on vacation.
 function StatusCell({ row, canManage }: { row: PersonListRow; canManage: boolean }) {
-  if (row.on_vacation_now) return <DotBadge dotClassName="bg-amber-400">Away</DotBadge>;
   if (!row.status) return <Badge variant="outline">—</Badge>;
-  return (
+  const select = (
     <InlineEditSelect
       // Keyed by status: InlineEditSelect seeds its optimistic state from `value` once, so an
       // EXTERNAL status change (the row menu's Deactivate/Activate) must remount it to re-sync.
@@ -428,6 +429,13 @@ function StatusCell({ row, canManage }: { row: PersonListRow; canManage: boolean
       ariaLabel={`${row.full_name} status`}
       onSave={(value) => setPersonStatusAction(row.id, value as "active" | "inactive")}
     />
+  );
+  if (!row.on_vacation_now) return select;
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <DotBadge dotClassName="bg-amber-400">Away</DotBadge>
+      {select}
+    </div>
   );
 }
 
