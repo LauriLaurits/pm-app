@@ -45,75 +45,65 @@ export default async function ProjectPeoplePage({
 
   const userIds = [...new Set((members ?? []).map((m) => m.user_id))];
 
-  // Row-dependent lookups run as one parallel wave: the names -> allocations chain (allocations
-  // need the person ids resolved from names) and the manager-only candidate list are independent
-  // of each other.
-  let peopleRows: { id: string; user_id: string | null; full_name: string; avatar_url: string | null }[] = [];
-  const allocationByPersonId = new Map<string, number>();
-  let candidates: CandidateOption[] = [];
-  await Promise.all([
-    (async () => {
-      // Names resolved via `people` (RLS: view_people, granted globally to every seeded role) --
-      // same precedent as Overview's pm/owner names and the Parts tab's responsible person.
-      const { data } = userIds.length
-        ? await supabase.from("people").select("id, user_id, full_name, avatar_url").in("user_id", userIds)
-        : { data: [] as { id: string; user_id: string | null; full_name: string; avatar_url: string | null }[] };
-      peopleRows = data ?? [];
-      const personIds = peopleRows.map((p) => p.id);
-
-      // Allocation % from `assignments`, summed per person across every part of this project.
-      const { data: assignments } = personIds.length
-        ? await supabase
-            .from("assignments")
-            .select("person_id, allocation_pct")
-            .eq("project_id", id)
-            .in("person_id", personIds)
-        : { data: [] as { person_id: string; allocation_pct: number }[] };
-      for (const a of assignments ?? []) {
-        allocationByPersonId.set(a.person_id, (allocationByPersonId.get(a.person_id) ?? 0) + a.allocation_pct);
-      }
-    })(),
-    (async () => {
-      // Candidates for the "Manage members" checklist -- every person with a linked user_id
-      // (project_members.user_id -> user_profiles, required to be addable at all), whether or not
-      // they're already a member: the checklist shows everyone with their current membership as the
-      // checkbox state, rather than only offering not-yet-added people like the old "Add member"
-      // picker did. Only fetched for managers.
-      if (canManageMembers) {
-        const memberIdByUserId = new Map((members ?? []).map((m) => [m.user_id, m.id]));
-        const { data: allPeople } = await supabase
+  // Row-dependent lookups in one parallel wave: names, plus the manager-only candidate list.
+  // NOTE: allocation (assignments) is deliberately NOT fetched here any more -- the plumbing
+  // stays in the DB because the workload views read it, but the Team tab no longer shows or
+  // writes it (client feedback: days/week is gone from this tab).
+  const [{ data: peopleRows }, { data: allPeople }] = await Promise.all([
+    // Names resolved via `people` (RLS: view_people, granted globally to every seeded role) --
+    // same precedent as Overview's pm/owner names and the Parts tab's responsible person.
+    userIds.length
+      ? supabase.from("people").select("id, user_id, full_name, avatar_url").in("user_id", userIds)
+      : Promise.resolve({
+          data: [] as { id: string; user_id: string | null; full_name: string; avatar_url: string | null }[],
+        }),
+    // Candidates for the add-person picker -- every person with a linked user_id
+    // (project_members.user_id -> user_profiles, required to be addable at all), whether or not
+    // they're already a member; first-add UIs filter to memberId === null, additional periods
+    // for existing members go through the per-row "Add period" action. Only fetched for managers.
+    canManageMembers
+      ? supabase
           .from("people")
           .select("user_id, full_name, avatar_url")
           .not("user_id", "is", null)
-          .order("full_name");
-        candidates = (allPeople ?? [])
-          .filter((p): p is { user_id: string; full_name: string; avatar_url: string | null } => !!p.user_id)
-          .map((p) => ({
-            user_id: p.user_id,
-            full_name: p.full_name,
-            avatar_url: p.avatar_url,
-            memberId: memberIdByUserId.get(p.user_id) ?? null,
-          }));
-      }
-    })(),
+          .order("full_name")
+      : Promise.resolve({ data: [] as { user_id: string | null; full_name: string; avatar_url: string | null }[] }),
   ]);
-  const personByUserId = new Map(peopleRows.map((p) => [p.user_id, p]));
 
-  const memberRows: MemberRow[] = (members ?? []).map((m: ProjectMemberRow) => {
-    const person = personByUserId.get(m.user_id);
-    return {
-      ...m,
-      full_name: person?.full_name ?? null,
-      avatar_url: person?.avatar_url ?? null,
-      allocation_pct: person ? allocationByPersonId.get(person.id) ?? null : null,
-      person_id: person?.id ?? null,
-    };
-  });
+  const memberIdByUserId = new Map((members ?? []).map((m) => [m.user_id, m.id]));
+  const candidates: CandidateOption[] = (allPeople ?? [])
+    .filter((p): p is { user_id: string; full_name: string; avatar_url: string | null } => !!p.user_id)
+    .map((p) => ({
+      user_id: p.user_id,
+      full_name: p.full_name,
+      avatar_url: p.avatar_url,
+      memberId: memberIdByUserId.get(p.user_id) ?? null,
+    }));
+
+  const personByUserId = new Map((peopleRows ?? []).map((p) => [p.user_id, p]));
+
+  // One row per membership PERIOD (a person can appear several times since member periods),
+  // sorted by person then starts_on -- undated periods first, they read as "since the start".
+  const memberRows: MemberRow[] = (members ?? [])
+    .map((m: ProjectMemberRow) => {
+      const person = personByUserId.get(m.user_id);
+      return {
+        ...m,
+        full_name: person?.full_name ?? null,
+        avatar_url: person?.avatar_url ?? null,
+        person_id: person?.id ?? null,
+      };
+    })
+    .sort(
+      (a, b) =>
+        (a.full_name ?? "").localeCompare(b.full_name ?? "") ||
+        (a.starts_on ?? "").localeCompare(b.starts_on ?? "")
+    );
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">People</h2>
+        <h2 className="text-lg font-semibold">Team</h2>
         {canManageMembers && (
           <AddPersonDialog
             projectId={id}

@@ -1,7 +1,5 @@
 import Link from "next/link";
 import { updateMemberRoleAction } from "@/app/actions/project-members";
-import { setPersonAllocationAction } from "@/app/actions/project-people";
-import { pctToDays } from "@/lib/allocation";
 import { avatarTint } from "@/lib/avatar-tint";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InlineEditText } from "@/components/inline-edit-text";
@@ -9,10 +7,15 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { formatDate, initials } from "../../types";
+import { AddPeriodDialog } from "./add-period-dialog";
 import { MemberRemoveButton } from "./member-actions";
 import { MemberEditDialog } from "./member-edit-dialog";
 import type { MemberRow } from "./types";
 
+// One row per membership PERIOD -- the same person can appear several times (member periods),
+// so the name/avatar cell repeating is expected. Allocation deliberately has no column here:
+// assignments/workload plumbing stays in the DB (workload reads it) but this tab no longer
+// shows or writes it.
 export function MembersTable({
   members,
   projectId,
@@ -31,8 +34,7 @@ export function MembersTable({
       <TableHeader>
         <TableRow>
           <TableHead>Name</TableHead>
-          <TableHead>Role on project</TableHead>
-          <TableHead>Allocation (days/wk)</TableHead>
+          <TableHead>Role</TableHead>
           <TableHead>Starts</TableHead>
           <TableHead>Ends</TableHead>
           {canManage && <TableHead className="text-right">Actions</TableHead>}
@@ -62,28 +64,16 @@ export function MembersTable({
               <InlineEditText
                 value={member.role_on_project}
                 canEdit={canManage}
-                ariaLabel="role on project"
+                ariaLabel="role"
                 onSave={updateMemberRoleAction.bind(null, projectId, member.id)}
               />
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center gap-1">
-                <InlineEditText
-                  value={member.allocation_pct != null ? String(pctToDays(member.allocation_pct)) : ""}
-                  canEdit={canManage}
-                  ariaLabel="allocation days per week"
-                  placeholder={canManage ? "Set days" : "—"}
-                  className={canManage ? "underline decoration-dotted underline-offset-4" : undefined}
-                  onSave={setPersonAllocationAction.bind(null, projectId, member.user_id)}
-                />
-                {member.allocation_pct != null && <span className="text-muted-foreground">days/wk</span>}
-              </div>
             </TableCell>
             <TableCell>{formatDate(member.starts_on)}</TableCell>
             <TableCell>{formatDate(member.ends_on)}</TableCell>
             {canManage && (
               <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-2">
+                  <AddPeriodDialog projectId={projectId} member={member} />
                   <MemberEditDialog projectId={projectId} member={member} />
                   <MemberRemoveButton projectId={projectId} member={member} />
                 </div>

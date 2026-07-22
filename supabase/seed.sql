@@ -130,17 +130,27 @@ insert into public.project_members (project_id, user_id, role_on_project) values
   ('30000003-0000-4000-8000-000000000003','10000005-0000-4000-8000-000000000005','backend'),
   ('30000004-0000-4000-8000-000000000004','10000005-0000-4000-8000-000000000005','support');
 
+-- Milo also had an EARLIER, closed stint on the Retail replatform — one person, several
+-- membership periods per project (20260722000001_member_periods.sql dropped the unique
+-- constraint precisely for this: "arendaja tuleb ja läheb"). Demo shows two Team-tab rows.
+insert into public.project_members (project_id, user_id, role_on_project, starts_on, ends_on) values
+  ('30000001-0000-4000-8000-000000000001','10000005-0000-4000-8000-000000000005','discovery support', current_date-90, current_date-70);
+
 -- every project's PM is also a project_members row -- the same "PM isn't a member of their
 -- own project" fix createProjectAction now applies to every new project, backfilled here for
 -- this seed data too (mirrors 20260716000007_backfill_pm_members.sql, which only backfills
 -- pre-existing production data since it runs before this seed file during `db reset`). No
 -- synthetic `assignments` row: that previously inflated a PM's workload allocation by 100% per
 -- owned project; "log own time" now accepts membership OR assignment, so this alone suffices.
+-- WHERE NOT EXISTS (not ON CONFLICT): the unique (project_id, user_id) constraint is gone
+-- (member periods), so idempotency has to be spelled out.
 insert into public.project_members (project_id, user_id, role_on_project)
 select p.id, p.pm_id, 'Project Manager'
 from public.projects p
 where p.pm_id is not null
-on conflict (project_id, user_id) do nothing;
+  and not exists (
+    select 1 from public.project_members m
+    where m.project_id = p.id and m.user_id = p.pm_id);
 
 -- viewer Vera: explicit read grant on one project (temporary, 30 days)
 insert into public.user_project_permissions (user_id, project_id, permission_key, granted_by, expires_at) values

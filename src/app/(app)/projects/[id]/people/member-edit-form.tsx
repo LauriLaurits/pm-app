@@ -60,7 +60,7 @@ export function MemberEditForm({
           name="role_on_project"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Role on project</FormLabel>
+              <FormLabel>Role</FormLabel>
               <FormControl render={<Input {...field} value={field.value ?? ""} placeholder="e.g. backend lead" />} />
               <FormMessage />
             </FormItem>

@@ -185,15 +185,26 @@ export async function editProjectAction(
   // Auto-add a newly-assigned PM as a project_member, mirroring createProjectAction's
   // auto-add-self-as-member logic, so a reassigned PM isn't locked out of their own project
   // (the "PM isn't a member" gap). Best-effort: a failure here must not fail the whole edit,
-  // since the project update itself already committed successfully. Ignores 23505 (already
-  // a member) silently.
+  // since the project update itself already committed successfully. Dedupe is an explicit
+  // existence check now -- member periods (20260722000001) dropped the unique
+  // (project_id, user_id) constraint, so the old rely-on-23505 approach would silently stack
+  // duplicate "Project Manager" periods on every reassignment.
   if (parsed.data.pm_id && before && before.pm_id !== parsed.data.pm_id) {
     try {
-      const { error: memberError } = await supabase
+      const { data: existing } = await supabase
         .from("project_members")
-        .insert({ project_id: projectId, user_id: parsed.data.pm_id, role_on_project: "Project Manager" });
-      if (memberError && memberError.code !== "23505") {
-        console.error("auto-add new PM as project member failed:", memberError.message);
+        .select("id")
+        .eq("project_id", projectId)
+        .eq("user_id", parsed.data.pm_id)
+        .limit(1)
+        .maybeSingle();
+      if (!existing) {
+        const { error: memberError } = await supabase
+          .from("project_members")
+          .insert({ project_id: projectId, user_id: parsed.data.pm_id, role_on_project: "Project Manager" });
+        if (memberError) {
+          console.error("auto-add new PM as project member failed:", memberError.message);
+        }
       }
     } catch (e) {
       console.error("auto-add new PM as project member failed:", e);

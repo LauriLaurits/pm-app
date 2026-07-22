@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(10);
 
 -- fixtures: PM Priya (manages the project), member Mike (linked to a person row)
 insert into auth.users (id, instance_id, aud, role, email, raw_user_meta_data, raw_app_meta_data, encrypted_password, created_at, updated_at) values
@@ -57,7 +57,15 @@ select is(
   (select count(*)::int from public.assignments
    where project_id='e2000000-0000-4000-8000-000000000001' and person_id='e4000000-0000-4000-8000-000000000002' and project_part_id is null),
   1,
-  'adding again updates the same assignment (no duplicate)');
+  'adding again still consolidates to one assignment (no duplicate allocation)');
+
+-- Member periods (20260722000001): the unique (project_id, user_id) constraint is gone, so a
+-- second add creates a SECOND membership period rather than upserting the first.
+select is(
+  (select count(*)::int from public.project_members
+   where project_id='e2000000-0000-4000-8000-000000000001' and user_id='e0000000-0000-4000-8000-000000000002'),
+  2,
+  'adding again creates a second membership period');
 
 select public.set_person_allocation('e2000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-000000000002', 30);
 select is(

@@ -8,8 +8,8 @@ import type { PersonRef } from "./types";
 import type { ProjectRow } from "./types";
 
 // Details + people in one card (progress and deadline moved to the header strip so they aren't
-// repeated). "Details" is the standing description of the project; the header answers "where does
-// it stand right now".
+// repeated; the description now lives at the title level in the detail layout, so it isn't
+// repeated here either). The header answers "where does it stand right now".
 export function OverviewDetailsCard({
   project,
   pm,
@@ -32,11 +32,7 @@ export function OverviewDetailsCard({
         {editAction && <CardAction>{editAction}</CardAction>}
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-foreground">
-          {project.description ?? <span className="text-muted-foreground">No description.</span>}
-        </p>
-
-        <div className="space-y-3 border-t pt-3">
+        <div className="space-y-3">
           <PersonRow label="Project manager" person={pm} />
           <PersonRow label="Owner" person={owner} />
           {project.client_id && (

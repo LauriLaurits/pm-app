@@ -9,8 +9,9 @@ import {
 import { AddPersonForm } from "./add-person-form";
 import type { CandidateOption } from "./types";
 
-// One step: pick a person, set their allocation, done. Writes access + allocation together; the
-// allocation feeds the Workload view.
+// First-add flow: pick a not-yet-added person, set role + period dates, done. Additional
+// periods for someone already on the project go through the per-row "Add period" action
+// (AddPeriodDialog) instead, which reuses the same form with the person locked.
 export function AddPersonDialog({
   projectId,
   candidates,

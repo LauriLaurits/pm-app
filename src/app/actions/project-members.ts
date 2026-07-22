@@ -25,14 +25,13 @@ export async function addMemberAction(
   if (!parsed.success) return { error: "Invalid member details." };
 
   const supabase = await createClient();
+  // Plain insert -- since member periods (20260722000001) there is no unique
+  // (project_id, user_id) constraint: inserting an existing member again is legal and simply
+  // creates an ADDITIONAL membership period for them.
   const { error } = await supabase
     .from("project_members")
     .insert({ project_id: projectId, ...parsed.data });
-  if (error) {
-    // unique (project_id, user_id) — a friendlier message than the raw constraint error.
-    if (error.code === "23505") return { error: "That person is already a member of this project." };
-    return { error: "Add failed. Try again." };
-  }
+  if (error) return { error: "Add failed. Try again." };
 
   await writeAudit({
     action: "member.added",
@@ -101,6 +100,8 @@ export async function updateMemberRoleAction(
   return updateMemberAction(projectId, memberId, { role_on_project: role });
 }
 
+/** Removes ONE membership period by its project_members row id -- with member periods a person
+ * can hold several rows on a project, and this only ever touches the row it was given. */
 export async function removeMemberAction(
   projectId: string,
   memberId: number
