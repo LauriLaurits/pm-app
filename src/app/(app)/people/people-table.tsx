@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, XIcon } from "lucide-react";
 import { setPersonStatusAction } from "@/app/actions/people";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -130,6 +131,7 @@ export function PeopleTable({
   /** Visible active-project names per person (RLS-scoped -- may list fewer than the count). */
   projectNamesByPersonId: Record<string, string[]>;
 }) {
+  const router = useRouter();
   // Client-side search + facets (list is small): name/role text, derived status, role title,
   // employment type, weekly capacity.
   const [q, setQ] = useState("");
@@ -302,7 +304,17 @@ export function PeopleTable({
             </TableHeader>
             <TableBody>
               {pageRows.map((row) => (
-                <TableRow key={row.id} className="group">
+                <TableRow
+                  key={row.id}
+                  className="group cursor-pointer"
+                  onClick={(e) => {
+                    // Whole row navigates ("who should I open next?") -- but never when the
+                    // click landed on a real control inside the row (same guard as the
+                    // clients list).
+                    if ((e.target as HTMLElement).closest("a, button, [role='menuitem']")) return;
+                    router.push(`/people/${row.id}`);
+                  }}
+                >
                   <TableCell>
                     <PersonCell row={row} />
                   </TableCell>

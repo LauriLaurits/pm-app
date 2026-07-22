@@ -7,15 +7,36 @@ import { FinancialsCard } from "./financials-card";
 import { resolveLogTimeData } from "./log-time-data";
 import { LogTimeDialog } from "./log-time-dialog";
 import { PersonHeader } from "./person-header";
+import { PersonSummaryStrip } from "./person-summary-strip";
+import { RecentActivityCard } from "./recent-activity-card";
 import { RecentHoursCard } from "./recent-hours-card";
 import { TimeOffCard } from "./time-off-card";
 import type {
+  ActivityItem,
   AssignedProjectOption,
   AssignmentWithProject,
+  CurrentProjectItem,
   PartOption,
+  ProjectStatus,
   TimeEntryWithProject,
   TimeOffRow,
 } from "./types";
+
+type ProjectJoinRow = {
+  id: string;
+  name: string;
+  status: ProjectStatus;
+  start_date: string | null;
+  deadline: string | null;
+  pm_id: string | null;
+};
+
+type MemberPeriodRow = {
+  project_id: string;
+  role_on_project: string | null;
+  starts_on: string | null;
+  ends_on: string | null;
+};
 
 export default async function PersonDetailPage({
   params,
@@ -47,12 +68,15 @@ export default async function PersonDetailPage({
   // only, the real security boundary is requirePermission("manage_people") inside
   // upsertTimeOffAction/deleteTimeOffAction, which re-checks has_permission server-side
   // regardless of what's rendered here. Same pattern as the People list page's canManage.
+  // The `people` read only fetches the person's linked user_id (needed to resolve their
+  // project_members rows and audit trail) -- same view_people RLS as the row above.
   const [
     { data: assignmentRows },
     { data: timeEntryRows },
     { data: timeOffRows },
     { data: myPersonId },
     { data: canManagePeople },
+    { data: personLink },
   ] = await Promise.all([
     supabase
       .from("assignments")
@@ -74,24 +98,53 @@ export default async function PersonDetailPage({
     viewer
       ? supabase.rpc("has_permission", { uid: viewer.user.id, perm: "manage_people" })
       : Promise.resolve({ data: false }),
+    supabase.from("people").select("user_id").eq("id", id).maybeSingle(),
   ]);
   const isOwnPage = myPersonId === id;
   const canManage = !!canManagePeople;
+  const linkedUserId = personLink?.user_id ?? null;
 
-  // Project names resolved via a separate `projects` query (RLS: "view project", scoped by
+  // Project fields resolved via a separate `projects` query (RLS: "view project", scoped by
   // has_permission(..., 'view_project', id)) rather than a nested select on assignments/
   // time_entries -- same precedent as pm/owner names on the Project Overview tab and member
   // names on the Project People tab: a caller who can see the assignment row but lacks
-  // view_project on that specific project gets a missing name here rather than a join error.
+  // view_project on that specific project gets missing fields here rather than a join error.
+  // project_members (the person's role/periods per project) and audit_logs (view_audit-gated:
+  // non-holders silently get zero rows and the Recent activity card never renders) only depend
+  // on wave-1 results, so they ride the same round trip.
   const projectIds = [
     ...new Set([
       ...(assignmentRows ?? []).map((a) => a.project_id),
       ...(timeEntryRows ?? []).map((t) => t.project_id),
     ]),
   ];
-  const { data: projectRows } = projectIds.length
-    ? await supabase.from("projects").select("id, name").in("id", projectIds)
-    : { data: [] as { id: string; name: string }[] };
+  const auditFilter = [
+    `resource_id.eq.${id}`,
+    `metadata->>person_id.eq.${id}`,
+    ...(linkedUserId ? [`actor_id.eq.${linkedUserId}`, `metadata->>user_id.eq.${linkedUserId}`] : []),
+  ].join(",");
+  const [{ data: projectRows }, { data: memberRows }, { data: auditRows }] = await Promise.all([
+    projectIds.length
+      ? supabase
+          .from("projects")
+          .select("id, name, status, start_date, deadline, pm_id")
+          .in("id", projectIds)
+      : Promise.resolve({ data: [] as ProjectJoinRow[] }),
+    linkedUserId && projectIds.length
+      ? supabase
+          .from("project_members")
+          .select("project_id, role_on_project, starts_on, ends_on")
+          .eq("user_id", linkedUserId)
+          .in("project_id", projectIds)
+      : Promise.resolve({ data: [] as MemberPeriodRow[] }),
+    supabase
+      .from("audit_logs")
+      .select("id, action, created_at")
+      .or(auditFilter)
+      .order("created_at", { ascending: false })
+      .limit(8),
+  ]);
+  const projectById = new Map((projectRows ?? []).map((p) => [p.id, p as ProjectJoinRow]));
   const projectNameById = new Map((projectRows ?? []).map((p) => [p.id, p.name]));
 
   const assignments: AssignmentWithProject[] = (assignmentRows ?? []).map((a) => ({
@@ -110,6 +163,59 @@ export default async function PersonDetailPage({
   const upcoming = assignments.filter((a) => a.start_date > today);
   const past = assignments.filter((a) => a.end_date && a.end_date < today);
 
+  // PM names resolve through `people` (view_people, granted globally) rather than a
+  // user_profiles join -- same precedent as the Project Overview tab. Depends on the projects
+  // read above, so it can't join that wave.
+  const pmIds = [
+    ...new Set(
+      current
+        .map((a) => projectById.get(a.project_id)?.pm_id)
+        .filter((v): v is string => !!v)
+    ),
+  ];
+  const { data: pmRows } = pmIds.length
+    ? await supabase.from("people").select("user_id, full_name").in("user_id", pmIds)
+    : { data: [] as { user_id: string | null; full_name: string }[] };
+  const pmNameByUserId = new Map((pmRows ?? []).map((p) => [p.user_id, p.full_name]));
+
+  const membershipsByProject = new Map<string, MemberPeriodRow[]>();
+  for (const m of (memberRows ?? []) as MemberPeriodRow[]) {
+    const list = membershipsByProject.get(m.project_id) ?? [];
+    list.push(m);
+    membershipsByProject.set(m.project_id, list);
+  }
+
+  const capacity = row.weekly_capacity_hours ?? 0;
+  const currentProjects: CurrentProjectItem[] = current.map((a) => {
+    const project = projectById.get(a.project_id);
+    const memberships = membershipsByProject.get(a.project_id) ?? [];
+    return {
+      assignmentId: a.id,
+      projectId: a.project_id,
+      projectName: project?.name ?? null,
+      projectStatus: project?.status ?? null,
+      projectStart: project?.start_date ?? null,
+      projectDeadline: project?.deadline ?? null,
+      pmName: project?.pm_id ? (pmNameByUserId.get(project.pm_id) ?? null) : null,
+      // The person's role on the project: the membership row is authoritative when visible,
+      // the assignment's own role_on_project is the fallback.
+      roleOnProject:
+        memberships.find((m) => m.role_on_project)?.role_on_project ?? a.role_on_project,
+      allocationPct: a.allocation_pct,
+      allocatedHours:
+        capacity > 0 ? Math.round((a.allocation_pct / 100) * capacity * 10) / 10 : null,
+      membershipPeriods: memberships.map((m) => ({ starts_on: m.starts_on, ends_on: m.ends_on })),
+    };
+  });
+
+  // Next relevant absence for the summary strip: ends_on >= today includes one in progress --
+  // an assigning PM cares that the person is away NOW, not only about entries that haven't
+  // started yet. (Rows arrive newest-first, so re-sort ascending and take the earliest.)
+  const nextTimeOff =
+    (timeOffRows ?? [])
+      .filter((t) => t.ends_on >= today)
+      .sort((a, b) => a.starts_on.localeCompare(b.starts_on))[0] ?? null;
+
   // Log-time picker data (own page only) -- projects the viewer is a member of OR assigned to,
   // matching the widened "log own time" RLS policy (see log-time-data.ts).
   const { assignedProjects, partsByProject } = isOwnPage && viewer
@@ -121,13 +227,24 @@ export default async function PersonDetailPage({
   // `rates` directly. Non-null here means the caller already has view_internal_cost.
   const showFinancials = row.internal_cost !== null || row.billing_rate !== null;
 
+  const activityItems = (auditRows ?? []) as ActivityItem[];
+
   return (
     <div className="space-y-4">
       <PersonHeader person={row} />
+      <PersonSummaryStrip
+        allocationPct={row.current_allocation_pct ?? 0}
+        capacityHours={capacity}
+        activeProjectCount={row.active_project_count ?? 0}
+        activeProjectNames={currentProjects
+          .map((p) => p.projectName)
+          .filter((n): n is string => !!n)}
+        nextTimeOff={nextTimeOff as TimeOffRow | null}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          <CurrentProjectsCard current={current} upcoming={upcoming} past={past} />
+          <CurrentProjectsCard current={currentProjects} upcoming={upcoming} past={past} />
           <RecentHoursCard
             entries={timeEntries}
             canManage={isOwnPage}
@@ -141,9 +258,14 @@ export default async function PersonDetailPage({
           />
         </div>
         <div className="space-y-4">
-          {/* CapacitySummaryCard removed per client feedback round 1 (component file kept). */}
-          <TimeOffCard timeOff={(timeOffRows ?? []) as TimeOffRow[]} personId={id} canManage={canManage} />
+          <TimeOffCard
+            timeOff={(timeOffRows ?? []) as TimeOffRow[]}
+            personId={id}
+            today={today}
+            canManage={canManage}
+          />
           {showFinancials && <FinancialsCard person={row} />}
+          {activityItems.length > 0 && <RecentActivityCard items={activityItems} />}
         </div>
       </div>
     </div>
