@@ -39,6 +39,33 @@ function nullableUuidField(message: string) {
     .transform((v) => (v && v.trim() !== "" ? v : null));
 }
 
+// ---------- milestones (P4) ----------
+// A project's timeline is a list of dated milestones. kind 'start'/'end' rows feed
+// projects.start_date/deadline via the sync trigger (migration 20260721000004); at most one of
+// each per project (client-side refine here, partial unique indexes as the DB backstop).
+// `done` round-trips through the edit form so a replace-all save never wipes toggled states.
+
+export const MILESTONE_KIND_OPTIONS = ["start", "end", "milestone"] as const;
+export type MilestoneKind = (typeof MILESTONE_KIND_OPTIONS)[number];
+
+export const milestoneSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(200),
+  due_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date"),
+  kind: z.enum(MILESTONE_KIND_OPTIONS).default("milestone"),
+  done: z.boolean().default(false),
+});
+export type MilestoneInput = z.input<typeof milestoneSchema>;
+export type MilestoneOutput = z.output<typeof milestoneSchema>;
+
+function milestonesArray() {
+  return z
+    .array(milestoneSchema)
+    .max(50)
+    .refine((ms) => ms.filter((m) => m.kind === "start").length <= 1, "Only one milestone can mark the start")
+    .refine((ms) => ms.filter((m) => m.kind === "end").length <= 1, "Only one milestone can mark the end")
+    .default([]);
+}
+
 export const editProjectSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
   client_id: nullableUuidField("Invalid client"),
@@ -50,8 +77,13 @@ export const editProjectSchema = z.object({
   health: z.enum(PROJECT_HEALTH_OPTIONS),
   priority: z.enum(PROJECT_PRIORITY_OPTIONS),
   budget_type: z.enum(BUDGET_TYPE_OPTIONS),
+  // start_date/deadline are no longer edited directly -- the Timeline section edits milestones
+  // and the DB trigger derives the dates from the start/end kinds. The fields stay in the
+  // schema so existing values round-trip unchanged (projects without milestones keep their
+  // manually set dates).
   start_date: nullableDate,
   deadline: nullableDate,
+  milestones: milestonesArray(),
   progress: z.number().int().min(0).max(100),
   risks: nullableText(),
   blockers: nullableText(),
@@ -105,8 +137,12 @@ export const createProjectSchema = z.object({
   health: z.enum(PROJECT_HEALTH_OPTIONS).default("healthy"),
   priority: z.enum(PROJECT_PRIORITY_OPTIONS).default("medium"),
   budget_type: z.enum(BUDGET_TYPE_OPTIONS),
+  // Not form fields anymore -- the Timeline section is a milestone editor and the DB trigger
+  // derives both dates from the start/end kinds. Kept so the schema still accepts (and
+  // defaults) them for any non-form caller.
   start_date: nullableDate,
   deadline: nullableDate,
+  milestones: milestonesArray(),
   tags: z.array(z.string().trim().min(1)).max(20).default([]),
 });
 export type CreateProjectInput = z.input<typeof createProjectSchema>;

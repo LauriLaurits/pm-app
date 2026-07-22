@@ -227,31 +227,6 @@ export function EnumSelectField({
   );
 }
 
-/** Start date / deadline are both plain <input type="date">s bound the same way. */
-export function DateField({
-  control,
-  name,
-  label,
-}: {
-  control: Control<CreateProjectInput>;
-  name: "start_date" | "deadline";
-  label: string;
-}) {
-  return (
-    <FormField
-      control={control}
-      name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>{label}</FormLabel>
-          <FormControl render={<Input type="date" {...field} value={field.value ?? ""} />} />
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-  );
-}
-
 /**
  * The comma bug: the old input's value was re-derived from the parsed tags array
  * (`join(", ")`), so the trailing comma the user just typed was stripped on the very next

@@ -216,6 +216,75 @@ describe("createProjectSchema", () => {
   });
 });
 
+// P4: the Timeline sections submit repeatable milestone rows; start/end kinds feed the
+// project's dates via the DB sync trigger. Same array shape on create and edit.
+describe("milestones (create/edit project schemas)", () => {
+  const base = { name: "X", budget_type: "fixed" } as const;
+  const milestone = (over: Record<string, unknown> = {}) => ({
+    name: "Go-live",
+    due_on: "2026-09-01",
+    kind: "end",
+    done: false,
+    ...over,
+  });
+
+  it("defaults to an empty array when omitted", () => {
+    expect(createProjectSchema.parse(base).milestones).toEqual([]);
+  });
+
+  it("accepts milestones and defaults kind/done", () => {
+    const parsed = createProjectSchema.parse({
+      ...base,
+      milestones: [{ name: "Design sign-off", due_on: "2026-08-01" }],
+    });
+    expect(parsed.milestones).toEqual([
+      { name: "Design sign-off", due_on: "2026-08-01", kind: "milestone", done: false },
+    ]);
+  });
+
+  it("rejects a milestone with a blank name or malformed date", () => {
+    expect(
+      createProjectSchema.safeParse({ ...base, milestones: [milestone({ name: "  " })] }).success
+    ).toBe(false);
+    expect(
+      createProjectSchema.safeParse({ ...base, milestones: [milestone({ due_on: "01/09/2026" })] })
+        .success
+    ).toBe(false);
+  });
+
+  it("rejects an unknown kind", () => {
+    expect(
+      createProjectSchema.safeParse({ ...base, milestones: [milestone({ kind: "finish" })] })
+        .success
+    ).toBe(false);
+  });
+
+  it("allows at most one start and one end milestone", () => {
+    const twoStarts = [milestone({ kind: "start" }), milestone({ kind: "start", name: "Again" })];
+    const twoEnds = [milestone({ kind: "end" }), milestone({ kind: "end", name: "Again" })];
+    expect(createProjectSchema.safeParse({ ...base, milestones: twoStarts }).success).toBe(false);
+    expect(createProjectSchema.safeParse({ ...base, milestones: twoEnds }).success).toBe(false);
+    expect(
+      createProjectSchema.safeParse({
+        ...base,
+        milestones: [milestone({ kind: "start", name: "Kickoff" }), milestone()],
+      }).success
+    ).toBe(true);
+  });
+
+  it("round-trips done=true through editProjectSchema (replace-all must not wipe toggles)", () => {
+    const parsed = editProjectSchema.parse({
+      ...validProject,
+      milestones: [milestone({ kind: "milestone", done: true })],
+    });
+    expect(parsed.milestones[0]?.done).toBe(true);
+  });
+
+  it("editProjectSchema defaults milestones to [] for legacy payloads", () => {
+    expect(editProjectSchema.parse(validProject).milestones).toEqual([]);
+  });
+});
+
 describe("statusUpdateSchema", () => {
   it("accepts a fully populated status update", () => {
     const parsed = statusUpdateSchema.safeParse({

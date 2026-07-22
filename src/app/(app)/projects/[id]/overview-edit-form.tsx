@@ -10,11 +10,13 @@ import {
   PROJECT_PRIORITY_OPTIONS,
   PROJECT_STATUS_OPTIONS,
   type EditProjectInput,
+  type MilestoneKind,
 } from "@/lib/validation/project";
-import type { ProjectRow } from "./types";
+import type { MilestoneRow, ProjectRow } from "./types";
 import {
-  DateField, EnumSelectField, TagsField, TextAreaField, TEXT_FIELDS,
+  EnumSelectField, TagsField, TextAreaField, TEXT_FIELDS,
 } from "./overview-edit-fields";
+import { isBlankMilestone, MilestonesEditor } from "../milestones-editor";
 import {
   ClientContactField, ClientField, PmField,
   type ClientContactOption, type ClientOption, type PmOption,
@@ -26,7 +28,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
-function toDefaults(project: ProjectRow): EditProjectInput {
+function toDefaults(project: ProjectRow, milestones: MilestoneRow[]): EditProjectInput {
   return {
     name: project.name,
     client_id: project.client_id,
@@ -36,8 +38,17 @@ function toDefaults(project: ProjectRow): EditProjectInput {
     health: project.health,
     priority: project.priority,
     budget_type: project.budget_type,
+    // start_date/deadline round-trip unchanged -- the Timeline section edits milestones now,
+    // and the DB sync trigger derives both dates from the start/end kinds on save.
     start_date: project.start_date,
     deadline: project.deadline,
+    milestones: milestones.map((m) => ({
+      name: m.name,
+      due_on: m.due_on,
+      // DB column is text (check-constrained); the generated type is string.
+      kind: m.kind as MilestoneKind,
+      done: m.done,
+    })),
     progress: project.progress,
     risks: project.risks,
     blockers: project.blockers,
@@ -51,6 +62,7 @@ function toDefaults(project: ProjectRow): EditProjectInput {
 
 export function OverviewEditForm({
   project,
+  milestones,
   clients,
   contacts,
   isAdmin,
@@ -59,6 +71,7 @@ export function OverviewEditForm({
   onSuccess,
 }: {
   project: ProjectRow;
+  milestones: MilestoneRow[];
   clients: ClientOption[];
   contacts: ClientContactOption[];
   isAdmin: boolean;
@@ -70,7 +83,7 @@ export function OverviewEditForm({
   const [isPending, startTransition] = useTransition();
   const form = useForm<EditProjectInput>({
     resolver: zodResolver(editProjectSchema),
-    defaultValues: toDefaults(project),
+    defaultValues: toDefaults(project, milestones),
   });
 
   function onSubmit(values: EditProjectInput) {
@@ -82,9 +95,18 @@ export function OverviewEditForm({
     });
   }
 
+  /** Never-touched milestone rows are dropped BEFORE validation runs, so an extra "Add
+   * milestone" click never fails "Name is required" on a row the PM never meant to keep. */
+  function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
+    const rows = form.getValues("milestones") ?? [];
+    const kept = rows.filter((m) => !isBlankMilestone(m));
+    if (kept.length !== rows.length) form.setValue("milestones", kept);
+    form.handleSubmit(onSubmit)(e);
+  }
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+      <form onSubmit={handleFormSubmit} className="space-y-5">
         {serverError && (
           <Alert variant="destructive">
             <AlertDescription>{serverError}</AlertDescription>
@@ -119,10 +141,7 @@ export function OverviewEditForm({
         </FormSection>
 
         <FormSection tone="violet" title="Timeline">
-          <div className="grid grid-cols-2 gap-3">
-            <DateField control={form.control} name="start_date" label="Start date" />
-            <DateField control={form.control} name="deadline" label="Deadline" />
-          </div>
+          <MilestonesEditor control={form.control} />
         </FormSection>
 
         <FormSection tone="teal" title="Tags">

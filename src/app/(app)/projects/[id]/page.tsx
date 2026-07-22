@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { deriveProgress } from "@/lib/progress";
+import { MilestonesCard } from "./milestones-card";
 import { OverviewDetailsCard } from "./overview-details";
 import { OverviewEditDialog } from "./overview-edit-dialog";
 import type { ClientContactOption, ClientOption, PmOption } from "./overview-edit-admin-fields";
@@ -10,7 +11,7 @@ import { ProjectHeaderStrip, type ProjectBudgetCell } from "./project-header";
 import { ProjectDangerZone } from "./project-danger-zone";
 import { StatusHistory } from "./status-history";
 import { StatusUpdateDialog } from "./status-update-dialog";
-import type { PersonRef, ProjectRow, StatusUpdateRow } from "./types";
+import type { MilestoneRow, PersonRef, ProjectRow, StatusUpdateRow } from "./types";
 
 export default async function ProjectOverviewPage({
   params,
@@ -56,6 +57,7 @@ export default async function ProjectOverviewPage({
     { data: canEdit },
     { data: canEditStatus },
     { data: updates },
+    { data: milestones },
     { data: parts },
     { data: budgetRow },
     { count: teamCount },
@@ -75,6 +77,13 @@ export default async function ProjectOverviewPage({
       .select("*")
       .eq("project_id", id)
       .order("created_at", { ascending: false }),
+    // Chronological for the Milestones card; sort breaks same-day ties in the PM's own order.
+    supabase
+      .from("project_milestones")
+      .select("*")
+      .eq("project_id", id)
+      .order("due_on")
+      .order("sort"),
     supabase.from("project_parts").select("status, estimated_hours").eq("project_id", id),
     supabase
       .from("project_budget_rows")
@@ -146,6 +155,11 @@ export default async function ProjectOverviewPage({
       />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
+          <MilestonesCard
+            projectId={row.id}
+            milestones={(milestones ?? []) as MilestoneRow[]}
+            canEdit={!!canEdit}
+          />
           <StatusHistory
             updates={(updates ?? []) as StatusUpdateRow[]}
             postAction={canEditStatus ? <StatusUpdateDialog projectId={row.id} /> : null}
@@ -163,6 +177,7 @@ export default async function ProjectOverviewPage({
               canEdit ? (
                 <OverviewEditDialog
                   project={row}
+                  milestones={(milestones ?? []) as MilestoneRow[]}
                   clients={(clients ?? []) as ClientOption[]}
                   contacts={(contactOptions ?? []) as ClientContactOption[]}
                   isAdmin={isAdmin}

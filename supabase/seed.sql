@@ -387,3 +387,36 @@ on conflict (id) do nothing;
 update public.projects
 set client_contact_id = '90000001-0000-4000-8000-000000000001' -- Marko Saar, Baltic Retail CTO
 where id = '30000001-0000-4000-8000-000000000001';
+
+-- ===== 15. project milestones (P4: "verstapostid") =====
+-- 3-5 per active project. Every start/end kind matches the project's existing seeded
+-- start_date/deadline exactly, so the sync trigger (20260721000004) rewrites the same values
+-- (a no-op thanks to its "is distinct from" guard) and the demo timeline stays unchanged.
+-- Past milestones are done, one (FinServ compliance audit) is deliberately overdue-NOT-done so
+-- the overview shows the red overdue state. Projects 6-9 (planning/on-hold/retainer/completed)
+-- get none -- the retainer has no deadline, and an end milestone would invent one via the
+-- trigger.
+insert into public.project_milestones (id, project_id, name, due_on, kind, done, sort) values
+  -- Retail e-shop replatform (cd-90 .. cd+90)
+  ('80000001-0000-4000-8000-000000000001','30000001-0000-4000-8000-000000000001','Kickoff', current_date-90,'start', true, 0),
+  ('80000002-0000-4000-8000-000000000002','30000001-0000-4000-8000-000000000001','Design sign-off', current_date-55,'milestone', true, 1),
+  ('80000003-0000-4000-8000-000000000003','30000001-0000-4000-8000-000000000001','Backend feature-complete', current_date+10,'milestone', false, 2),
+  ('80000004-0000-4000-8000-000000000004','30000001-0000-4000-8000-000000000001','UAT complete', current_date+55,'milestone', false, 3),
+  ('80000005-0000-4000-8000-000000000005','30000001-0000-4000-8000-000000000001','Go-live', current_date+90,'end', false, 4),
+  -- Warehouse scanner app (cd-60 .. cd+30)
+  ('80000006-0000-4000-8000-000000000006','30000002-0000-4000-8000-000000000002','Kickoff', current_date-60,'start', true, 0),
+  ('80000007-0000-4000-8000-000000000007','30000002-0000-4000-8000-000000000002','Warehouse pilot', current_date-10,'milestone', true, 1),
+  ('80000008-0000-4000-8000-000000000008','30000002-0000-4000-8000-000000000002','Full rollout', current_date+30,'end', false, 2),
+  -- FinServ onboarding portal (cd-120 .. cd+15)
+  ('80000009-0000-4000-8000-000000000009','30000003-0000-4000-8000-000000000003','Kickoff', current_date-120,'start', true, 0),
+  ('8000000a-0000-4000-8000-00000000000a','30000003-0000-4000-8000-000000000003','KYC flow on staging', current_date-30,'milestone', true, 1),
+  ('8000000b-0000-4000-8000-00000000000b','30000003-0000-4000-8000-000000000003','Compliance audit', current_date-5,'milestone', false, 2), -- overdue, not done
+  ('8000000c-0000-4000-8000-00000000000c','30000003-0000-4000-8000-000000000003','Regulator submission', current_date+15,'end', false, 3),
+  -- Data warehouse & BI (cd-45 .. cd+120)
+  ('8000000d-0000-4000-8000-00000000000d','30000004-0000-4000-8000-000000000004','Kickoff', current_date-45,'start', true, 0),
+  ('8000000e-0000-4000-8000-00000000000e','30000004-0000-4000-8000-000000000004','First dashboards live', current_date+20,'milestone', false, 1),
+  ('8000000f-0000-4000-8000-00000000000f','30000004-0000-4000-8000-000000000004','Handover & training', current_date+120,'end', false, 2),
+  -- Fleet tracking API (cd-30 .. cd+75)
+  ('80000010-0000-4000-8000-000000000010','30000005-0000-4000-8000-000000000005','Kickoff', current_date-30,'start', true, 0),
+  ('80000011-0000-4000-8000-000000000011','30000005-0000-4000-8000-000000000005','Partner API beta', current_date+14,'milestone', false, 1),
+  ('80000012-0000-4000-8000-000000000012','30000005-0000-4000-8000-000000000005','GA release', current_date+75,'end', false, 2);

@@ -77,12 +77,28 @@ export async function createProjectAction(
   );
   if (contactError) return { error: contactError };
 
+  // milestones live in their own table -- split off before the projects insert.
+  const { milestones, ...projectFields } = parsed.data;
+
   const { data: project, error } = await supabase
     .from("projects")
-    .insert({ ...parsed.data, pm_id: pmId })
+    .insert({ ...projectFields, pm_id: pmId })
     .select("id")
     .single();
   if (error) return { error: "Create failed. Try again." };
+
+  // Timeline milestones: sort follows the order the PM entered them. The DB trigger
+  // (20260721000004) syncs any start/end kind into projects.start_date/deadline, which is how
+  // a new project gets its dates now. The project itself is already committed, so a failure
+  // here is reported honestly rather than pretending the whole create failed.
+  if (milestones.length > 0) {
+    const { error: milestoneError } = await supabase
+      .from("project_milestones")
+      .insert(milestones.map((m, i) => ({ ...m, project_id: project.id, sort: i })));
+    if (milestoneError) {
+      return { error: "Project was created, but its milestones failed to save. Add them via Edit project." };
+    }
+  }
 
   // Auto-add the project's PM to the new project so a PM is never locked out of their own
   // project (the "PM isn't a member" gap): a project_members row for the People tab, which is
@@ -138,11 +154,33 @@ export async function editProjectAction(
   // only ever fires for an admin's deliberate reassignment.
   const { data: before } = await supabase.from("projects").select("pm_id").eq("id", projectId).single();
 
+  // milestones live in their own table -- split off before the projects update. The update
+  // round-trips the unchanged start_date/deadline; the milestone replace-all AFTER it lets the
+  // sync trigger apply any changed start/end dates last, so they win.
+  const { milestones, ...projectFields } = parsed.data;
+
   const { error } = await supabase
     .from("projects")
-    .update(parsed.data)
+    .update(projectFields)
     .eq("id", projectId);
   if (error) return { error: "Update failed. Try again." };
+
+  // Replace-all write for the milestone rows, same pattern as client contacts (clients.ts):
+  // tiny lists, and it keeps removals/reorders/kind changes one code path. `done` round-trips
+  // through the form so toggled states survive the rewrite. RLS ("edit milestones" =
+  // edit_project) is the real backstop. Deleting a start/end milestone deliberately leaves the
+  // project's last-known dates in place (trigger only fires on insert/update).
+  const { error: clearError } = await supabase
+    .from("project_milestones")
+    .delete()
+    .eq("project_id", projectId);
+  if (clearError) return { error: "Update failed. Try again." };
+  if (milestones.length > 0) {
+    const { error: milestoneError } = await supabase
+      .from("project_milestones")
+      .insert(milestones.map((m, i) => ({ ...m, project_id: projectId, sort: i })));
+    if (milestoneError) return { error: "Saving milestones failed. Try again." };
+  }
 
   // Auto-add a newly-assigned PM as a project_member, mirroring createProjectAction's
   // auto-add-self-as-member logic, so a reassigned PM isn't locked out of their own project
@@ -168,11 +206,54 @@ export async function editProjectAction(
     actorEmail: current.profile.email,
     resourceType: "project",
     resourceId: projectId,
-    metadata: { fields: parsed.data },
+    metadata: { fields: projectFields, milestone_count: milestones.length },
   });
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/people`);
+  return { success: true as const };
+}
+
+/**
+ * Inline done-toggle for the Overview Milestones card -- one boolean on one row, so it skips
+ * the full editProjectSchema replace-all the edit dialog uses. The extra `project_id` filter
+ * pins the row to THIS project so a foreign milestone id can't ride in on this project's
+ * edit_project grant (RLS would still require edit_project on the OTHER project, but belt and
+ * braces). Kind/date/name edits stay in the edit dialog.
+ */
+export async function toggleMilestoneDoneAction(
+  projectId: string,
+  milestoneId: string,
+  done: boolean
+): Promise<{ error: string } | { success: true }> {
+  if (!z.uuid().safeParse(projectId).success) return { error: "Invalid project." };
+  if (!z.uuid().safeParse(milestoneId).success) return { error: "Invalid milestone." };
+  if (typeof done !== "boolean") return { error: "Invalid value." };
+
+  // Security boundary: throws "Not authorized" if the caller lacks edit_project on
+  // this project. Must run before any validation/DB work.
+  const current = await requirePermission("edit_project", projectId);
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("project_milestones")
+    .update({ done })
+    .eq("id", milestoneId)
+    .eq("project_id", projectId)
+    .select("name")
+    .maybeSingle();
+  if (error || !data) return { error: "Update failed. Try again." };
+
+  await writeAudit({
+    action: "milestone.toggled",
+    actorId: current.user.id,
+    actorEmail: current.profile.email,
+    resourceType: "project",
+    resourceId: projectId,
+    metadata: { milestone_id: milestoneId, name: data.name, done },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
   return { success: true as const };
 }
 

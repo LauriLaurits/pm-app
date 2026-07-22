@@ -57,31 +57,6 @@ export function EnumSelectField({
   );
 }
 
-/** Start date / deadline are both plain <input type="date">s bound the same way. */
-export function DateField({
-  control,
-  name,
-  label,
-}: {
-  control: Control<EditProjectInput>;
-  name: "start_date" | "deadline";
-  label: string;
-}) {
-  return (
-    <FormField
-      control={control}
-      name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>{label}</FormLabel>
-          <FormControl render={<Input type="date" {...field} value={field.value ?? ""} />} />
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-  );
-}
-
 /** Same comma-bug fix as the create form's TagsInput (project-create-fields.tsx): the input
  * used to re-derive its value from the parsed array, which stripped the comma the user just
  * typed. Raw text lives in local state; the parsed tags array is committed on every change. */
@@ -142,7 +117,7 @@ export function TextAreaField({
               <Textarea
                 rows={2}
                 {...field}
-                value={typeof field.value === "string" ? field.value : (field.value ?? "")}
+                value={typeof field.value === "string" ? field.value : ""}
               />
             }
           />

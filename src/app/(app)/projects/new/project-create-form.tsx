@@ -11,9 +11,10 @@ import {
   type CreateProjectInput,
 } from "@/lib/validation/project";
 import {
-  ClientContactField, ClientField, DateField, EnumSelectField, PmField, TagsField,
+  ClientContactField, ClientField, EnumSelectField, PmField, TagsField,
   type ClientContactOption, type ClientOption, type PmOption,
 } from "./project-create-fields";
+import { isBlankMilestone, MilestonesEditor } from "../milestones-editor";
 import { FormSection } from "@/components/form-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ const DEFAULT_VALUES: Omit<CreateProjectInput, "pm_id"> = {
   budget_type: "fixed",
   start_date: null,
   deadline: null,
+  milestones: [],
   tags: [],
 };
 
@@ -67,11 +69,20 @@ export function ProjectCreateForm({
     });
   }
 
+  /** Never-touched milestone rows are dropped BEFORE validation runs, so an extra "Add
+   * milestone" click never fails "Name is required" on a row the PM never meant to keep. */
+  function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
+    const milestones = form.getValues("milestones") ?? [];
+    const kept = milestones.filter((m) => !isBlankMilestone(m));
+    if (kept.length !== milestones.length) form.setValue("milestones", kept);
+    form.handleSubmit(onSubmit)(e);
+  }
+
   return (
     <Card className="max-w-2xl">
       <CardContent className="pt-6">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <form onSubmit={handleFormSubmit} className="space-y-5">
             {serverError && (
               <Alert variant="destructive">
                 <AlertDescription>{serverError}</AlertDescription>
@@ -103,10 +114,7 @@ export function ProjectCreateForm({
             </FormSection>
 
             <FormSection tone="violet" title="Timeline">
-              <div className="grid grid-cols-2 gap-3">
-                <DateField control={form.control} name="start_date" label="Start date" />
-                <DateField control={form.control} name="deadline" label="Deadline" />
-              </div>
+              <MilestonesEditor control={form.control} />
             </FormSection>
 
             <FormSection tone="teal" title="Tags & description">

@@ -7,11 +7,12 @@ import {
 } from "@/components/ui/dialog";
 import { OverviewEditForm } from "./overview-edit-form";
 import type { ClientContactOption, ClientOption, PmOption } from "./overview-edit-admin-fields";
-import type { ProjectRow } from "./types";
+import type { MilestoneRow, ProjectRow } from "./types";
 import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
 
 export function OverviewEditDialog({
   project,
+  milestones,
   clients,
   contacts,
   isAdmin,
@@ -19,6 +20,7 @@ export function OverviewEditDialog({
   currentPmName,
 }: {
   project: ProjectRow;
+  milestones: MilestoneRow[];
   clients: ClientOption[];
   contacts: ClientContactOption[];
   isAdmin: boolean;
@@ -36,6 +38,7 @@ export function OverviewEditDialog({
         </DialogHeader>
         <OverviewEditForm
           project={project}
+          milestones={milestones}
           clients={clients}
           contacts={contacts}
           isAdmin={isAdmin}

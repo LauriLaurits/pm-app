@@ -1031,6 +1031,61 @@ export type Database = {
           },
         ]
       }
+      project_milestones: {
+        Row: {
+          created_at: string | null
+          done: boolean
+          due_on: string
+          id: string
+          kind: string
+          name: string
+          project_id: string
+          sort: number
+        }
+        Insert: {
+          created_at?: string | null
+          done?: boolean
+          due_on: string
+          id?: string
+          kind?: string
+          name: string
+          project_id: string
+          sort?: number
+        }
+        Update: {
+          created_at?: string | null
+          done?: boolean
+          due_on?: string
+          id?: string
+          kind?: string
+          name?: string
+          project_id?: string
+          sort?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_milestones_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_budget_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_milestones_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_list_rows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_milestones_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_parts: {
         Row: {
           billing_model: Database["public"]["Enums"]["billing_model"]
