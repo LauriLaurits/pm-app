@@ -12,8 +12,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuLabel, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup,
+  DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { InlineEditSelect } from "@/components/inline-edit-select";
 import { SortableHead } from "@/components/data-table/sortable-head";
@@ -88,7 +88,7 @@ const OPTIONAL_COLUMNS = [
   { key: "progress", label: "Progress" },
   { key: "updated", label: "Updated" },
 ] as const;
-type ColumnKey = (typeof OPTIONAL_COLUMNS)[number]["key"];
+export type ColumnKey = (typeof OPTIONAL_COLUMNS)[number]["key"];
 
 type SortKey =
   | "priority" | "name" | "client" | "pm" | "status" | "health" | "deadline"
@@ -109,6 +109,7 @@ export function ProjectsTable({
   editableProjectIds,
   links,
   progressById,
+  initiallyHidden,
 }: {
   rows: ProjectListRow[];
   /** Projects this viewer holds edit_project on -- computed server-side in page.tsx (same UX-
@@ -118,10 +119,13 @@ export function ProjectsTable({
   editableProjectIds: string[];
   links: ProjectRowLinks;
   progressById: ProgressById;
+  /** Columns hidden on first render (still re-showable via the gear menu) -- e.g. the client
+   * detail page hides the redundant Client column on its own client's table. */
+  initiallyHidden?: ColumnKey[];
 }) {
   const editable = useMemo(() => new Set(editableProjectIds), [editableProjectIds]);
   const [page, setPage] = useState(1);
-  const [hidden, setHidden] = useState<Set<ColumnKey>>(new Set());
+  const [hidden, setHidden] = useState<Set<ColumnKey>>(() => new Set(initiallyHidden));
   const show = (key: ColumnKey) => !hidden.has(key);
 
   // Health is derived (deadline + budget + parts progress -- see lib/health.ts), never the
@@ -217,7 +221,10 @@ export function ProjectsTable({
                   <Settings2 className="size-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Columns</DropdownMenuLabel>
+                  {/* base-ui gotcha: DropdownMenuLabel throws unless wrapped in a group. */}
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Columns</DropdownMenuLabel>
+                  </DropdownMenuGroup>
                   {OPTIONAL_COLUMNS.map((c) => (
                     <DropdownMenuCheckboxItem
                       key={c.key}
