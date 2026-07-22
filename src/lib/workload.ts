@@ -35,6 +35,20 @@ export function utilizationBadgeClasses(pct: number): string {
   return UTILIZATION_BADGE_CLASS[utilizationClass(pct)];
 }
 
+// Progress-bar fill classes for the Employees list's Workload column -- solid fills (not
+// tinted borders) so utilization severity reads at a glance, mirroring CONSUMPTION_BAR_CLASS
+// in src/lib/budget.ts (the projects list's budget bar).
+export const UTILIZATION_BAR_CLASS: Record<UtilizationClass, string> = {
+  available: "bg-emerald-500",
+  partial: "bg-blue-500",
+  full: "bg-amber-500",
+  overallocated: "bg-red-600",
+};
+
+export function utilizationBarClasses(pct: number): string {
+  return UTILIZATION_BAR_CLASS[utilizationClass(pct)];
+}
+
 // Cell-background classes for the Workload timeline grid -- deliberately louder than the badge
 // tints above (solid-ish fills, not just a border) so an overallocated week reads as visually
 // loud at a glance, per the task brief. Free (0%) gets its own near-invisible treatment distinct
