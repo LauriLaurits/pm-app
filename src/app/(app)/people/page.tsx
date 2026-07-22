@@ -72,12 +72,16 @@ export default async function PeoplePage() {
     .filter((r): r is PersonWorkloadRow & { id: string } => !!r.id)
     .map((r) => ({ ...r, email: emailByPersonId.get(r.id) ?? null }));
 
-  // KPI rollups straight off the workload view: Available = under-90% utilization and not
-  // currently on vacation; Busy = full/overallocated; Away = on vacation today (derived, same
-  // as the table's Away status); Contractors = external engagement types.
+  // KPI rollups straight off the workload view: Available = ACTIVE, under-90% utilization and
+  // not currently on vacation (a deactivated person can't take work, so they never count);
+  // Busy = full/overallocated; Away = on vacation today (derived, same as the table's Away
+  // status); Contractors = external engagement types.
   const util = (r: PersonListRow) => utilizationClass(r.current_allocation_pct ?? 0);
   const availableCount = rows.filter(
-    (r) => !r.on_vacation_now && (util(r) === "available" || util(r) === "partial")
+    (r) =>
+      r.status === "active" &&
+      !r.on_vacation_now &&
+      (util(r) === "available" || util(r) === "partial")
   ).length;
   const busyCount = rows.filter((r) => util(r) === "full" || util(r) === "overallocated").length;
   const awayCount = rows.filter((r) => r.on_vacation_now).length;
