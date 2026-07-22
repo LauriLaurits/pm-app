@@ -1,11 +1,11 @@
 import Link from "next/link";
 import {
-  AlertTriangle, CircleCheckBig, Clock, FolderKanban, Wallet, type LucideIcon,
+  AlertTriangle, CircleCheckBig, Clock, FolderKanban, Wallet,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { StatCard } from "@/components/stat-card";
 import { ProjectFilters } from "./project-filters";
 import { ProjectsCards } from "./projects-cards";
 import { deriveHealth } from "@/lib/health";
@@ -284,32 +284,6 @@ export default async function ProjectsPage({
         />
       )}
     </div>
-  );
-}
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  iconClass,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  iconClass: string;
-}) {
-  return (
-    <Card size="sm">
-      <CardContent className="flex items-center gap-3">
-        <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${iconClass}`}>
-          <Icon className="size-4" />
-        </span>
-        <div className="min-w-0">
-          <p className="truncate text-xs text-muted-foreground">{label}</p>
-          <p className="text-xl leading-tight font-semibold tabular-nums">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 

@@ -23,6 +23,10 @@ type MutationResult = { error: string } | { success: true; id?: string | number 
  * AlertDialog (base-nova). `trigger` is passed to the `render` prop bare (no children), matching
  * every other Trigger usage in this codebase (Dialog, etc.) -- the visible label goes on
  * `triggerLabel` instead, which becomes the trigger's actual children.
+ *
+ * Controlled mode: pass `open`/`onOpenChange` and omit `trigger` when the launcher lives
+ * somewhere the dialog can't (e.g. a DropdownMenuItem, which unmounts with its menu on click --
+ * see clients client-row-actions.tsx).
  */
 export function ConfirmDialog({
   trigger,
@@ -32,16 +36,26 @@ export function ConfirmDialog({
   confirmLabel = "Delete",
   pendingLabel = "Deleting…",
   onConfirm,
+  open: controlledOpen,
+  onOpenChange,
 }: {
-  trigger: ReactElement;
-  triggerLabel: ReactNode;
+  trigger?: ReactElement;
+  triggerLabel?: ReactNode;
   title: string;
   description: string;
   confirmLabel?: string;
   pendingLabel?: string;
   onConfirm: () => Promise<MutationResult>;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    if (isControlled) onOpenChange?.(next);
+    else setUncontrolledOpen(next);
+  };
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -66,7 +80,7 @@ export function ConfirmDialog({
         if (!next) setError(null);
       }}
     >
-      <AlertDialogTrigger render={trigger}>{triggerLabel}</AlertDialogTrigger>
+      {trigger && <AlertDialogTrigger render={trigger}>{triggerLabel}</AlertDialogTrigger>}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
