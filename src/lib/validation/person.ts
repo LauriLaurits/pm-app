@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PERSON_AVATAR_PRESETS } from "@/lib/person-avatar-presets";
 
 // Mirrors the DB enums from 20260715000004_people_workload.sql exactly.
 export const EMPLOYMENT_TYPE_OPTIONS = ["employee", "contractor", "freelance"] as const;
@@ -25,6 +26,11 @@ const nullableEmail = z
 export const personSchema = z.object({
   full_name: z.string().trim().min(1, "Name is required").max(200),
   email: nullableEmail,
+  // A preset token ("preset:user", ...) OR an existing photo URL -- editing a person who
+  // still has a real photo must not silently coerce it to a preset and wipe the image.
+  avatar_url: z
+    .union([z.enum(PERSON_AVATAR_PRESETS), z.string().trim().url("Invalid avatar")])
+    .default("preset:user"),
   role_title: nullableText(200),
   department: nullableText(200),
   employment_type: z.enum(EMPLOYMENT_TYPE_OPTIONS),

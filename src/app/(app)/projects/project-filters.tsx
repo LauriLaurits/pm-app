@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PersonAvatar } from "@/components/person-avatar";
 import { avatarTint } from "@/lib/avatar-tint";
 import {
   DERIVED_HEALTH_DOT, DERIVED_HEALTH_LABEL, type DerivedHealthLevel,
@@ -187,12 +187,7 @@ export function ProjectFilters({
                 const pm = pmOptions.find((o) => o.name === v);
                 return (
                   <span className="flex items-center gap-2">
-                    <Avatar size="sm" className="size-5">
-                      <AvatarImage src={pm?.avatarUrl ?? undefined} alt={v} />
-                      <AvatarFallback className={`text-[9px] ${avatarTint(v)}`}>
-                        {initials(v)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <PersonAvatar name={v} avatarUrl={pm?.avatarUrl} className="size-5 text-[9px]" />
                     {v}
                   </span>
                 );
@@ -204,12 +199,7 @@ export function ProjectFilters({
             {pmOptions.map((pm) => (
               <SelectItem key={pm.name} value={pm.name}>
                 <span className="flex items-center gap-2">
-                  <Avatar size="sm" className="size-5">
-                    <AvatarImage src={pm.avatarUrl ?? undefined} alt={pm.name} />
-                    <AvatarFallback className={`text-[9px] ${avatarTint(pm.name)}`}>
-                      {initials(pm.name)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <PersonAvatar name={pm.name} avatarUrl={pm.avatarUrl} className="size-5 text-[9px]" />
                   {pm.name}
                 </span>
               </SelectItem>

@@ -1,7 +1,7 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { ReactNode } from "react";
+import { PersonAvatar } from "@/components/person-avatar";
 import { DotBadge } from "@/components/dot-badge";
-import { avatarTint } from "@/lib/avatar-tint";
-import { humanize, initials } from "../types";
+import { humanize } from "../types";
 import type { PersonWorkloadRow } from "../types";
 
 /** The one derived state an assigning PM needs at a glance, in priority order: currently away
@@ -38,7 +38,13 @@ function availabilityBadge(person: PersonWorkloadRow) {
   );
 }
 
-export function PersonHeader({ person }: { person: PersonWorkloadRow }) {
+export function PersonHeader({
+  person,
+  action,
+}: {
+  person: PersonWorkloadRow;
+  action?: ReactNode;
+}) {
   // Fixed four-slot metadata line (role · team · type · capacity) -- em-dash placeholders keep
   // the slots aligned across people instead of silently collapsing.
   const meta = [
@@ -49,18 +55,10 @@ export function PersonHeader({ person }: { person: PersonWorkloadRow }) {
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-4">
-      <Avatar className="size-12">
-        <AvatarImage src={person.avatar_url ?? undefined} alt={person.full_name ?? ""} />
-        <AvatarFallback className={avatarTint(person.full_name)}>
-          {initials(person.full_name)}
-        </AvatarFallback>
-      </Avatar>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h1 className="text-2xl font-semibold">{person.full_name}</h1>
-          {availabilityBadge(person)}
-        </div>
+    <div className="flex flex-wrap items-start gap-4">
+      <PersonAvatar name={person.full_name} avatarUrl={person.avatar_url} className="size-14" />
+      <div className="min-w-0 flex-1 pt-0.5">
+        <h1 className="text-2xl font-semibold">{person.full_name}</h1>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
           {meta.map((part, i) => (
             <span key={i} className="flex items-center gap-x-2">
@@ -73,7 +71,9 @@ export function PersonHeader({ person }: { person: PersonWorkloadRow }) {
             </span>
           ))}
         </div>
+        <div className="mt-2">{availabilityBadge(person)}</div>
       </div>
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }

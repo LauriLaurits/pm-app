@@ -114,11 +114,13 @@ export async function removeMemberAction(
   const current = await requirePermission("manage_project_members", projectId);
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: removedMember, error } = await supabase
     .from("project_members")
     .delete()
     .eq("id", memberId)
-    .eq("project_id", projectId);
+    .eq("project_id", projectId)
+    .select("user_id")
+    .maybeSingle();
   if (error) return { error: "Remove failed. Try again." };
 
   await writeAudit({
@@ -127,7 +129,7 @@ export async function removeMemberAction(
     actorEmail: current.profile.email,
     resourceType: "project_member",
     resourceId: String(memberId),
-    metadata: { project_id: projectId },
+    metadata: { project_id: projectId, user_id: removedMember?.user_id ?? null },
   });
 
   revalidatePath(`/projects/${projectId}/people`);

@@ -22,6 +22,10 @@ import {
   type ClientContactOption, type ClientOption, type PmOption,
 } from "./overview-edit-admin-fields";
 import { FormSection } from "@/components/form-section";
+import { ProjectIconPicker } from "@/components/project-icon-picker";
+import {
+  projectIconKey, visibleProjectTags, type ProjectIconKey,
+} from "@/lib/project-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -31,6 +35,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 function toDefaults(project: ProjectRow, milestones: MilestoneRow[]): EditProjectInput {
   return {
     name: project.name,
+    icon_key: projectIconKey(project.tags),
     client_id: project.client_id,
     client_contact_id: project.client_contact_id,
     description: project.description,
@@ -55,7 +60,7 @@ function toDefaults(project: ProjectRow, milestones: MilestoneRow[]): EditProjec
     next_steps: project.next_steps,
     internal_notes: project.internal_notes,
     client_notes: project.client_notes,
-    tags: project.tags,
+    tags: visibleProjectTags(project.tags),
     pm_id: project.pm_id,
   };
 }
@@ -121,6 +126,20 @@ export function OverviewEditForm({
               <FormItem>
                 <FormLabel>Name</FormLabel>
                 <FormControl render={<Input {...field} />} />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="icon_key"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Project icon</FormLabel>
+                <ProjectIconPicker
+                  value={(field.value ?? "folder") as ProjectIconKey}
+                  onChange={field.onChange}
+                />
                 <FormMessage />
               </FormItem>
             )}

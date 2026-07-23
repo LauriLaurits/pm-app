@@ -10,6 +10,9 @@ import {
 import {
   ManagedOptionSelectField, PersonEnumSelectField, WeeklyCapacityField,
 } from "./person-form-fields";
+import { FormSection } from "@/components/form-section";
+import { PersonAvatarPicker } from "@/components/person-avatar";
+import { DEFAULT_PERSON_AVATAR, isPersonAvatarPreset } from "@/lib/person-avatar-presets";
 import type { PersonListRow } from "./types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -21,6 +24,8 @@ function toDefaults(person?: PersonListRow): PersonInput {
   return {
     full_name: person?.full_name ?? "",
     email: person?.email ?? null,
+    // Keep an existing photo URL as-is -- coercing it to a preset would wipe the photo on save.
+    avatar_url: person?.avatar_url ?? DEFAULT_PERSON_AVATAR,
     role_title: person?.role_title ?? null,
     department: person?.department ?? null,
     employment_type: person?.employment_type ?? "employee",
@@ -64,53 +69,77 @@ export function PersonForm({
             <AlertDescription>{serverError}</AlertDescription>
           </Alert>
         )}
-        <FormField
-          control={form.control}
-          name="full_name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Full name</FormLabel>
-              <FormControl render={<Input {...field} />} />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl render={<Input type="email" {...field} value={field.value ?? ""} />} />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <ManagedOptionSelectField
+        <FormSection first tone="blue" title="Identity">
+          <FormField
             control={form.control}
-            name="role_title"
-            label="Role title"
-            options={roleTitleOptions}
+            name="avatar_url"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Avatar</FormLabel>
+                <PersonAvatarPicker
+                  value={field.value ?? DEFAULT_PERSON_AVATAR}
+                  onChange={field.onChange}
+                  photoUrl={
+                    person?.avatar_url && !isPersonAvatarPreset(person.avatar_url)
+                      ? person.avatar_url
+                      : null
+                  }
+                />
+                <FormMessage />
+              </FormItem>
+            )}
           />
-          {/* Label is "Team" (client feedback round 1) -- the DB column stays `department`. */}
-          <ManagedOptionSelectField
+          <FormField
             control={form.control}
-            name="department"
-            label="Team"
-            options={teamOptions}
+            name="full_name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Full name</FormLabel>
+                <FormControl render={<Input {...field} />} />
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <PersonEnumSelectField
+          <FormField
             control={form.control}
-            name="employment_type"
-            label="Employment type"
-            options={EMPLOYMENT_TYPE_OPTIONS}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl render={<Input type="email" {...field} value={field.value ?? ""} />} />
+                <FormMessage />
+              </FormItem>
+            )}
           />
-          <WeeklyCapacityField control={form.control} />
-        </div>
-        <PersonEnumSelectField control={form.control} name="status" label="Status" options={PERSON_STATUS_OPTIONS} />
+        </FormSection>
+        <FormSection tone="emerald" title="Role & team">
+          <div className="grid grid-cols-2 gap-3">
+            <ManagedOptionSelectField
+              control={form.control}
+              name="role_title"
+              label="Role title"
+              options={roleTitleOptions}
+            />
+            <ManagedOptionSelectField
+              control={form.control}
+              name="department"
+              label="Team"
+              options={teamOptions}
+            />
+          </div>
+        </FormSection>
+        <FormSection tone="amber" title="Employment & capacity">
+          <div className="grid grid-cols-2 gap-3">
+            <PersonEnumSelectField
+              control={form.control}
+              name="employment_type"
+              label="Employment type"
+              options={EMPLOYMENT_TYPE_OPTIONS}
+            />
+            <WeeklyCapacityField control={form.control} />
+          </div>
+          <PersonEnumSelectField control={form.control} name="status" label="Status" options={PERSON_STATUS_OPTIONS} />
+        </FormSection>
         <DialogFooter>
           <Button type="submit" disabled={isPending}>
             {isPending ? "Saving…" : "Save person"}

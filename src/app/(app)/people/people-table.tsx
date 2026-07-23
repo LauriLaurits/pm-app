@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, XIcon } from "lucide-react";
 import { setPersonStatusAction } from "@/app/actions/people";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PersonAvatar } from "@/components/person-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DotBadge } from "@/components/dot-badge";
@@ -20,10 +20,9 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { avatarTint } from "@/lib/avatar-tint";
 import { utilizationBarClasses, utilizationLabel } from "@/lib/workload";
-import { cn } from "@/lib/utils";
-import { EMPLOYMENT_TYPE_OPTIONS, initials } from "./types";
+import { EmploymentTypeBadge } from "./employment-type-badge";
+import { EMPLOYMENT_TYPE_OPTIONS } from "./types";
 import type { EmploymentType, PersonListRow } from "./types";
 import { PersonRowActions } from "./person-row-actions";
 
@@ -63,28 +62,6 @@ const STATUS_OPTIONS: InlineEditOption[] = [
     dotClassName: "bg-red-500",
   },
 ];
-
-// Employment types get the BudgetTypeBadge micro-chip language -- squared, uppercase, borderless
-// soft fill -- deliberately unlike the rounded status pills so an engagement type never reads as
-// a state. Neutral gray for the default (employee), color only for the external types.
-const EMPLOYMENT_TYPE_BADGE_CLASS: Record<EmploymentType, string> = {
-  employee: "bg-muted text-muted-foreground",
-  contractor: "bg-teal-500/10 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400",
-  freelance: "bg-violet-500/10 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400",
-};
-
-function EmploymentTypeBadge({ type }: { type: EmploymentType }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase",
-        EMPLOYMENT_TYPE_BADGE_CLASS[type]
-      )}
-    >
-      {type}
-    </span>
-  );
-}
 
 /** Thin vertical rule between filter chips -- separates them without adding visual weight. */
 function FilterDivider() {
@@ -390,12 +367,7 @@ export function PeopleTable({
 function PersonCell({ row }: { row: PersonListRow }) {
   return (
     <div className="flex items-center gap-3">
-      <Avatar size="lg">
-        <AvatarImage src={row.avatar_url ?? undefined} alt={row.full_name ?? ""} />
-        <AvatarFallback className={avatarTint(row.full_name)}>
-          {initials(row.full_name)}
-        </AvatarFallback>
-      </Avatar>
+      <PersonAvatar name={row.full_name} avatarUrl={row.avatar_url} className="size-10" />
       <div className="min-w-0">
         <Link
           href={`/people/${row.id}`}
@@ -415,7 +387,7 @@ function PersonCell({ row }: { row: PersonListRow }) {
 // Green Active / red Deactivated stay inline-editable. "Away" (currently on vacation) is a
 // derived state layered ON TOP of the stored status, so the amber badge renders above the
 // select rather than replacing it -- the underlying status must stay editable while someone
-// is on vacation.
+// is on vacation (client feedback: the Away tag blocked status changes).
 function StatusCell({ row, canManage }: { row: PersonListRow; canManage: boolean }) {
   if (!row.status) return <Badge variant="outline">—</Badge>;
   const select = (

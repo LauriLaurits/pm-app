@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createProjectAction } from "@/app/actions/projects";
 import {
   BUDGET_TYPE_OPTIONS,
   createProjectSchema,
+  PROJECT_PRIORITY_OPTIONS,
   PROJECT_STATUS_OPTIONS,
   type CreateProjectInput,
 } from "@/lib/validation/project";
@@ -16,11 +18,12 @@ import {
 } from "./project-create-fields";
 import { isBlankMilestone, MilestonesEditor } from "../milestones-editor";
 import { FormSection } from "@/components/form-section";
+import { ProjectIconPicker } from "@/components/project-icon-picker";
+import type { ProjectIconKey } from "@/lib/project-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 // Good defaults so a PM can type just a name and hit Create: Planning/Healthy/Fixed are the
@@ -29,11 +32,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 // stays editable on the list/detail views.
 const DEFAULT_VALUES: Omit<CreateProjectInput, "pm_id"> = {
   name: "",
+  icon_key: "folder",
   client_id: null,
   client_contact_id: null,
   description: null,
   status: "planning",
   health: "healthy",
+  priority: "medium",
   budget_type: "fixed",
   start_date: null,
   deadline: null,
@@ -54,6 +59,7 @@ export function ProjectCreateForm({
 }) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const form = useForm<CreateProjectInput>({
     resolver: zodResolver(createProjectSchema),
     defaultValues: { ...DEFAULT_VALUES, pm_id: currentUserId },
@@ -62,10 +68,9 @@ export function ProjectCreateForm({
   function onSubmit(values: CreateProjectInput) {
     setServerError(null);
     startTransition(async () => {
-      // On success the action redirects server-side to the new project's Overview page and
-      // this promise never resolves with a value -- only the error path returns here.
       const result = await createProjectAction(values);
-      if (result && "error" in result) setServerError(result.error);
+      if ("error" in result) setServerError(result.error);
+      else router.push("/projects/" + result.id);
     });
   }
 
@@ -79,10 +84,8 @@ export function ProjectCreateForm({
   }
 
   return (
-    <Card className="max-w-2xl">
-      <CardContent className="pt-6">
-        <Form {...form}>
-          <form onSubmit={handleFormSubmit} className="space-y-5">
+    <Form {...form}>
+      <form onSubmit={handleFormSubmit} className="space-y-5">
             {serverError && (
               <Alert variant="destructive">
                 <AlertDescription>{serverError}</AlertDescription>
@@ -101,14 +104,31 @@ export function ProjectCreateForm({
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="icon_key"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project icon</FormLabel>
+                    <ProjectIconPicker
+                      value={(field.value ?? "folder") as ProjectIconKey}
+                      onChange={field.onChange}
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <PmField control={form.control} pms={pms} />
               <ClientField control={form.control} clients={clients} />
               <ClientContactField control={form.control} contacts={contacts} />
             </FormSection>
 
-            <FormSection tone="amber" title="Status & Budget">
+            <FormSection tone="amber" title="Status & priority">
+              {/* No Health field: health is DERIVED (deadline/budget/progress -- lib/health.ts)
+                  and the stored column is never displayed, so a manual pick would be a lie. */}
               <div className="grid grid-cols-2 gap-3">
                 <EnumSelectField control={form.control} name="status" label="Status" options={PROJECT_STATUS_OPTIONS} />
+                <EnumSelectField control={form.control} name="priority" label="Priority" options={PROJECT_PRIORITY_OPTIONS} />
                 <EnumSelectField control={form.control} name="budget_type" label="Budget type" options={BUDGET_TYPE_OPTIONS} />
               </div>
             </FormSection>
@@ -137,9 +157,7 @@ export function ProjectCreateForm({
                 {isPending ? "Creating…" : "Create project"}
               </Button>
             </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+      </form>
+    </Form>
   );
 }

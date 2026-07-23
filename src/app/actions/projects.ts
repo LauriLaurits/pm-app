@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { withProjectIcon } from "@/lib/project-icons";
 import {
   createProjectSchema,
   editProjectSchema,
@@ -45,7 +46,7 @@ async function validateClientContact(
 
 export async function createProjectAction(
   input: CreateProjectInput
-): Promise<{ error: string }> {
+): Promise<{ error: string } | { success: true; id: string }> {
   // Security boundary: throws "Not authorized" if the caller lacks create_project globally.
   // Must run before any validation/DB work.
   const current = await requirePermission("create_project");
@@ -78,11 +79,15 @@ export async function createProjectAction(
   if (contactError) return { error: contactError };
 
   // milestones live in their own table -- split off before the projects insert.
-  const { milestones, ...projectFields } = parsed.data;
+  const { milestones, icon_key, ...projectFields } = parsed.data;
 
   const { data: project, error } = await supabase
     .from("projects")
-    .insert({ ...projectFields, pm_id: pmId })
+    .insert({
+      ...projectFields,
+      tags: withProjectIcon(projectFields.tags, icon_key),
+      pm_id: pmId,
+    })
     .select("id")
     .single();
   if (error) return { error: "Create failed. Try again." };
@@ -125,7 +130,7 @@ export async function createProjectAction(
   });
 
   revalidatePath("/projects");
-  redirect(`/projects/${project.id}`);
+  return { success: true as const, id: project.id };
 }
 
 export async function editProjectAction(
@@ -157,11 +162,11 @@ export async function editProjectAction(
   // milestones live in their own table -- split off before the projects update. The update
   // round-trips the unchanged start_date/deadline; the milestone replace-all AFTER it lets the
   // sync trigger apply any changed start/end dates last, so they win.
-  const { milestones, ...projectFields } = parsed.data;
+  const { milestones, icon_key, ...projectFields } = parsed.data;
 
   const { error } = await supabase
     .from("projects")
-    .update(projectFields)
+    .update({ ...projectFields, tags: withProjectIcon(projectFields.tags, icon_key) })
     .eq("id", projectId);
   if (error) return { error: "Update failed. Try again." };
 

@@ -1,10 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PersonAvatar } from "@/components/person-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { initials } from "./types";
 import type { UserOption } from "./types";
 
 /** Single searchable picker over active users (page.tsx's query -- user_profiles where status =
@@ -35,10 +34,7 @@ export function UserPickerField({
     return (
       <div className="flex items-center justify-between gap-2 rounded-lg border border-input px-3 py-2">
         <div className="flex items-center gap-2">
-          <Avatar size="sm">
-            <AvatarImage src={selected.avatar_url ?? undefined} alt={selected.full_name} />
-            <AvatarFallback>{initials(selected.full_name)}</AvatarFallback>
-          </Avatar>
+          <PersonAvatar name={selected.full_name} avatarUrl={selected.avatar_url} className="size-8" />
           <span className="text-sm">{selected.full_name}</span>
         </div>
         <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(true)}>
@@ -72,10 +68,7 @@ export function UserPickerField({
               }}
               className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-muted/50"
             >
-              <Avatar size="sm">
-                <AvatarImage src={o.avatar_url ?? undefined} alt={o.full_name} />
-                <AvatarFallback>{initials(o.full_name)}</AvatarFallback>
-              </Avatar>
+              <PersonAvatar name={o.full_name} avatarUrl={o.avatar_url} className="size-8" />
               <span className="text-sm">{o.full_name}</span>
             </button>
           ))

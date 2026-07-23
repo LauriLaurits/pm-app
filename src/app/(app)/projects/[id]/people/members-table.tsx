@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { updateMemberRoleAction } from "@/app/actions/project-members";
-import { avatarTint } from "@/lib/avatar-tint";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PersonAvatar } from "@/components/person-avatar";
 import { InlineEditText } from "@/components/inline-edit-text";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { formatDate, initials } from "../../types";
+import { formatDate } from "../../types";
 import { AddPeriodDialog } from "./add-period-dialog";
 import { MemberRemoveButton } from "./member-actions";
 import { MemberEditDialog } from "./member-edit-dialog";
@@ -45,12 +44,7 @@ export function MembersTable({
           <TableRow key={member.id}>
             <TableCell>
               <div className="flex items-center gap-2">
-                <Avatar size="sm">
-                  <AvatarImage src={member.avatar_url ?? undefined} alt={member.full_name ?? ""} />
-                  <AvatarFallback className={avatarTint(member.full_name)}>
-                    {initials(member.full_name)}
-                  </AvatarFallback>
-                </Avatar>
+                <PersonAvatar name={member.full_name} avatarUrl={member.avatar_url} className="size-8" />
                 {member.person_id ? (
                   <Link href={`/people/${member.person_id}`} className="font-medium hover:underline">
                     {member.full_name ?? "Unknown"}

@@ -43,12 +43,14 @@ export default async function NewProjectPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">New project</h1>
-      <ProjectCreateForm
-        clients={(clients ?? []) as ClientOption[]}
-        contacts={(contacts ?? []) as ClientContactOption[]}
-        pms={pms}
-        currentUserId={current.user.id}
-      />
+      <div className="max-w-2xl">
+        <ProjectCreateForm
+          clients={(clients ?? []) as ClientOption[]}
+          contacts={(contacts ?? []) as ClientContactOption[]}
+          pms={pms}
+          currentUserId={current.user.id}
+        />
+      </div>
     </div>
   );
 }

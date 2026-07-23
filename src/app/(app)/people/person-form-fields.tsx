@@ -2,12 +2,34 @@ import type { Control } from "react-hook-form";
 import {
   EMPLOYMENT_TYPE_OPTIONS, PERSON_STATUS_OPTIONS, type PersonInput,
 } from "@/lib/validation/person";
-import { humanize } from "./types";
+import { EmploymentTypeBadge } from "./employment-type-badge";
+import type { EmploymentType } from "./types";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+
+// Options render exactly as the list view shows the value: status as the dot language ("● Active"
+// green / "● Deactivated" red -- same wording as the table, not the raw enum), employment type
+// as the uppercase micro-chip.
+const STATUS_OPTION: Record<(typeof PERSON_STATUS_OPTIONS)[number], { label: string; dot: string }> = {
+  active: { label: "Active", dot: "bg-emerald-500" },
+  inactive: { label: "Deactivated", dot: "bg-red-500" },
+};
+
+function PersonOptionLabel({ name, value }: { name: "employment_type" | "status"; value: string }) {
+  if (name === "status") {
+    const opt = STATUS_OPTION[value as (typeof PERSON_STATUS_OPTIONS)[number]];
+    return (
+      <span className="flex items-center gap-2">
+        <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${opt.dot}`} />
+        {opt.label}
+      </span>
+    );
+  }
+  return <EmploymentTypeBadge type={value as EmploymentType} />;
+}
 
 /** employment_type/status are both enum <Select>s bound the same way — one renderer for both. */
 export function PersonEnumSelectField({
@@ -30,11 +52,13 @@ export function PersonEnumSelectField({
           <FormLabel>{label}</FormLabel>
           <Select value={field.value} onValueChange={(v) => field.onChange(v)}>
             <SelectTrigger className="w-full">
-              <SelectValue>{(v: string) => humanize(v)}</SelectValue>
+              <SelectValue>{(v: string) => <PersonOptionLabel name={name} value={v} />}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {options.map((o) => (
-                <SelectItem key={o} value={o}>{humanize(o)}</SelectItem>
+                <SelectItem key={o} value={o}>
+                  <PersonOptionLabel name={name} value={o} />
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>

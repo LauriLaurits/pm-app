@@ -1,28 +1,31 @@
 import Link from "next/link";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PersonAvatar } from "@/components/person-avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { avatarTint } from "@/lib/avatar-tint";
 import { DotBadge } from "@/components/dot-badge";
 import { deriveHealth } from "@/lib/health";
 import {
   BudgetCell, DatesCell, HealthBadge, ProgressCell, type ProgressById,
 } from "./projects-table";
-import { STATUS_DOT, initials } from "./types";
+import { STATUS_DOT } from "./types";
 import type { ProjectListRow } from "./types";
+import { PROJECT_ICONS, type ProjectIconKey } from "@/lib/project-icons";
 
 // Card view reuses the TABLE's cell components (dates, budget, progress, health) so the two
 // views can never drift apart -- same bars, same countdown colors, same derived health.
 export function ProjectsCards({
   rows,
   progressById,
+  iconKeys,
 }: {
   rows: ProjectListRow[];
   progressById: ProgressById;
+  iconKeys?: Record<string, ProjectIconKey>;
 }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {rows.map((row) => {
         if (!row.id) return null;
+        const Icon = PROJECT_ICONS[iconKeys?.[row.id] ?? "folder"].icon;
         const health = deriveHealth({
           status: row.status,
           startDate: row.start_date,
@@ -37,11 +40,16 @@ export function ProjectsCards({
           <Card key={row.id}>
             <CardHeader>
               <div className="flex items-start justify-between gap-2">
-                <CardTitle>
-                  <Link href={`/projects/${row.id}`} className="transition-opacity hover:opacity-70">
-                    {row.name}
-                  </Link>
-                </CardTitle>
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/25 bg-muted/30 text-muted-foreground">
+                    <Icon className="size-4" />
+                  </span>
+                  <CardTitle>
+                    <Link href={`/projects/${row.id}`} className="transition-opacity hover:opacity-70">
+                      {row.name}
+                    </Link>
+                  </CardTitle>
+                </div>
                 <HealthBadge health={health} />
               </div>
               <p className="text-sm text-muted-foreground">{row.client_name ?? "—"}</p>
@@ -49,12 +57,7 @@ export function ProjectsCards({
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Avatar size="sm">
-                    <AvatarImage src={row.pm_avatar_url ?? undefined} alt={row.pm_name ?? ""} />
-                    <AvatarFallback className={avatarTint(row.pm_name)}>
-                      {initials(row.pm_name)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <PersonAvatar name={row.pm_name} avatarUrl={row.pm_avatar_url} className="size-8" />
                   <span className="text-sm">{row.pm_name ?? "—"}</span>
                 </div>
                 {row.status && (

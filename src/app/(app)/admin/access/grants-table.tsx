@@ -1,8 +1,8 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PersonAvatar } from "@/components/person-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RevokeGrantButton } from "./revoke-grant-button";
-import { formatDate, humanize, initials } from "./types";
+import { formatDate, humanize } from "./types";
 import type { GrantListItem } from "./types";
 
 /** Flat table of every ad-hoc grant the viewer (an admin) can see -- AccessFilters narrows it by
@@ -27,10 +27,7 @@ export function GrantsTable({ items }: { items: GrantListItem[] }) {
           <TableRow key={item.id}>
             <TableCell>
               <div className="flex items-center gap-2">
-                <Avatar size="sm">
-                  <AvatarImage src={item.user_avatar ?? undefined} alt={item.user_name} />
-                  <AvatarFallback>{initials(item.user_name)}</AvatarFallback>
-                </Avatar>
+                <PersonAvatar name={item.user_name} avatarUrl={item.user_avatar} className="size-8" />
                 <span className="text-sm">{item.user_name}</span>
               </div>
             </TableCell>

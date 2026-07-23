@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useWatch, type Control } from "react-hook-form";
-import { humanize } from "../types";
+import { PersonAvatar } from "@/components/person-avatar";
+import { humanize, STATUS_DOT } from "../types";
+import type { ProjectStatus } from "../types";
 import type { CreateProjectInput } from "@/lib/validation/project";
 import { ClientQuickCreateDialog } from "@/app/(app)/clients/client-quick-create-dialog";
 import { Input } from "@/components/ui/input";
@@ -15,7 +17,7 @@ const NO_CONTACT = "__none__";
 
 export type ClientOption = { id: string; name: string };
 export type ClientContactOption = { id: string; client_id: string; name: string; email: string | null };
-export type PmOption = { user_id: string; full_name: string };
+export type PmOption = { user_id: string; full_name: string; avatar_url?: string | null };
 
 /** PM select over every active PM/admin in the system (pm_options() server-side), defaulting to
  * the creator via the form's defaultValues. Any create_project holder may pick a colleague --
@@ -37,12 +39,26 @@ export function PmField({
           <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v)}>
             <SelectTrigger className="w-full">
               <SelectValue>
-                {(v: string) => pms.find((p) => p.user_id === v)?.full_name ?? "Select a project manager"}
+                {(v: string) => {
+                  const pm = pms.find((p) => p.user_id === v);
+                  if (!pm) return "Select a project manager";
+                  return (
+                    <span className="flex items-center gap-2">
+                      <PersonAvatar name={pm.full_name} avatarUrl={pm.avatar_url} className="size-5 text-[9px]" />
+                      {pm.full_name}
+                    </span>
+                  );
+                }}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {pms.map((p) => (
-                <SelectItem key={p.user_id} value={p.user_id}>{p.full_name}</SelectItem>
+                <SelectItem key={p.user_id} value={p.user_id}>
+                  <span className="flex items-center gap-2">
+                    <PersonAvatar name={p.full_name} avatarUrl={p.avatar_url} className="size-5 text-[9px]" />
+                    {p.full_name}
+                  </span>
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -188,6 +204,24 @@ function ContactSelect({
   );
 }
 
+// Same dot language the list views use: every status gets its own dot (STATUS_DOT), priority
+// dots only where they carry signal (high red / medium blue, low stays plain -- exactly like
+// the table's priority column). budget_type stays plain text.
+const OPTION_DOT: Partial<Record<string, Record<string, string | undefined>>> = {
+  status: STATUS_DOT as Record<ProjectStatus, string>,
+  priority: { high: "bg-red-500", medium: "bg-blue-500" },
+};
+
+function OptionLabel({ fieldName, value }: { fieldName: string; value: string }) {
+  const dot = OPTION_DOT[fieldName]?.[value];
+  return (
+    <span className="flex items-center gap-2">
+      {dot && <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${dot}`} />}
+      <span className="capitalize">{humanize(value)}</span>
+    </span>
+  );
+}
+
 /** Status/health/priority/budget_type are all enum <Select>s bound the same way -- one field
  * renderer for all four, all pre-filled with sensible defaults by the caller's defaultValues. */
 export function EnumSelectField({
@@ -210,12 +244,12 @@ export function EnumSelectField({
           <FormLabel>{label}</FormLabel>
           <Select value={field.value} onValueChange={(v) => field.onChange(v)}>
             <SelectTrigger className="w-full">
-              <SelectValue>{(v: string) => humanize(v)}</SelectValue>
+              <SelectValue>{(v: string) => <OptionLabel fieldName={name} value={v} />}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {options.map((o) => (
                 <SelectItem key={o} value={o}>
-                  {humanize(o)}
+                  <OptionLabel fieldName={name} value={o} />
                 </SelectItem>
               ))}
             </SelectContent>

@@ -45,19 +45,24 @@ export function TimeOffCard({
         ) : (
           <div className="space-y-2">
             {upcoming.map((t) => (
-              <div key={t.id} className="flex items-center justify-between gap-3 text-sm">
-                <div className="min-w-0">
-                  <div className="tabular-nums">{formatPeriod(t.starts_on, t.ends_on)}</div>
-                  {t.note && <div className="truncate text-xs text-muted-foreground">{t.note}</div>}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Badge variant="outline" className="capitalize">{humanize(t.type)}</Badge>
-                  {canManage && (
-                    <>
-                      <TimeOffDialog personId={personId} timeOff={t} />
-                      <TimeOffDeleteButton personId={personId} timeOffId={t.id} />
-                    </>
-                  )}
+              <div key={t.id} className="rounded-lg border p-3 text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-medium capitalize">{humanize(t.type)}</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                      {formatPeriod(t.starts_on, t.ends_on)} · {durationDays(t.starts_on, t.ends_on)} days
+                    </div>
+                    {t.note && <div className="mt-1 truncate text-xs text-muted-foreground">{t.note}</div>}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge variant="outline">{leaveStatus(t, today)}</Badge>
+                    {canManage && (
+                      <>
+                        <TimeOffDialog personId={personId} timeOff={t} />
+                        <TimeOffDeleteButton personId={personId} timeOffId={t.id} />
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -71,4 +76,14 @@ export function TimeOffCard({
       </CardContent>
     </Card>
   );
+}
+
+function leaveStatus(timeOff: TimeOffRow, today: string) {
+  if (timeOff.starts_on <= today && timeOff.ends_on >= today) return "In progress";
+  return timeOff.starts_on > today ? "Scheduled" : "Completed";
+}
+
+function durationDays(start: string, end: string) {
+  const day = 86_400_000;
+  return Math.max(1, Math.round((Date.parse(end) - Date.parse(start)) / day) + 1);
 }

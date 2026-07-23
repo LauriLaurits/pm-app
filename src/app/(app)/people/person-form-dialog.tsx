@@ -54,7 +54,7 @@ export function PersonFormDialog({
           {person ? "Edit" : "Add person"}
         </DialogTrigger>
       )}
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{person ? `Edit ${person.full_name}` : "Add person"}</DialogTitle>
         </DialogHeader>

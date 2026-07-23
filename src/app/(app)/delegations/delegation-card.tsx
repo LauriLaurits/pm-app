@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PersonAvatar } from "@/components/person-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { avatarTint } from "@/lib/avatar-tint";
 import { RevokeButton } from "./revoke-button";
-import { formatDate, humanize, initials } from "./types";
+import { formatDate, humanize } from "./types";
 import type { DelegationListItem } from "./types";
 
 /** One delegation: who granted → who received, the projects + permissions it covers, its window,
@@ -54,10 +53,7 @@ export function DelegationCard({ item }: { item: DelegationListItem }) {
 function PersonBadge({ name, avatar }: { name: string; avatar: string | null }) {
   return (
     <div className="flex items-center gap-1.5">
-      <Avatar size="sm">
-        <AvatarImage src={avatar ?? undefined} alt={name} />
-        <AvatarFallback className={avatarTint(name)}>{initials(name)}</AvatarFallback>
-      </Avatar>
+      <PersonAvatar name={name} avatarUrl={avatar} className="size-8" />
       <span className="text-sm font-medium">{name}</span>
     </div>
   );

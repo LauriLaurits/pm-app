@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DotBadge } from "@/components/dot-badge";
+import { utilizationBarClasses } from "@/lib/workload";
 import { STATUS_DOT } from "../../projects/types";
 import { humanize } from "../types";
 import type { AssignmentWithProject, CurrentProjectItem } from "./types";
@@ -12,7 +12,7 @@ import { formatDate, formatPeriod } from "./types";
 // chip, tabular-nums for every number, hover-dim link.
 function CurrentProjectRow({ item }: { item: CurrentProjectItem }) {
   return (
-    <div className="rounded-lg border p-3">
+    <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10 transition-shadow hover:shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <div className="flex min-w-0 items-center gap-2">
           {item.projectName ? (
@@ -31,17 +31,25 @@ function CurrentProjectRow({ item }: { item: CurrentProjectItem }) {
             </DotBadge>
           )}
         </div>
-        <div className="text-sm tabular-nums whitespace-nowrap">
+        <div className="text-base tabular-nums whitespace-nowrap">
           {item.allocationPct === null || item.allocatedHours === null ? (
             <span className="text-muted-foreground">—</span>
           ) : (
             <>
-              <span className="font-medium">{item.allocatedHours} h/wk</span>{" "}
-              <span className="text-muted-foreground">· {Math.round(item.allocationPct)}%</span>
+              <span className="font-semibold">{item.allocatedHours} h/week</span>{" "}
+              <span className="font-medium text-muted-foreground">· {Math.round(item.allocationPct)}%</span>
             </>
           )}
         </div>
       </div>
+      {item.allocationPct !== null && (
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className={"h-full rounded-full " + utilizationBarClasses(item.allocationPct)}
+            style={{ width: Math.min(Math.max(item.allocationPct, 0), 100) + "%" }}
+          />
+        </div>
+      )}
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
         <span>{item.roleOnProject ?? "—"}</span>
         <span aria-hidden className="text-border">·</span>
@@ -111,11 +119,9 @@ export function CurrentProjectsCard({
   past: AssignmentWithProject[];
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Current projects</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-5">
+    <section className="space-y-3">
+      <h2 className="text-base font-medium">Current projects</h2>
+      <div className="space-y-5">
         {current.length === 0 ? (
           <p className="text-sm text-muted-foreground">No active assignments right now.</p>
         ) : (
@@ -127,7 +133,7 @@ export function CurrentProjectsCard({
         )}
         {upcoming.length > 0 && <CompactGroup title="Upcoming" assignments={upcoming} />}
         {past.length > 0 && <CompactGroup title="History" assignments={past} />}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

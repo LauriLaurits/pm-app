@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PersonAvatar } from "@/components/person-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { avatarTint } from "@/lib/avatar-tint";
-import { formatDate, initials } from "../types";
+import { visibleProjectTags } from "@/lib/project-icons";
+import { formatDate } from "../types";
 import type { PersonRef } from "./types";
 import type { ProjectRow } from "./types";
 
@@ -25,6 +25,7 @@ export function OverviewDetailsCard({
   clientContact: { name: string; email: string | null } | null;
   editAction?: React.ReactNode;
 }) {
+  const visibleTags = visibleProjectTags(project.tags);
   return (
     <Card>
       <CardHeader>
@@ -55,9 +56,9 @@ export function OverviewDetailsCard({
           </div>
         </div>
 
-        {project.tags.length > 0 && (
+        {visibleTags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 border-t pt-3">
-            {project.tags.map((tag) => (
+            {visibleTags.map((tag) => (
               <Badge key={tag} variant="secondary">
                 {tag}
               </Badge>
@@ -75,12 +76,7 @@ function PersonRow({ label, person }: { label: string; person: PersonRef }) {
       <span className="text-sm text-muted-foreground">{label}</span>
       {person ? (
         <Link href={`/people/${person.person_id}`} className="flex items-center gap-2 hover:underline">
-          <Avatar size="sm">
-            <AvatarImage src={person.avatar_url ?? undefined} alt={person.full_name} />
-            <AvatarFallback className={avatarTint(person.full_name)}>
-              {initials(person.full_name)}
-            </AvatarFallback>
-          </Avatar>
+          <PersonAvatar name={person.full_name} avatarUrl={person.avatar_url} className="size-8" />
           <span className="text-sm font-medium">{person.full_name}</span>
         </Link>
       ) : (

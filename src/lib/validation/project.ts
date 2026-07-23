@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PROJECT_ICON_KEYS } from "@/lib/project-icons";
 
 export const PROJECT_STATUS_OPTIONS = [
   "planning",
@@ -68,6 +69,7 @@ function milestonesArray() {
 
 export const editProjectSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
+  icon_key: z.enum(PROJECT_ICON_KEYS).default("folder"),
   client_id: nullableUuidField("Invalid client"),
   // Optional pointer at ONE of the client's contact persons; the action verifies the contact
   // actually belongs to client_id before writing (a bare uuid check can't know that).
@@ -129,6 +131,7 @@ export function projectInlineFieldSchema(field: ProjectInlineField) {
 // must hold create_project and the target must be an active PM/admin (see pm_options()).
 export const createProjectSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
+  icon_key: z.enum(PROJECT_ICON_KEYS).default("folder"),
   client_id: nullableUuidField("Invalid client"),
   client_contact_id: nullableUuidField("Invalid contact"),
   pm_id: nullableUuidField("Invalid project manager"),

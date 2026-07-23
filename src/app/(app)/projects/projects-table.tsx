@@ -3,12 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Database, Flag, Folder, Globe,
-  Landmark, MoreHorizontal, Package, Settings2, ShoppingCart, Star, Truck, Users, Wrench,
-  type LucideIcon,
+  ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Flag, MoreHorizontal, Settings2, Users,
 } from "lucide-react";
 import { updateProjectFieldAction } from "@/app/actions/projects";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PersonAvatar } from "@/components/person-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +22,7 @@ import {
 import { consumptionBarClasses } from "@/lib/budget";
 import { avatarTint } from "@/lib/avatar-tint";
 import { deadlineCountdown } from "@/lib/deadline";
+import { PROJECT_ICONS, type ProjectIconKey } from "@/lib/project-icons";
 import {
   DERIVED_HEALTH_BADGE_CLASS, DERIVED_HEALTH_DOT, DERIVED_HEALTH_LABEL, deriveHealth,
   healthTitle, type DerivedHealth,
@@ -58,25 +57,6 @@ function consumptionPct(row: ProjectListRow): number | null {
   return (row.budget_used / row.budget_total) * 100;
 }
 
-// Best-effort category icon from the project's name + tags (retail cart, fintech bank, ...).
-// Order matters where keywords overlap ("Data warehouse" must hit `data` before `warehouse`).
-const ICON_RULES: [RegExp, LucideIcon][] = [
-  [/(data|analytics|\bbi\b)/, Database],
-  [/(retail|shop|commerce)/, ShoppingCart],
-  [/(fin|bank|pay|kyc|invoice)/, Landmark],
-  [/(warehouse|scanner|logistics|inventory)/, Package],
-  [/(fleet|tracking|gps|transport)/, Truck],
-  [/(intranet|web|site|portal)/, Globe],
-  [/(loyalty|reward)/, Star],
-  [/(maintenance|support|crm)/, Wrench],
-];
-
-function projectIcon(name: string | null, tags?: string[] | null): LucideIcon {
-  const hay = `${name ?? ""} ${(tags ?? []).join(" ")}`.toLowerCase();
-  for (const [re, icon] of ICON_RULES) if (re.test(hay)) return icon;
-  return Folder;
-}
-
 const OPTIONAL_COLUMNS = [
   { key: "client", label: "Client" },
   { key: "pm", label: "PM" },
@@ -109,6 +89,7 @@ export function ProjectsTable({
   editableProjectIds,
   links,
   progressById,
+  iconKeys,
   initiallyHidden,
 }: {
   rows: ProjectListRow[];
@@ -119,6 +100,7 @@ export function ProjectsTable({
   editableProjectIds: string[];
   links: ProjectRowLinks;
   progressById: ProgressById;
+  iconKeys?: Record<string, ProjectIconKey>;
   /** Columns hidden on first render (still re-showable via the gear menu) -- e.g. the client
    * detail page hides the redundant Client column on its own client's table. */
   initiallyHidden?: ColumnKey[];
@@ -255,7 +237,7 @@ export function ProjectsTable({
             const projectId = row.id;
             const canEdit = editable.has(projectId);
             const rowLinks = links[projectId];
-            const Icon = projectIcon(row.name);
+            const Icon = PROJECT_ICONS[iconKeys?.[projectId] ?? "folder"].icon;
             return (
               <TableRow key={row.id} className="group">
                 {/* Priority dot (red high / blue medium / faint low) under the flag header.
@@ -505,10 +487,7 @@ function PersonCell({
 }) {
   const inner = (
     <span className="flex items-center gap-2">
-      <Avatar size="sm">
-        <AvatarImage src={avatarUrl ?? undefined} alt={name ?? ""} />
-        <AvatarFallback className={avatarTint(name)}>{initials(name)}</AvatarFallback>
-      </Avatar>
+      <PersonAvatar name={name} avatarUrl={avatarUrl} className="size-8" />
       <span>{name ?? "—"}</span>
     </span>
   );

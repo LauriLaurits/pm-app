@@ -7,10 +7,17 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/stat-card";
 import { ProjectFilters } from "./project-filters";
+import { ProjectCreateDialog } from "./project-create-dialog";
 import { ProjectsCards } from "./projects-cards";
+import type {
+  ClientContactOption,
+  ClientOption,
+  PmOption,
+} from "./new/project-create-fields";
 import { deriveHealth } from "@/lib/health";
 import { formatMoney } from "@/lib/budget";
 import { deriveProgress, type ProgressPart } from "@/lib/progress";
+import { projectIconKey, type ProjectIconKey } from "@/lib/project-icons";
 import { ProjectsTable, type ProjectRowLinks } from "./projects-table";
 import { ViewToggle } from "./view-toggle";
 import {
@@ -65,20 +72,38 @@ export default async function ProjectsPage({
 
   // One parallel round trip for everything that doesn't depend on the row list (perf feedback:
   // these used to run in series, each adding a full DB round trip to TTFB).
-  const [canCreateRes, optionRes, rowsRes] = await Promise.all([
+  const [canCreateRes, optionRes, rowsRes, createClientsRes, createContactsRes, createPmsRes] =
+    await Promise.all([
     current
       ? supabase.rpc("has_permission", { uid: current.user.id, perm: "create_project" })
       : Promise.resolve({ data: false }),
     supabase.from("project_list_rows").select("pm_name, pm_avatar_url, client_name"),
     query.order("updated_at", { ascending: false }),
-  ]);
+    supabase.from("clients").select("id, name").order("name"),
+    supabase.from("client_contacts").select("id, client_id, name, email").order("name"),
+    current
+      ? supabase.rpc("pm_options")
+      : Promise.resolve({ data: [] as PmOption[] }),
+    ]);
   const canCreate = canCreateRes.data;
   const optionRows = optionRes.data;
   const { data: rows, error } = rowsRes;
+  const createPms: PmOption[] = createPmsRes.data ?? [];
+  if (current && !createPms.some((pm) => pm.user_id === current.user.id)) {
+    createPms.unshift({
+      user_id: current.user.id,
+      full_name: current.profile.full_name ?? current.profile.email,
+    });
+  }
 
   const pmAvatarByName = new Map<string, string | null>();
   for (const r of optionRows ?? []) {
     if (r.pm_name && !pmAvatarByName.has(r.pm_name)) pmAvatarByName.set(r.pm_name, r.pm_avatar_url);
+  }
+  // Same avatar-chip look in the create dialog's PM select as the list's PM filter (best-effort:
+  // a PM with no projects yet isn't in project_list_rows and falls back to the tinted chip).
+  for (const pm of createPms) {
+    pm.avatar_url ??= pmAvatarByName.get(pm.full_name) ?? null;
   }
   const pmOptions = [...pmAvatarByName.entries()]
     .map(([name, avatarUrl]) => ({ name, avatarUrl }))
@@ -96,11 +121,11 @@ export default async function ProjectsPage({
   const projectIds = (rows ?? []).map((r) => r.id).filter((id): id is string => !!id);
   const links: ProjectRowLinks = {};
   const progressById: Record<string, { pct: number | null; label: string }> = {};
-  let plannedHours = 0;
+  const iconKeys: Record<string, ProjectIconKey> = {};
 
   // All row-dependent lookups run as ONE parallel wave (they used to be three sequential
   // waves of round trips -- the other half of the perf feedback).
-  await Promise.all([
+  const [, , plannedHours] = await Promise.all([
     (async () => {
   if (current && projectIds.length > 0) {
     if (current.role === "admin") {
@@ -132,13 +157,14 @@ export default async function ProjectsPage({
   // people-directory id here (RLS-scoped -- rows the viewer can't see simply stay unlinked).
   if (projectIds.length > 0) {
     const [{ data: projectRefs }, { data: peopleRefs }] = await Promise.all([
-      supabase.from("projects").select("id, client_id, pm_id").in("id", projectIds),
+      supabase.from("projects").select("id, client_id, pm_id, tags").in("id", projectIds),
       supabase.from("people").select("id, user_id").not("user_id", "is", null),
     ]);
     const personIdByUserId = new Map(
       (peopleRefs ?? []).map((p) => [p.user_id as string, p.id])
     );
     for (const p of projectRefs ?? []) {
+      iconKeys[p.id] = projectIconKey(p.tags);
       links[p.id] = {
         clientId: p.client_id,
         pmPersonId: p.pm_id ? (personIdByUserId.get(p.pm_id) ?? null) : null,
@@ -150,7 +176,7 @@ export default async function ProjectsPage({
     (async () => {
   // Derived progress for the list -- the same deriveProgress the project page uses, so the list
   // never shows the deprecated hand-typed `progress` column while the detail shows parts-derived.
-  if (projectIds.length > 0) {
+  if (projectIds.length === 0) return 0;
     const { data: partRows } = await supabase
       .from("project_parts")
       .select("project_id, status, estimated_hours")
@@ -160,7 +186,6 @@ export default async function ProjectsPage({
       const list = partsByProject.get(p.project_id) ?? [];
       list.push({ status: p.status, estimated_hours: p.estimated_hours });
       partsByProject.set(p.project_id, list);
-      plannedHours += p.estimated_hours ?? 0;
     }
     for (const id of projectIds) {
       const derived = deriveProgress(partsByProject.get(id) ?? []);
@@ -173,7 +198,7 @@ export default async function ProjectsPage({
             : "No parts yet";
       progressById[id] = { pct: derived.pct, label };
     }
-  }
+  return (partRows ?? []).reduce((sum, part) => sum + (part.estimated_hours ?? 0), 0);
     })(),
   ]);
 
@@ -245,10 +270,13 @@ export default async function ProjectsPage({
         </div>
         <div className="flex items-center gap-2">
           <ViewToggle view={view} />
-          {canCreate && (
-            <Button size="sm" render={<Link href="/projects/new" />}>
-              New project
-            </Button>
+          {canCreate && current && (
+            <ProjectCreateDialog
+              clients={(createClientsRes.data ?? []) as ClientOption[]}
+              contacts={(createContactsRes.data ?? []) as ClientContactOption[]}
+              pms={createPms}
+              currentUserId={current.user.id}
+            />
           )}
         </div>
       </div>
@@ -274,13 +302,14 @@ export default async function ProjectsPage({
       ) : displayRows.length === 0 ? (
         <EmptyState hasFilters={hasFilters} canCreate={!!canCreate} />
       ) : view === "cards" ? (
-        <ProjectsCards rows={displayRows} progressById={progressById} />
+        <ProjectsCards rows={displayRows} progressById={progressById} iconKeys={iconKeys} />
       ) : (
         <ProjectsTable
           rows={displayRows}
           editableProjectIds={[...editableProjectIds]}
           links={links}
           progressById={progressById}
+          iconKeys={iconKeys}
         />
       )}
     </div>

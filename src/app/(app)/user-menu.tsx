@@ -4,8 +4,7 @@ import { useTransition } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { signOutAction } from "@/app/actions/auth";
-import { avatarTint } from "@/lib/avatar-tint";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PersonAvatar } from "@/components/person-avatar";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuGroup,
@@ -21,23 +20,13 @@ export function UserMenu({
   avatarUrl?: string | null;
 }) {
   const [isPending, startTransition] = useTransition();
-  const initials = name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         className="flex items-center gap-2 rounded-full outline-none focus-visible:ring-2"
         aria-label="Account menu"
       >
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={avatarUrl ?? undefined} alt={name} />
-          <AvatarFallback className={avatarTint(name)}>{initials}</AvatarFallback>
-        </Avatar>
+        <PersonAvatar name={name} avatarUrl={avatarUrl} className="size-8" />
         <span className="hidden text-sm font-medium sm:inline">{name}</span>
         <ChevronDown className="hidden size-3.5 text-muted-foreground sm:inline" />
       </DropdownMenuTrigger>

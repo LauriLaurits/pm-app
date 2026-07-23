@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PersonAvatar } from "@/components/person-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -52,10 +52,7 @@ function PersonRowCells({ row, striped }: { row: PersonTimelineRow; striped: boo
           rowBg
         )}
       >
-        <Avatar size="sm">
-          <AvatarImage src={row.avatar_url ?? undefined} alt={row.full_name} />
-          <AvatarFallback>{initials(row.full_name)}</AvatarFallback>
-        </Avatar>
+        <PersonAvatar name={row.full_name} avatarUrl={row.avatar_url} className="size-8" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <Link href={`/people/${row.id}`} className="truncate text-sm font-medium hover:underline">
@@ -122,9 +119,4 @@ function WorkloadCell({ week, rowBg }: { week: WeekCell; rowBg: string }) {
       </TooltipContent>
     </Tooltip>
   );
-}
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  return (parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "");
 }

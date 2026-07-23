@@ -2,10 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { addMemberAction, removeMemberAction } from "@/app/actions/project-members";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PersonAvatar } from "@/components/person-avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { initials } from "../../types";
 import type { CandidateOption } from "./types";
 
 /** One row in the Manage members panel: a checkbox whose checked state IS project membership.
@@ -49,10 +48,7 @@ export function CandidateRow({
         onCheckedChange={(v) => toggle(v === true)}
         disabled={isPending}
       />
-      <Avatar size="sm">
-        <AvatarImage src={candidate.avatar_url ?? undefined} alt={candidate.full_name} />
-        <AvatarFallback>{initials(candidate.full_name)}</AvatarFallback>
-      </Avatar>
+      <PersonAvatar name={candidate.full_name} avatarUrl={candidate.avatar_url} className="size-8" />
       <Label htmlFor={inputId} className="flex-1 cursor-pointer text-sm font-normal">
         {candidate.full_name}
       </Label>
