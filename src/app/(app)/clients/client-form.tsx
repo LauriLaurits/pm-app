@@ -12,6 +12,7 @@ import type { ClientContactRow, ClientRow } from "./types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FormSection } from "@/components/form-section";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -116,21 +117,22 @@ export function ClientForm({
             <AlertDescription>{serverError}</AlertDescription>
           </Alert>
         )}
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Name</FormLabel>
-              <FormControl render={<Input autoFocus {...field} />} />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <FormSection first tone="blue" title="Client">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Name</FormLabel>
+                <FormControl render={<Input autoFocus {...field} />} />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </FormSection>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Contacts</span>
+        <FormSection tone="emerald" title="Contacts">
+          <div className="flex items-center justify-end">
             <Button
               type="button"
               size="xs"
@@ -220,19 +222,21 @@ export function ClientForm({
               </div>
             </div>
           ))}
-        </div>
+        </FormSection>
 
-        <FormField
-          control={form.control}
-          name="notes"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Notes</FormLabel>
-              <FormControl render={<Textarea rows={3} {...field} value={field.value ?? ""} />} />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <FormSection tone="amber" title="Notes">
+          <FormField
+            control={form.control}
+            name="notes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Notes</FormLabel>
+                <FormControl render={<Textarea rows={3} {...field} value={field.value ?? ""} />} />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </FormSection>
         <DialogFooter>
           <Button type="submit" disabled={isPending}>
             {isPending ? "Saving…" : "Save client"}
