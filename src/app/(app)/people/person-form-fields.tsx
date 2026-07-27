@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { ManagedOptionCombobox } from "./managed-option-combobox";
 
 // Options render exactly as the list view shows the value: status as the dot language ("● Active"
 // green / "● Deactivated" red -- same wording as the table, not the raw enum), employment type
@@ -69,11 +70,11 @@ export function PersonEnumSelectField({
   );
 }
 
-const NONE = "__none__";
-
-/** role_title/department are nullable text columns fed from admin-managed lists (managed_options,
- * curated in Settings -> Lists). A person's saved value stays selectable even if an admin has
- * since removed it from the list; "—" clears back to null. */
+/** role_title/department are nullable text columns fed from managed lists (managed_options,
+ * curated in Settings -> Lists). Rendered as a creatable combobox: manage_people holders can
+ * add a missing value inline ("+ Add ..."), removal stays admin-only in Settings. A person's
+ * saved value stays selectable even if an admin has since removed it from the list; clearing
+ * maps back to null. */
 export function ManagedOptionSelectField({
   control,
   name,
@@ -89,30 +90,19 @@ export function ManagedOptionSelectField({
     <FormField
       control={control}
       name={name}
-      render={({ field }) => {
-        const items =
-          field.value && !options.includes(field.value) ? [field.value, ...options] : options;
-        return (
-          <FormItem>
-            <FormLabel>{label}</FormLabel>
-            <Select
-              value={field.value ?? NONE}
-              onValueChange={(v) => field.onChange(v === NONE ? null : v)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue>{(v: string) => (v === NONE ? "—" : v)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>—</SelectItem>
-                {items.map((o) => (
-                  <SelectItem key={o} value={o}>{o}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        );
-      }}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>{label}</FormLabel>
+          <ManagedOptionCombobox
+            kind={name === "role_title" ? "role_title" : "team"}
+            value={field.value ?? null}
+            onChange={(v) => field.onChange(v)}
+            options={options}
+            ariaLabel={label}
+          />
+          <FormMessage />
+        </FormItem>
+      )}
     />
   );
 }

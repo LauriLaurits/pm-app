@@ -3,12 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 
-// Settings -> Lists (admin-curated selects for the person form). Writes are admin-only:
-// requireAdmin() here mirrors the "admins manage managed_options" is_admin() RLS policy,
-// which is the real backstop regardless of what this action does.
+// Settings -> Lists (admin-curated selects for the person form). Writes are no longer uniformly
+// admin-only: adds require manage_people (mirrors the "people managers add managed_options"
+// insert RLS policy, letting the person form's inline "+ Add" combobox grow the vocabulary),
+// while deletes stay admin-only, mirroring the "admins manage managed_options" is_admin() policy
+// -- either way, the RLS policy is the real backstop regardless of what this action does.
 
 const addSchema = z.object({
   kind: z.enum(["role_title", "team"]),
@@ -20,7 +23,7 @@ export async function addManagedOptionAction(
   value: string
 ): Promise<{ error: string } | { success: true; id: string }> {
   // Security boundary first (same ordering as every other action).
-  const admin = await requireAdmin();
+  const current = await requirePermission("manage_people");
 
   const parsed = addSchema.safeParse({ kind, value });
   if (!parsed.success) return { error: "Invalid entry." };
@@ -38,8 +41,8 @@ export async function addManagedOptionAction(
 
   await writeAudit({
     action: "managed_option.created",
-    actorId: admin.user.id,
-    actorEmail: admin.profile.email,
+    actorId: current.user.id,
+    actorEmail: current.profile.email,
     resourceType: "managed_option",
     resourceId: data.id,
     metadata: { kind: parsed.data.kind, value: parsed.data.value },
