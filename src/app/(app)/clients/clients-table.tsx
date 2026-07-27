@@ -239,31 +239,50 @@ function IdentitySubline({ row }: { row: ClientListRow }) {
 
 // One mini-row per contact: tinted initials chip + medium-weight name, role muted after it,
 // email/phone secondary underneath. Primary sorts first (page.tsx orders the read).
+// Flows into 2 columns on wider viewports (xl:), capped at 4 with "+N more" tooltip.
 function ContactsCell({ contacts }: { contacts: ClientContactRow[] }) {
-  if (contacts.length === 0) return <span className="text-muted-foreground">—</span>;
+  if (contacts.length === 0) return <span className="text-sm text-muted-foreground">—</span>;
+  const shown = contacts.slice(0, 4);
+  const hidden = contacts.slice(4);
   return (
-    <div className="flex flex-col gap-1.5">
-      {contacts.map((c) => (
-        <div key={c.id} className="flex items-start gap-2">
-          <span
-            aria-hidden
-            className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md text-[9px] font-medium ${avatarTint(c.name)}`}
-          >
-            {initials(c.name)}
-          </span>
-          {/* Fixed three-level hierarchy so every contact block scans identically:
-              name (primary) / role (small muted) / email+phone (secondary, lighter). */}
-          <div className="min-w-0 leading-tight">
-            <div className="text-sm font-medium">{c.name}</div>
-            {c.role && <div className="text-xs text-muted-foreground">{c.role}</div>}
-            {(c.email || c.phone) && (
-              <div className="text-xs text-muted-foreground/70">
-                {[c.email, c.phone].filter(Boolean).join(" · ")}
-              </div>
-            )}
+    <div>
+      <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 xl:grid-cols-2">
+        {shown.map((c) => (
+          <div key={c.id} className="flex items-start gap-2">
+            <span
+              aria-hidden
+              className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md text-[9px] font-medium ${avatarTint(c.name)}`}
+            >
+              {initials(c.name)}
+            </span>
+            {/* Fixed three-level hierarchy so every contact block scans identically:
+                name (primary) / role (small muted) / email+phone (secondary, lighter). */}
+            <div className="min-w-0 leading-tight">
+              <div className="text-sm font-medium">{c.name}</div>
+              {c.role && <div className="text-xs text-muted-foreground">{c.role}</div>}
+              {(c.email || c.phone) && (
+                <div className="text-xs text-muted-foreground/70">
+                  {[c.email, c.phone].filter(Boolean).join(" · ")}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
+      {hidden.length > 0 && (
+        <Tooltip>
+          <TooltipTrigger render={<span className="mt-1 inline-block text-xs text-muted-foreground" />}>
+            +{hidden.length} more
+          </TooltipTrigger>
+          <TooltipContent>
+            <div className="flex flex-col gap-0.5">
+              {hidden.map((c) => (
+                <span key={c.id}>{c.name}{c.role ? ` · ${c.role}` : ""}</span>
+              ))}
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      )}
     </div>
   );
 }
