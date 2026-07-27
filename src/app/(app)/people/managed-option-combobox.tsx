@@ -26,9 +26,22 @@ export function ManagedOptionCombobox({
   options: string[];
   ariaLabel: string;
 }) {
-  const [query, setQuery] = useState("");
+  // Seed from `value` (not "") so an already-saved value shows on mount instead of a blank input
+  // -- controlling `inputValue` opts out of Base UI's own "derive input text from selection" sync.
+  const [query, setQuery] = useState(value ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Re-sync if `value` changes from outside this component (e.g. the form is reset to a
+  // different person while this instance stays mounted). Adjusting state during render (the
+  // React-documented pattern for "state changed because a prop changed", using state rather than
+  // a ref -- this repo's lint rules forbid ref reads/writes during render) avoids an extra commit
+  // plus the set-state-in-effect lint rule.
+  const [syncedValue, setSyncedValue] = useState(value);
+  if (syncedValue !== value) {
+    setSyncedValue(value);
+    setQuery(value ?? "");
+  }
 
   const baseOptions = useMemo(
     () => (value && !options.includes(value) ? [value, ...options] : options),
@@ -36,13 +49,18 @@ export function ManagedOptionCombobox({
   );
 
   const items = useMemo<Item[]>(() => {
-    const trimmed = query.trim();
+    const trimmedRaw = query.trim();
+    // The input is filled with the selected value's label (on mount and after every selection).
+    // Treat that as "no query" so reopening the popup shows the full list instead of narrowing to
+    // just the selected item -- otherwise `filter={null}` plus our own filtering below would
+    // permanently opt out of Base UI's internal bypass for this case.
+    const trimmed = trimmedRaw.toLowerCase() === (value ?? "").toLowerCase() ? "" : trimmedRaw;
     const matches = baseOptions
       .filter((o) => o.toLowerCase().includes(trimmed.toLowerCase()))
       .map((o) => ({ value: o }));
     const exact = baseOptions.some((o) => o.toLowerCase() === trimmed.toLowerCase());
     return trimmed && !exact ? [...matches, { value: trimmed, creatable: true }] : matches;
-  }, [baseOptions, query]);
+  }, [baseOptions, query, value]);
 
   const selectedItem = useMemo<Item | null>(() => (value ? { value } : null), [value]);
 
