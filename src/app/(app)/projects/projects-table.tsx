@@ -300,9 +300,12 @@ export function ProjectsTable({
                         <MoreHorizontal className="size-4" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem render={<Link href={`/projects/${projectId}`}>Overview</Link>} />
                         <DropdownMenuItem render={<Link href={`/projects/${projectId}/parts`}>Parts</Link>} />
-                        <DropdownMenuItem render={<Link href={`/projects/${projectId}/budget`}>Budget</Link>} />
-                        <DropdownMenuItem render={<Link href={`/projects/${projectId}/people`}>People</Link>} />
+                        <DropdownMenuItem render={<Link href={`/projects/${projectId}/budget`}>Budgets</Link>} />
+                        <DropdownMenuItem render={<Link href={`/projects/${projectId}/people`}>Team</Link>} />
+                        <DropdownMenuItem render={<Link href={`/projects/${projectId}/links`}>Links</Link>} />
+                        <DropdownMenuItem render={<Link href={`/projects/${projectId}/credentials`}>Credentials</Link>} />
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
