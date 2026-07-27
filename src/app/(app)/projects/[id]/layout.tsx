@@ -33,12 +33,9 @@ export default async function ProjectDetailLayout({
   // Selects every column the Edit-project dialog reads (see overview-edit-form.tsx toDefaults)
   // on top of what the header itself needs, since the dialog now mounts here instead of the
   // overview tab -- getProjectEditData below supplies everything else it needs (clients,
-  // contacts, PM candidates, canEdit).
-  // Milestones feed the dialog's Timeline section (toDefaults reads them). Same "view milestones"
-  // RLS as the project row itself (gated by view_project, not edit_project), so fetching them
-  // unconditionally here -- rather than only when canEdit -- leaks nothing beyond what the caller
-  // can already see.
-  const [{ data: project }, editData, { data: milestones }] = await Promise.all([
+  // contacts, PM candidates, milestones, canEdit) -- milestones are gated behind canEdit inside
+  // it, so a non-editor never pays for that query on any tab.
+  const [{ data: project }, editData] = await Promise.all([
     supabase
       .from("projects")
       .select(
@@ -47,7 +44,6 @@ export default async function ProjectDetailLayout({
       .eq("id", id)
       .maybeSingle(),
     getProjectEditData(supabase, id),
-    supabase.from("project_milestones").select("*").eq("project_id", id).order("due_on").order("sort"),
   ]);
 
   if (!project) notFound();
@@ -78,7 +74,7 @@ export default async function ProjectDetailLayout({
           {editData.canEdit && (
             <OverviewEditDialog
               project={project as ProjectRow}
-              milestones={milestones ?? []}
+              milestones={editData.milestones}
               clients={editData.clients}
               contacts={editData.contacts}
               isAdmin={editData.isAdmin}
