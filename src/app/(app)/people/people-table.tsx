@@ -22,7 +22,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { utilizationBarClasses, utilizationLabel } from "@/lib/workload";
 import { EmploymentTypeBadge } from "./employment-type-badge";
-import { EMPLOYMENT_TYPE_OPTIONS } from "./types";
+import { EMPLOYMENT_TYPE_OPTIONS, formatShortDate } from "./types";
 import type { EmploymentType, PersonListRow } from "./types";
 import { PersonRowActions } from "./person-row-actions";
 
@@ -45,7 +45,7 @@ const ACCESSORS: SortAccessors<PersonListRow, SortKey> = {
 
 // Same pill-less dot language as the projects list status column (see STATUS_INLINE_OPTIONS in
 // projects/types.ts): green Active, red Deactivated. "Away" is not a select option -- it's a
-// derived vacation state rendered as a read-only DotBadge below.
+// derived vacation state shown via InlineEditSelect's display override in StatusCell.
 const STATUS_OPTIONS: InlineEditOption[] = [
   {
     value: "active",
@@ -384,13 +384,13 @@ function PersonCell({ row }: { row: PersonListRow }) {
   );
 }
 
-// Green Active / red Deactivated stay inline-editable. "Away" (currently on vacation) is a
-// derived state layered ON TOP of the stored status, so the amber badge renders above the
-// select rather than replacing it -- the underlying status must stay editable while someone
-// is on vacation (client feedback: the Away tag blocked status changes).
+// Exactly three statuses in this column: green Active, red Deactivated (stored, inline-
+// editable), and amber Away (derived from a vacation covering today). Away REPLACES the shown
+// status rather than stacking beside it, but only as a display override -- opening the select
+// still edits the real stored status (earlier feedback: Away must never block status changes).
 function StatusCell({ row, canManage }: { row: PersonListRow; canManage: boolean }) {
   if (!row.status) return <Badge variant="outline">—</Badge>;
-  const select = (
+  return (
     <InlineEditSelect
       // Keyed by status: InlineEditSelect seeds its optimistic state from `value` once, so an
       // EXTERNAL status change (the row menu's Deactivate/Activate) must remount it to re-sync.
@@ -398,16 +398,19 @@ function StatusCell({ row, canManage }: { row: PersonListRow; canManage: boolean
       value={row.status}
       options={STATUS_OPTIONS}
       canEdit={canManage}
+      display={
+        row.on_vacation_now
+          ? {
+              label: row.vacation_ends_on
+                ? `Away until ${formatShortDate(row.vacation_ends_on)}`
+                : "Away",
+              dotClassName: "bg-amber-400",
+            }
+          : undefined
+      }
       ariaLabel={`${row.full_name} status`}
       onSave={(value) => setPersonStatusAction(row.id, value as "active" | "inactive")}
     />
-  );
-  if (!row.on_vacation_now) return select;
-  return (
-    <div className="flex flex-col items-start gap-1">
-      <DotBadge dotClassName="bg-amber-400">Away</DotBadge>
-      {select}
-    </div>
   );
 }
 

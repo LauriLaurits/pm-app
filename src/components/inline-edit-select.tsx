@@ -38,6 +38,7 @@ export function InlineEditSelect({
   canEdit,
   onSave,
   ariaLabel,
+  display,
   className,
 }: {
   value: string;
@@ -45,6 +46,10 @@ export function InlineEditSelect({
   canEdit: boolean;
   onSave: (value: string) => Promise<SaveResult>;
   ariaLabel: string;
+  /** Overrides what the CLOSED badge shows without changing the stored value or the dropdown
+   * options -- for derived states layered over the stored one (e.g. "Away until 3 Aug" while
+   * people.status stays 'active'). Opening the select still edits the real stored value. */
+  display?: { label: string; dotClassName?: string };
   className?: string;
 }) {
   const [current, setCurrent] = useState(value);
@@ -53,16 +58,15 @@ export function InlineEditSelect({
   const [isPending, startTransition] = useTransition();
 
   const active = options.find((o) => o.value === current);
+  const dot = display?.dotClassName ?? active?.dotClassName;
   const badge = (
     <Badge
       variant={active?.badgeVariant ?? "outline"}
       className={cn(active?.badgeClassName, isPending && "opacity-60", className)}
     >
       {isPending && <Loader2Icon className="animate-spin" />}
-      {active?.dotClassName && (
-        <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", active.dotClassName)} />
-      )}
-      {active?.label ?? current}
+      {dot && <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", dot)} />}
+      {display?.label ?? active?.label ?? current}
       {/* Editability must be discoverable: editors always see a small chevron on the chip. */}
       {canEdit && <ChevronDownIcon aria-hidden className="size-3 opacity-50" />}
     </Badge>

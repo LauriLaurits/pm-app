@@ -1,14 +1,19 @@
 import type { ReactNode } from "react";
 import { PersonAvatar } from "@/components/person-avatar";
 import { DotBadge } from "@/components/dot-badge";
-import { humanize } from "../types";
+import { formatShortDate, humanize } from "../types";
 import type { PersonWorkloadRow } from "../types";
 
 /** The one derived state an assigning PM needs at a glance, in priority order: currently away
  * beats everything (allocation is moot this week), deactivated beats allocation, otherwise the
  * allocation itself phrased as an answer -- how many hours are actually free. */
 function availabilityBadge(person: PersonWorkloadRow) {
-  if (person.on_vacation_now) return <DotBadge dotClassName="bg-amber-400">Away</DotBadge>;
+  if (person.on_vacation_now)
+    return (
+      <DotBadge dotClassName="bg-amber-400">
+        {person.vacation_ends_on ? `Away · until ${formatShortDate(person.vacation_ends_on)}` : "Away"}
+      </DotBadge>
+    );
   if (person.status === "inactive")
     return <DotBadge dotClassName="bg-red-500">Deactivated</DotBadge>;
 
