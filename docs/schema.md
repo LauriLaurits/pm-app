@@ -36,7 +36,7 @@ One line per table: purpose · key columns · owning migration.
 | `project_members` | Team membership (drives `member_projects` scope) | `project_id`, `user_id`, `role_on_project`, `starts_on`/`ends_on` | 0003 |
 | `project_parts` | Work breakdown within a project | `project_id`, `name`, `status`, `responsible_person_id`, `billing_model`, `estimated_hours`, `progress` | 0003 (FK to `people` added in 0004) |
 | `part_dependencies` | Part-to-part dependency edges | `part_id`, `depends_on_part_id` (trigger-enforced: same project only) | 0003 |
-| `project_status_updates` | Immutable status-report history | `project_id`, `author_id`, `completed`/`in_progress`/`blockers`/`decisions_needed`/`next_milestone`/`handover_info` | 0003 |
+| `project_status_updates` | Status-report history (author may edit/delete own; admin may delete any) | `project_id`, `author_id`, `completed`/`in_progress`/`blockers`/`decisions_needed`/`next_milestone`/`handover_info` | 0003 (author edit/delete added 2026-07-27 by `20260727000004_status_update_edit.sql`, outside this doc's Phase 1+2 range) |
 | `project_links` | Repos/envs/docs with visibility tiers | `project_id`, `url`, `type`, `visibility` (`project`/`pm_only`/`admins_only`) | 0003 |
 
 ### People / workload
@@ -262,19 +262,36 @@ create table public.credentials (
 `reveal_credential` is a permission that gates the *server action* that
 calls a Vault decrypt RPC, not a column in this table.
 
-**Status updates — immutability.** No `UPDATE` policy exists, and the table
-grant itself omits `UPDATE`:
+**Status updates — author edit/delete, admin delete.** The table originally
+shipped immutable (0003: no `UPDATE` policy, `UPDATE` omitted from the
+grant). User decision (2026-07-27) reversed that, in a later migration
+outside this doc's Phase 1+2 range: an author fixing a typo or a
+wrong-field paste shouldn't have to delete-and-repost, so the author may
+now edit or delete their own row; admin delete stays for moderation.
+`20260727000004_status_update_edit.sql` layers author-scoped
+`UPDATE`/`DELETE` policies on top of the 0003 policies below and grants
+`UPDATE` back:
 
 ```sql
+-- 0003
 create policy "post status update" on public.project_status_updates
   for insert with check (public.has_permission(auth.uid(),'edit_status', project_id) and author_id = auth.uid());
 create policy "admin delete status update" on public.project_status_updates
   for delete using (public.is_admin());
-grant select, insert, delete on public.project_status_updates to authenticated;  -- no UPDATE
+grant select, insert, delete on public.project_status_updates to authenticated;
+
+-- 0004
+create policy "authors edit own status update" on public.project_status_updates
+  for update using (author_id = auth.uid()) with check (author_id = auth.uid());
+create policy "authors delete own status update" on public.project_status_updates
+  for delete using (author_id = auth.uid());
+grant update on public.project_status_updates to authenticated;
 ```
-Immutability is therefore enforced twice — no policy *and* no privilege —
-so a future accidental `create policy ... for update` wouldn't silently
-reopen it (the grant would still block it).
+A non-author's `UPDATE`/`DELETE` attempt still isn't rejected with an
+error — RLS simply filters the row out, so it "succeeds" affecting 0
+rows. The server actions (`updateStatusUpdateAction`/
+`deleteStatusUpdateAction`) select the row back after the write and treat
+0 rows as a friendly "you can only edit/delete your own updates" error.
 
 **Cross-cutting rule: every `has_permission` call passes a project arg
 unless the permission is a global-only one.** Global permissions

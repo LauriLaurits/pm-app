@@ -55,9 +55,17 @@ select throws_ok(
 select lives_ok(
   $$ insert into public.project_status_updates (project_id, author_id, completed, in_progress) values ('c2000000-0000-4000-8000-000000000001', auth.uid(), 'API done','UI ongoing') $$,
   'PM posts status update on own project');
-select throws_ok(
-  $$ update public.project_status_updates set completed = 'rewritten history' where project_id = 'c2000000-0000-4000-8000-000000000001' $$,
-  '42501', null, 'status updates are immutable');
+-- Status updates are no longer immutable (2026-07-27): the author may edit their own row (see
+-- phase8_status_update_edit.test.sql). Here Anna IS the author of the row she just posted, so an
+-- author-scoped update no longer throws -- reassert non-author behaviour instead: Max (a project
+-- member, not the update's author) attempting the same update affects 0 rows, no error.
+set local "request.jwt.claims" to '{"sub":"c0000000-0000-4000-8000-000000000003","role":"authenticated"}';
+with u as (
+  update public.project_status_updates set completed = 'rewritten history'
+    where project_id = 'c2000000-0000-4000-8000-000000000001' returning id
+)
+select is((select count(*)::int from u), 0, 'non-author update of a status update affects 0 rows');
+set local "request.jwt.claims" to '{"sub":"c0000000-0000-4000-8000-000000000001","role":"authenticated"}';
 select throws_ok(
   $$ insert into public.part_dependencies (part_id, depends_on_part_id)
      values ('c3000000-0000-4000-8000-000000000001', 'c3000000-0000-4000-8000-000000000002') $$,

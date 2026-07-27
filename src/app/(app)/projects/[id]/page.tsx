@@ -161,8 +161,11 @@ export default async function ProjectOverviewPage({
             canEdit={!!canEdit}
           />
           <StatusHistory
+            projectId={row.id}
             updates={(updates ?? []) as StatusUpdateRow[]}
             postAction={canEditStatus ? <StatusUpdateDialog projectId={row.id} /> : null}
+            currentUserId={current?.user.id ?? null}
+            isAdmin={isAdmin}
           />
           <OverviewNotesCard project={row} />
         </div>

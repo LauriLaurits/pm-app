@@ -5,6 +5,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatusUpdateActions } from "./status-update-actions";
 import type { StatusUpdateRow } from "./types";
 
 function formatDateTime(value: string) {
@@ -58,11 +59,21 @@ function UpdateBody({ update }: { update: StatusUpdateRow }) {
 }
 
 export function StatusHistory({
+  projectId,
   updates,
   postAction,
+  currentUserId,
+  isAdmin,
 }: {
+  projectId: string;
   updates: StatusUpdateRow[];
   postAction?: React.ReactNode;
+  /** Author of the per-update Edit/Delete menu is decided by comparing this against each
+   * update's author_id; null (signed-out, shouldn't happen behind the app layout) means no
+   * update is ever "mine". */
+  currentUserId: string | null;
+  /** Admins can delete (never edit) any update -- see status-update-actions.tsx. */
+  isAdmin: boolean;
 }) {
   if (updates.length === 0) {
     return (
@@ -86,7 +97,15 @@ export function StatusHistory({
     <Card>
       <CardHeader>
         <CardTitle>Latest status update</CardTitle>
-        <p className="text-xs text-muted-foreground">{formatDateTime(latest.created_at)}</p>
+        <div className="group flex items-center gap-1">
+          <p className="text-xs text-muted-foreground">{formatDateTime(latest.created_at)}</p>
+          <StatusUpdateActions
+            projectId={projectId}
+            update={latest}
+            currentUserId={currentUserId}
+            isAdmin={isAdmin}
+          />
+        </div>
         {postAction && <CardAction>{postAction}</CardAction>}
       </CardHeader>
       <CardContent className="space-y-4">
@@ -96,7 +115,20 @@ export function StatusHistory({
           <Accordion className="border-t pt-2">
             {history.map((update) => (
               <AccordionItem key={update.id} value={String(update.id)}>
-                <AccordionTrigger>{formatDateTime(update.created_at)}</AccordionTrigger>
+                {/* The actions menu is a SIBLING of AccordionTrigger, never a child -- the
+                    trigger renders a <button>, and nesting another interactive control (or even
+                    just relying on stopPropagation) inside a button is unreliable/invalid HTML.
+                    Rendered outside, clicking it can never bubble into the trigger's own click
+                    handler, so it can't toggle the accordion. */}
+                <div className="group grid grid-cols-[1fr_auto] items-center gap-1">
+                  <AccordionTrigger>{formatDateTime(update.created_at)}</AccordionTrigger>
+                  <StatusUpdateActions
+                    projectId={projectId}
+                    update={update}
+                    currentUserId={currentUserId}
+                    isAdmin={isAdmin}
+                  />
+                </div>
                 <AccordionContent>
                   <UpdateBody update={update} />
                 </AccordionContent>

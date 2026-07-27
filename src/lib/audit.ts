@@ -15,6 +15,8 @@ export type AuditAction =
   | "project.created"
   | "project.updated"
   | "project.status_posted"
+  | "project.status_update_edited"
+  | "project.status_update_deleted"
   | "project.archived"
   | "project.deleted"
   | "milestone.toggled"

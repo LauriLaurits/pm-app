@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { postStatusUpdateAction } from "@/app/actions/projects";
+import { postStatusUpdateAction, updateStatusUpdateAction } from "@/app/actions/projects";
 import { statusUpdateSchema, type StatusUpdateInput } from "@/lib/validation/project";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
+import type { StatusUpdateRow } from "./types";
 
 const FIELDS: { name: keyof StatusUpdateInput; label: string }[] = [
   { name: "completed", label: "Completed" },
@@ -30,11 +31,26 @@ const emptyValues: StatusUpdateInput = {
   handover_info: null,
 };
 
+function valuesFromUpdate(update: StatusUpdateRow): StatusUpdateInput {
+  return {
+    completed: update.completed,
+    in_progress: update.in_progress,
+    blockers: update.blockers,
+    decisions_needed: update.decisions_needed,
+    next_milestone: update.next_milestone,
+    handover_info: update.handover_info,
+  };
+}
+
 export function StatusUpdateForm({
   projectId,
+  update,
   onSuccess,
 }: {
   projectId: string;
+  /** When present, the form edits this row (submits via updateStatusUpdateAction) instead of
+   * posting a new one. Prefilled from the row's current values. */
+  update?: StatusUpdateRow;
   onSuccess?: () => void;
 }) {
   const [serverError, setServerError] = useState<string | null>(null);
@@ -42,16 +58,20 @@ export function StatusUpdateForm({
   const [isPending, startTransition] = useTransition();
   const form = useForm<StatusUpdateInput>({
     resolver: zodResolver(statusUpdateSchema),
-    defaultValues: emptyValues,
+    defaultValues: update ? valuesFromUpdate(update) : emptyValues,
   });
 
   function onSubmit(values: StatusUpdateInput) {
     setServerError(null);
     setPosted(false);
     startTransition(async () => {
-      const result = await postStatusUpdateAction(projectId, values);
+      const result = update
+        ? await updateStatusUpdateAction(projectId, update.id, values)
+        : await postStatusUpdateAction(projectId, values);
       if ("error" in result) setServerError(result.error);
-      else {
+      else if (update) {
+        onSuccess?.();
+      } else {
         setPosted(true);
         form.reset(emptyValues);
         onSuccess?.();
@@ -92,7 +112,9 @@ export function StatusUpdateForm({
               ))}
             </div>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Posting…" : "Post update"}
+              {update
+                ? isPending ? "Saving…" : "Save changes"
+                : isPending ? "Posting…" : "Post update"}
             </Button>
           </form>
         </Form>

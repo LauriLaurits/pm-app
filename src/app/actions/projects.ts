@@ -421,3 +421,77 @@ export async function postStatusUpdateAction(
   revalidatePath(`/projects/${projectId}`);
   return { success: true as const };
 }
+
+export async function updateStatusUpdateAction(
+  projectId: string,
+  updateId: number,
+  input: StatusUpdateInput
+): Promise<{ error: string } | { success: true }> {
+  if (!z.uuid().safeParse(projectId).success) return { error: "Invalid project." };
+  if (!Number.isInteger(updateId) || updateId <= 0) return { error: "Invalid update." };
+
+  // Security boundary: throws "Not authorized" if the caller lacks edit_status on
+  // this project. Must run before any validation/DB work.
+  const current = await requirePermission("edit_status", projectId);
+
+  const parsed = statusUpdateSchema.safeParse(input);
+  if (!parsed.success) return { error: "Fill in at least one field." };
+
+  const supabase = await createClient();
+  // RLS only matches the author's own row -- a non-author "succeeds" with 0 rows, so
+  // select back the id to distinguish.
+  const { data, error } = await supabase
+    .from("project_status_updates")
+    .update(parsed.data)
+    .eq("id", updateId)
+    .eq("project_id", projectId)
+    .select("id");
+  if (error || !data || data.length === 0) return { error: "Update failed. You can only edit your own updates." };
+
+  await writeAudit({
+    action: "project.status_update_edited",
+    actorId: current.user.id,
+    actorEmail: current.profile.email,
+    resourceType: "project_status_update",
+    resourceId: String(updateId),
+    metadata: { project_id: projectId },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+  return { success: true as const };
+}
+
+export async function deleteStatusUpdateAction(
+  projectId: string,
+  updateId: number
+): Promise<{ error: string } | { success: true }> {
+  if (!z.uuid().safeParse(projectId).success) return { error: "Invalid project." };
+  if (!Number.isInteger(updateId) || updateId <= 0) return { error: "Invalid update." };
+
+  // Security boundary: throws "Not authorized" if the caller lacks edit_status on
+  // this project. Must run before any validation/DB work.
+  const current = await requirePermission("edit_status", projectId);
+
+  const supabase = await createClient();
+  // Admin deletes of others' rows pass because the admin RLS delete policy matches --
+  // the "own updates" error copy is the common case.
+  const { data, error } = await supabase
+    .from("project_status_updates")
+    .delete()
+    .eq("id", updateId)
+    .eq("project_id", projectId)
+    .select("id");
+  if (error || !data || data.length === 0) return { error: "Delete failed. You can only delete your own updates." };
+
+  await writeAudit({
+    action: "project.status_update_deleted",
+    actorId: current.user.id,
+    actorEmail: current.profile.email,
+    resourceType: "project_status_update",
+    resourceId: String(updateId),
+    metadata: { project_id: projectId },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+  return { success: true as const };
+}
