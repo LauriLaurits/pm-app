@@ -7,7 +7,7 @@ import { utilizationBadgeClasses, utilizationCellClasses } from "@/lib/workload"
 import { formatWeekLabel, type PersonTimelineRow, type WeekCell } from "./types";
 
 const PERSON_COL = "260px";
-const WEEK_COL = "minmax(56px, 1fr)";
+const WEEK_COL = "minmax(44px, 1fr)";
 
 export function WorkloadTimeline({
   rows,
@@ -83,17 +83,18 @@ function PersonRowCells({ row, striped }: { row: PersonTimelineRow; striped: boo
 }
 
 function WorkloadCell({ week, rowBg }: { week: WeekCell; rowBg: string }) {
-  const label = week.pct > 0 ? `${Math.round(week.pct)}%` : week.onVacation ? "•" : "";
+  const label = week.pct > 0 ? `${Math.round(week.pct)}%` : week.onVacation ? "•" : "–";
   return (
     <Tooltip>
       <TooltipTrigger
         render={
-          <div className={cn("flex h-11 items-center justify-center border-b border-l p-1", rowBg)}>
+          <div className={cn("flex h-8 items-center justify-center border-b border-l p-0.5", rowBg)}>
             <span
               className={cn(
                 "flex size-full items-center justify-center rounded-md text-[11px] font-semibold text-foreground/80",
                 utilizationCellClasses(week.pct),
-                week.onVacation && "ring-2 ring-inset ring-sky-400 dark:ring-sky-300"
+                week.onVacation && "ring-2 ring-inset ring-sky-400 dark:ring-sky-300",
+                week.pct === 0 && !week.onVacation && "text-muted-foreground/40"
               )}
             >
               {label}
