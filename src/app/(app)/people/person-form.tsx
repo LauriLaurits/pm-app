@@ -11,7 +11,7 @@ import {
   ManagedOptionSelectField, PersonEnumSelectField, WeeklyCapacityField,
 } from "./person-form-fields";
 import { FormSection } from "@/components/form-section";
-import { PersonAvatarPicker } from "@/components/person-avatar";
+import { PersonAvatarPicker } from "@/components/person-avatar-picker";
 import { DEFAULT_PERSON_AVATAR, isPersonAvatarPreset } from "@/lib/person-avatar-presets";
 import type { PersonListRow } from "./types";
 import { Alert, AlertDescription } from "@/components/ui/alert";

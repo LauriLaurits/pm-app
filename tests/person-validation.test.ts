@@ -59,4 +59,16 @@ describe("personSchema", () => {
   it("accepts weekly_capacity_hours at the 168 boundary", () => {
     expect(personSchema.safeParse({ ...validPerson, weekly_capacity_hours: 168 }).success).toBe(true);
   });
+
+  it("accepts a Supabase storage public URL as avatar_url", () => {
+    const url = "http://127.0.0.1:54321/storage/v1/object/public/avatars/0b0e846e-4c62-4f6e-9f0a-1e9d1a2b3c4d.png";
+    const parsed = personSchema.parse({
+      full_name: "Photo Person",
+      employment_type: "employee",
+      weekly_capacity_hours: 40,
+      status: "active",
+      avatar_url: url,
+    });
+    expect(parsed.avatar_url).toBe(url);
+  });
 });

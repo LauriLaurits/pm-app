@@ -11,13 +11,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { avatarTint } from "@/lib/avatar-tint";
 import {
   DEFAULT_PERSON_AVATAR,
-  PERSON_AVATAR_PRESETS,
   isPersonAvatarPreset,
   type PersonAvatarPreset,
 } from "@/lib/person-avatar-presets";
-import { cn } from "@/lib/utils";
 
-const PRESETS: Record<PersonAvatarPreset, { label: string; icon: LucideIcon }> = {
+export const PERSON_AVATAR_PRESET_META: Record<PersonAvatarPreset, { label: string; icon: LucideIcon }> = {
   "preset:user": { label: "Default", icon: User },
   "preset:briefcase": { label: "Business", icon: BriefcaseBusiness },
   "preset:code": { label: "Engineering", icon: Code2 },
@@ -40,7 +38,7 @@ export function PersonAvatar({
     : avatarUrl
       ? null
       : DEFAULT_PERSON_AVATAR;
-  const Icon = preset ? PRESETS[preset].icon : null;
+  const Icon = preset ? PERSON_AVATAR_PRESET_META[preset].icon : null;
 
   return (
     <Avatar className={className}>
@@ -49,59 +47,6 @@ export function PersonAvatar({
         {Icon ? <Icon className="size-1/2" /> : initials(name)}
       </AvatarFallback>
     </Avatar>
-  );
-}
-
-export function PersonAvatarPicker({
-  value,
-  onChange,
-  photoUrl,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  /** The person's existing photo URL, when they have one -- rendered as a leading tile so
-   * editing keeps the photo selectable instead of forcing a preset over it. */
-  photoUrl?: string | null;
-}) {
-  return (
-    <div className="grid grid-cols-7 gap-2">
-      {photoUrl && (
-        <button
-          type="button"
-          title="Current photo"
-          aria-label="Current photo"
-          aria-pressed={value === photoUrl}
-          onClick={() => onChange(photoUrl)}
-          className={cn(
-            "flex aspect-square items-center justify-center overflow-hidden rounded-full border bg-muted/40 transition-colors",
-            value === photoUrl && "border-foreground/30 ring-2 ring-ring/30"
-          )}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photoUrl} alt="" className="size-full object-cover" />
-        </button>
-      )}
-      {PERSON_AVATAR_PRESETS.map((preset) => {
-        const { icon: Icon, label } = PRESETS[preset];
-        const selected = value === preset;
-        return (
-          <button
-            key={preset}
-            type="button"
-            title={label}
-            aria-label={label}
-            aria-pressed={selected}
-            onClick={() => onChange(preset)}
-            className={cn(
-              "flex aspect-square items-center justify-center rounded-full border bg-muted/40 text-muted-foreground transition-colors hover:text-foreground",
-              selected && "border-foreground/30 bg-muted text-foreground ring-2 ring-ring/30"
-            )}
-          >
-            <Icon className="size-5" />
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
