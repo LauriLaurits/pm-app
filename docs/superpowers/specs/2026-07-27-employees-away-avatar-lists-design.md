@@ -3,8 +3,8 @@
 Date: 2026-07-27
 Status: Approved
 
-Three independent improvements to the Employees area, driven by feedback on the
-`/people` list and add-person form:
+Four independent improvements driven by feedback on the `/people` list,
+add-person form, and project forms:
 
 1. The stacked amber "Away" badge looks bad and says nothing useful — show the
    vacation return date.
@@ -12,6 +12,13 @@ Three independent improvements to the Employees area, driven by feedback on the
    preset — allow photo upload.
 3. Role title / Team values are only extendable via the hidden Settings → Lists
    card — allow adding a value inline from the person form.
+4. Project Priority is not needed — remove it from the create/edit forms, the
+   list, and everywhere else it renders; the forms' "Status & priority" section
+   becomes "Status & Budget".
+5. "Add a person to this project" only takes ONE start/end pair — the date line
+   should be repeatable rows so several membership periods go in at once.
+6. The project-detail description should clamp to 3 lines with a collapse
+   toggle — this was built, but the user reports it not clamping (bug).
 
 ## 1. Away badge with return date
 
@@ -96,6 +103,73 @@ a vacation covers today.
   (existing behavior, preserved).
 - Settings → Lists card unchanged — still the place to remove values.
 
+## 4. Remove project Priority
+
+Priority never drives a decision in this product (health is derived, deadlines
+carry urgency), so it goes the same way as manual health: the UI and form
+plumbing disappear, the DB column stays (`projects.priority`, not null, default
+`'medium'` — no migration, existing rows untouched).
+
+### UI
+
+- **Create form** (`/projects/new` + dialog): Priority select removed; the
+  section — which then holds Status + Budget type — is retitled
+  **"Status & Budget"**.
+- **Edit dialog**: Priority select removed; Budget type MOVES from the details
+  section into the retitled **"Status & Budget"** section beside Status, so the
+  edit dialog mirrors the create form.
+- **Projects list**: the slim flag/priority-dot column disappears entirely
+  (header, dots, priority sort), and the priority hover-title on project names
+  goes with it.
+- **Detail**: already shows no priority (removed in an earlier round) — nothing
+  to do beyond the edit dialog above.
+
+### Plumbing
+
+- zod: `priority` dropped from `createProjectSchema` and `editProjectSchema`;
+  `PROJECT_INLINE_FIELDS` shrinks to status/health; `PROJECT_PRIORITY_OPTIONS`
+  export removed.
+- `updateProjectFieldAction` loses its priority branch.
+- `src/app/(app)/projects/types.ts` priority exports (`ProjectPriority`,
+  `PRIORITY_OPTIONS`, `PRIORITY_BADGE_CLASS`, `PRIORITY_INLINE_OPTIONS`,
+  `PRIORITY_NAME_CLASS`) removed.
+- `project_list_rows` keeps its `priority` column (unused in TS — avoids a
+  view migration for a display-only removal).
+
+## 5. Multiple periods in "Add a person to this project"
+
+Since member periods (20260722000001) a person can hold several
+`project_members` rows per project — but the Add-person form still submits only
+one start/end pair. Make the date line repeatable (milestones-editor pattern).
+
+### Validation / action
+
+- `addMemberSchema` becomes `{ user_id, role_on_project, periods }` where
+  `periods` is `min(1)` array of `{ starts_on, ends_on }` (both nullable dates,
+  per-row rule: when both set, `ends_on >= starts_on`).
+- `updateMemberSchema` decouples from `addMemberSchema` (it still edits ONE
+  row: `{ role_on_project, starts_on, ends_on }` — unchanged shape).
+- `addMemberAction` inserts one `project_members` row per period in a single
+  insert call; one audit entry with a period count in metadata.
+
+### UI
+
+- `AddPersonForm` renders `periods` via `useFieldArray`: `[Starts][Ends] ×`
+  rows plus a "+ Add period" button; × removes a row (hidden while only one row
+  remains); extra fully-blank rows are dropped before validation (same
+  pre-submit filter idea as the milestones editor).
+- Both uses inherit it: first-add ("Add person") and per-member "Add period"
+  (`fixedPerson`) — the latter can now add several periods at once.
+
+## 6. Fix: project description clamp
+
+The detail-page description (`project-description.tsx`, rendered under the
+title in `[id]/layout.tsx`) is SUPPOSED to clamp at 3 lines with Show
+more/Show less, but the user sees it unclamped. This is a bug fix: reproduce
+with a long description, find the root cause (not a rewrite), fix minimally.
+Acceptance: long description → 3 clamped lines + "Show more" toggling to full
+text + "Show less"; short description → no toggle.
+
 ## Testing
 
 - pgTAP (existing `supabase/tests` pattern): `vacation_ends_on` returns the
@@ -112,3 +186,4 @@ a vacation covers today.
 - Deleting old avatar objects from storage.
 - Non-vacation time off surfacing in the list.
 - Editing/renaming managed options.
+- Dropping the `projects.priority` DB column or the `project_priority` enum.

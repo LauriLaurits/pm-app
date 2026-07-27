@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Employees list/detail show Away as one of exactly three statuses with a vacation return date; the person form supports photo upload; Role/Team dropdowns allow inline "+ Add" of new values.
+**Goal:** Employees list/detail show Away as one of exactly three statuses with a vacation return date; the person form supports photo upload; Role/Team dropdowns allow inline "+ Add" of new values; project Priority disappears ("Status & Budget" section); Add-person takes multiple membership periods; the project description 3-line clamp works again.
 
-**Architecture:** Three independent slices over the existing Supabase + Next.js App Router stack: (1) the `person_workload_rows` view grows a `vacation_ends_on` column consumed by the list status cell and detail header; (2) a public `avatars` Storage bucket receives browser uploads from the avatar picker; (3) a `managed_options` insert policy widens to `manage_people` and the Role/Team selects become creatable comboboxes.
+**Architecture:** Independent slices over the existing Supabase + Next.js App Router stack: (1) the `person_workload_rows` view grows a `vacation_ends_on` column consumed by the list status cell and detail header; (2) a public `avatars` Storage bucket receives browser uploads from the avatar picker; (3) a `managed_options` insert policy widens to `manage_people` and the Role/Team selects become creatable comboboxes; (4) project priority is UI-retired (DB column stays, like manual health); (5) `addMemberSchema` gains a `periods` array inserted as N `project_members` rows; (6) a clamp bug fix found by reproduction, not rewrite.
 
 **Tech Stack:** Next.js 16 App Router, TypeScript, shadcn/ui base-nova on `@base-ui/react` 1.6, Supabase (local Docker) with pgTAP tests, zod v4, vitest.
 
@@ -873,7 +873,436 @@ git commit -m "feat: inline add for Role/Team managed options (manage_people can
 
 ---
 
-### Task 5: Final verification sweep
+### Task 5: Remove project Priority; "Status & Budget" section
+
+Priority disappears from every project surface (create form, edit dialog, list column, plumbing). The DB column `projects.priority` (not null, default `'medium'`) and the `project_priority` enum STAY — no migration, mirroring how manual health was retired. `project_list_rows` also keeps its `priority` column; the TS field just goes unused.
+
+**Files:**
+- Modify: `tests/project-validation.test.ts` (priority expectations removed/inverted)
+- Modify: `src/lib/validation/project.ts:12,80,111-123,125-141`
+- Modify: `src/app/actions/projects.ts:275-305` (inline-field action)
+- Modify: `src/app/(app)/projects/types.ts:7,77-84,111-126` (priority exports)
+- Modify: `src/app/(app)/projects/projects-table.tsx` (flag column, sort, dots, name title)
+- Modify: `src/app/(app)/projects/new/project-create-form.tsx:29-47,126-134`
+- Modify: `src/app/(app)/projects/new/project-create-fields.tsx:207-235`
+- Modify: `src/app/(app)/projects/[id]/overview-edit-form.tsx:44,147-160`
+- Modify: `src/app/(app)/projects/[id]/overview-edit-fields.tsx:22-30`
+
+**Interfaces:**
+- Consumes: existing schemas/components listed above.
+- Produces: `PROJECT_INLINE_FIELDS = ["status", "health"]`; `CreateProjectInput`/`EditProjectInput` without `priority`; `EnumSelectField` (both variants) `name` union without `"priority"`. Nothing downstream consumes priority after this task.
+
+- [ ] **Step 1: Update the validation tests to expect no priority (failing first)**
+
+In `tests/project-validation.test.ts`:
+- Delete `priority: "high"` / `priority: "medium"` keys from the fixture objects (lines 14, 144, 172) — zod strips unknown keys by default, but the fixtures should reflect the real payload.
+- Lines 43–52: rename the test to `"rejects an unknown status/health"` and delete the `priority: "urgent"` assertion inside it.
+- Lines 126 and 132: delete the `projectInlineFieldSchema("priority")` assertions. Add in their place:
+
+```ts
+expect(PROJECT_INLINE_FIELDS).toEqual(["status", "health"]);
+```
+
+(import `PROJECT_INLINE_FIELDS` from `@/lib/validation/project` if not already imported).
+- Lines 181–190: same rename/deletion for the create-schema variant.
+
+Run: `npm run test -- tests/project-validation.test.ts`
+Expected: FAIL — `PROJECT_INLINE_FIELDS` still contains `"priority"` (the new `toEqual` assertion), everything else PASSES.
+
+- [ ] **Step 2: Strip priority from the validation module**
+
+In `src/lib/validation/project.ts`:
+- Delete line 12 (`export const PROJECT_PRIORITY_OPTIONS = ...`).
+- Delete `priority: z.enum(PROJECT_PRIORITY_OPTIONS),` from `editProjectSchema` (line 80).
+- `PROJECT_INLINE_FIELDS` (line 111) becomes `["status", "health"] as const`; delete the `case "priority":` branch from `projectInlineFieldSchema`.
+- Delete `priority: z.enum(PROJECT_PRIORITY_OPTIONS).default("medium"),` from `createProjectSchema` (line 141).
+- Fix the now-stale comments around lines 125–128: drop the parenthetical about priority not being asked on the create form; the surviving sentence should say status/health default to the same "healthy new project" values.
+
+- [ ] **Step 3: Simplify the inline-field action**
+
+In `src/app/actions/projects.ts` (lines ~296–305): the patch ternary loses its priority arm:
+
+```ts
+  const patch =
+    field === "status"
+      ? { status: parsed.data as EditProjectOutput["status"] }
+      : { health: parsed.data as EditProjectOutput["health"] };
+```
+
+Update the doc comment above the action ("status/health/priority only" → "status/health only"). Then grep the file for any remaining `priority` reference — there must be none (create/edit actions build their payloads from the schema output, so they need no edits).
+
+- [ ] **Step 4: Remove the priority exports from projects types**
+
+In `src/app/(app)/projects/types.ts` delete: `ProjectPriority` (line 7), `PRIORITY_OPTIONS` (77), `PRIORITY_BADGE_CLASS` (79–85), `PRIORITY_INLINE_OPTIONS` (111–118), `PRIORITY_NAME_CLASS` (120–126) — each with its attached comment block. Nothing else imports them after Steps 5–7 (verify at Step 8 with a grep).
+
+- [ ] **Step 5: Remove the flag column from the projects table**
+
+In `src/app/(app)/projects/projects-table.tsx`:
+- `SortKey` union (line 74): drop `"priority"`.
+- Delete `PRIORITY_RANK` (77–78) and `PRIORITY_DOT_CLASS` (80–85) with their comments.
+- Delete the `priority:` accessor entry (line 132).
+- Delete the entire flag `<TableHead>` block (lines 160–186: the `w-8 px-1` head with the Flag sort button).
+- Delete the priority-dot `<TableCell>` block (lines 243–254, including the "Priority dot… NO edge accent line" comment — move the NO-edge-accent-line warning onto the name cell so the hard-won rule survives:
+
+```tsx
+                {/* NO left edge accent line EVER -- tried twice (priority, then health),
+                    rejected both times: the badges carry the signal. */}
+                <TableCell>
+```
+
+- In the name `<Link>` (lines 264–274): remove the `title={row.priority ? … : undefined}` prop entirely.
+- Remove now-unused lucide imports: `Flag`, `ChevronUp`, `ChevronDown` (pagination uses `ChevronLeft`/`ChevronRight` — keep those; `SortableHead` renders its own arrows).
+
+- [ ] **Step 6: Create form — drop the field, retitle the section**
+
+In `src/app/(app)/projects/new/project-create-form.tsx`:
+- Remove `PROJECT_PRIORITY_OPTIONS` from the validation import (line 11).
+- Delete `priority: "medium",` from `DEFAULT_VALUES` (line 41) and trim the comment above it (lines 29–32) to no longer mention priority.
+- Section (lines 126–134): title `"Status & priority"` → `"Status & Budget"`, delete the Priority `EnumSelectField` line. Status + Budget type remain in the 2-col grid.
+
+In `src/app/(app)/projects/new/project-create-fields.tsx`:
+- `OPTION_DOT` (lines ~207–212): delete the `priority:` entry and drop priority from the comment above it.
+- `EnumSelectField`'s `name` prop union (line ~234): `"status" | "health" | "budget_type"`.
+
+- [ ] **Step 7: Edit dialog — drop the field, move Budget type in, retitle**
+
+In `src/app/(app)/projects/[id]/overview-edit-form.tsx`:
+- Remove `PROJECT_PRIORITY_OPTIONS` from the import (line 10) and `priority: project.priority,` from the defaults (line 44).
+- Details section: remove the Budget type `EnumSelectField` from the details grid (line 149) — `ClientField` stays; collapse that `grid grid-cols-2` wrapper if `ClientField` is now its only child (make it a plain full-width field like `ClientContactField` below it).
+- Section at lines 155–160 becomes:
+
+```tsx
+        <FormSection tone="amber" title="Status & Budget">
+          <div className="grid grid-cols-2 gap-3">
+            <EnumSelectField control={form.control} name="status" label="Status" options={PROJECT_STATUS_OPTIONS} />
+            <EnumSelectField control={form.control} name="budget_type" label="Budget type" options={BUDGET_TYPE_OPTIONS} />
+          </div>
+        </FormSection>
+```
+
+In `src/app/(app)/projects/[id]/overview-edit-fields.tsx`: drop `"priority"` from the `EnumSelectField` `name` union (line ~30) and from the comment (line 22).
+
+- [ ] **Step 8: Verify nothing references priority anymore**
+
+Run: `grep -rn "priority" src/ --include="*.ts" --include="*.tsx" -i`
+Expected remaining hits ONLY: `src/lib/database.types.ts` (generated — the DB column/enum legitimately still exist), `src/app/(app)/people/[id]/person-header.tsx` (the word "priority order" in a prose comment), and `src/components/inline-edit-select.tsx` (prose comment — update it in passing: "projects status/health/priority" → "projects status/health"). Any other hit is a missed removal — fix it.
+
+- [ ] **Step 9: Test + lint + build**
+
+Run: `npm run test && npm run lint && npm run build`
+Expected: all PASS/clean (including the Step 1 assertions).
+
+- [ ] **Step 10: Verify visually**
+
+On `npx next dev -p 3005`:
+- `/projects`: no flag column, no colored dots, no priority tooltip on names; sorting by other columns unchanged; gear menu lists no Priority entry (it never did — confirm nothing broke).
+- `/projects/new` and the New-project dialog: section reads **"Status & Budget"** with Status + Budget type; no Priority select; creating a project works.
+- Edit dialog on a project: details section has Client full-width, **"Status & Budget"** holds Status + Budget type; saving works and does not touch the stored priority value.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add tests/project-validation.test.ts src/lib/validation/project.ts src/app/actions/projects.ts src/app/(app)/projects/types.ts src/app/(app)/projects/projects-table.tsx src/app/(app)/projects/new/project-create-form.tsx src/app/(app)/projects/new/project-create-fields.tsx "src/app/(app)/projects/[id]/overview-edit-form.tsx" "src/app/(app)/projects/[id]/overview-edit-fields.tsx" src/components/inline-edit-select.tsx
+git commit -m "feat: remove project priority from UI; Status & Budget form section"
+```
+
+---
+
+### Task 6: Repeatable period rows in "Add a person to this project"
+
+**Files:**
+- Modify: `src/lib/validation/project.ts:215-231` (`addMemberSchema` grows `periods`; `updateMemberSchema` decouples)
+- Modify: `src/app/actions/project-members.ts:14-47` (`addMemberAction` multi-insert)
+- Modify: `src/app/(app)/projects/[id]/people/add-person-form.tsx` (field-array UI)
+- Test: `tests/project-validation.test.ts:446-468` (existing `addMemberSchema` block)
+
+**Interfaces:**
+- Consumes: `nullableText`/`nullableDate` helpers already in `src/lib/validation/project.ts`; `useFieldArray` pattern from `src/app/(app)/projects/milestones-editor.tsx:47`.
+- Produces: `addMemberSchema` = `{ user_id: uuid, role_on_project: nullable text, periods: Array<{ starts_on: date|null, ends_on: date|null }> (min 1, per-row ends_on >= starts_on when both set) }`; `AddMemberInput`/`AddMemberOutput` update accordingly. `updateMemberSchema` KEEPS its current shape `{ role_on_project, starts_on, ends_on }` (defined standalone, no longer via `.omit`) — `updateMemberAction` and `member-edit-form.tsx` need no changes.
+
+- [ ] **Step 1: Update the `addMemberSchema` tests (failing first)**
+
+In `tests/project-validation.test.ts`, the `describe("addMemberSchema", ...)` block (lines 446–468): update the `validMember` fixture to the new shape and add period-rule cases:
+
+```ts
+const validMember = {
+  user_id: "0b0e846e-4c62-4f6e-9f0a-1e9d1a2b3c4d",
+  role_on_project: "Backend",
+  periods: [{ starts_on: "2026-08-01", ends_on: "2026-09-30" }],
+};
+
+describe("addMemberSchema", () => {
+  it("accepts a valid member with one period", () => {
+    expect(addMemberSchema.safeParse(validMember).success).toBe(true);
+  });
+
+  it("accepts several periods, including open-ended ones", () => {
+    expect(
+      addMemberSchema.safeParse({
+        ...validMember,
+        periods: [
+          { starts_on: "2026-08-01", ends_on: "2026-09-30" },
+          { starts_on: "2026-11-01", ends_on: null },
+        ],
+      }).success
+    ).toBe(true);
+  });
+
+  it("rejects an empty periods array", () => {
+    expect(addMemberSchema.safeParse({ ...validMember, periods: [] }).success).toBe(false);
+  });
+
+  it("rejects a period ending before it starts", () => {
+    expect(
+      addMemberSchema.safeParse({
+        ...validMember,
+        periods: [{ starts_on: "2026-09-30", ends_on: "2026-08-01" }],
+      }).success
+    ).toBe(false);
+  });
+
+  it("rejects a non-uuid user", () => {
+    expect(addMemberSchema.safeParse({ ...validMember, user_id: "not-a-uuid" }).success).toBe(false);
+  });
+
+  it("collapses a blank role to null", () => {
+    const parsed = addMemberSchema.parse({ ...validMember, role_on_project: "" });
+    expect(parsed.role_on_project).toBeNull();
+  });
+
+  it("rejects a malformed period date", () => {
+    expect(
+      addMemberSchema.safeParse({
+        ...validMember,
+        periods: [{ starts_on: "01/01/2026", ends_on: null }],
+      }).success
+    ).toBe(false);
+  });
+});
+```
+
+(Adapt the fixture keys/order to whatever the current block uses — keep any assertions not listed here that still apply.)
+
+Run: `npm run test -- tests/project-validation.test.ts`
+Expected: the new/updated `addMemberSchema` cases FAIL (schema still flat).
+
+- [ ] **Step 2: Implement the schema change**
+
+In `src/lib/validation/project.ts`, replace lines 217–231 with:
+
+```ts
+/** One membership period row. Both dates optional (open-ended engagements are normal), but a
+ * closed range must not end before it starts. */
+export const memberPeriodSchema = z
+  .object({
+    starts_on: nullableDate,
+    ends_on: nullableDate,
+  })
+  .refine((p) => !p.starts_on || !p.ends_on || p.ends_on >= p.starts_on, {
+    message: "End date can't be before start",
+    path: ["ends_on"],
+  });
+
+/** Adds an existing user_profiles user as a project member -- one project_members row PER
+ * period, so several engagement windows can be entered in one submit. */
+export const addMemberSchema = z.object({
+  user_id: z.uuid("Select a person"),
+  role_on_project: nullableText(200),
+  periods: z.array(memberPeriodSchema).min(1, "Add at least one period"),
+});
+export type AddMemberInput = z.input<typeof addMemberSchema>;
+export type AddMemberOutput = z.output<typeof addMemberSchema>;
+
+/** Editing an existing membership row can change role/dates but never which user it belongs
+ * to -- that would just be a different membership. Deliberately NOT derived from
+ * addMemberSchema anymore: an edit targets ONE period row. */
+export const updateMemberSchema = z.object({
+  role_on_project: nullableText(200),
+  starts_on: nullableDate,
+  ends_on: nullableDate,
+});
+export type UpdateMemberInput = z.input<typeof updateMemberSchema>;
+export type UpdateMemberOutput = z.output<typeof updateMemberSchema>;
+```
+
+Run: `npm run test -- tests/project-validation.test.ts` → all PASS. (`npm run build` will fail until Steps 3–4 land — that's expected; don't commit yet.)
+
+- [ ] **Step 3: Multi-insert in `addMemberAction`**
+
+In `src/app/actions/project-members.ts` (lines 27–43), replace the single insert + audit with:
+
+```ts
+  const supabase = await createClient();
+  // One project_members row per period -- since member periods (20260722000001) there is no
+  // unique (project_id, user_id) constraint, so N rows for the same person are legal and each
+  // is an independent engagement window.
+  const { role_on_project, user_id } = parsed.data;
+  const rows = parsed.data.periods.map((p) => ({
+    project_id: projectId,
+    user_id,
+    role_on_project,
+    starts_on: p.starts_on,
+    ends_on: p.ends_on,
+  }));
+  const { error } = await supabase.from("project_members").insert(rows);
+  if (error) return { error: "Add failed. Try again." };
+
+  await writeAudit({
+    action: "member.added",
+    actorId: current.user.id,
+    actorEmail: current.profile.email,
+    resourceType: "project_member",
+    resourceId: `${projectId}:${user_id}`,
+    metadata: { project_id: projectId, user_id, period_count: rows.length },
+  });
+```
+
+- [ ] **Step 4: Field-array UI in `AddPersonForm`**
+
+In `src/app/(app)/projects/[id]/people/add-person-form.tsx`:
+- Defaults become `{ user_id: fixedPerson?.user_id ?? "", role_on_project: null, periods: [{ starts_on: null, ends_on: null }] }`.
+- Import `useFieldArray` from `react-hook-form`, `PlusIcon`/`XIcon` from `lucide-react`.
+- Replace the single Starts/Ends grid (lines 113–136) with a `periods` field array. Pattern (mirror `milestones-editor.tsx` for row plumbing):
+
+```tsx
+        <div className="space-y-2">
+          <FormLabel>Periods</FormLabel>
+          {periodRows.fields.map((row, i) => (
+            <div key={row.id} className="flex items-start gap-2">
+              <FormField
+                control={form.control}
+                name={`periods.${i}.starts_on`}
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormControl
+                      render={
+                        <Input type="date" aria-label={`Period ${i + 1} start`} {...field} value={field.value ?? ""} />
+                      }
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name={`periods.${i}.ends_on`}
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormControl
+                      render={
+                        <Input type="date" aria-label={`Period ${i + 1} end`} {...field} value={field.value ?? ""} />
+                      }
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {periodRows.fields.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Remove period ${i + 1}`}
+                  onClick={() => periodRows.remove(i)}
+                >
+                  <XIcon />
+                </Button>
+              )}
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => periodRows.append({ starts_on: null, ends_on: null })}
+          >
+            <PlusIcon /> Add period
+          </Button>
+        </div>
+```
+
+with `const periodRows = useFieldArray({ control: form.control, name: "periods" });` after `useForm`.
+- Pre-submit, drop EXTRA fully-blank rows (both dates empty) so an accidental "+ Add period" never blocks submit — but keep at least one row (a single all-blank row is a valid open-ended membership). Wrap submit like the create-project form does for milestones:
+
+```tsx
+  function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
+    const periods = form.getValues("periods") ?? [];
+    const kept = periods.filter((p) => p.starts_on || p.ends_on);
+    form.setValue("periods", kept.length > 0 ? kept : [{ starts_on: null, ends_on: null }]);
+    form.handleSubmit(onSubmit)(e);
+  }
+```
+
+and use `onSubmit={handleFormSubmit}` on the `<form>`.
+- Update the component doc comment: it now adds one OR MORE periods per submit.
+
+- [ ] **Step 5: Test + lint + build**
+
+Run: `npm run test && npm run lint && npm run build`
+Expected: all PASS/clean. (`member-edit-form.tsx` compiles untouched — `updateMemberSchema`'s shape didn't change.)
+
+- [ ] **Step 6: Verify in the app**
+
+On `npx next dev -p 3005`, a project → Team tab:
+- "Add person": pick a person, add two period rows (one closed, one open-ended), submit → the member appears with BOTH periods listed.
+- A period with end < start shows "End date can't be before start" on that row and blocks submit.
+- "+ Add period" then submitting without touching the extra row succeeds (blank row dropped).
+- Row menu "Add period" on an existing member: same repeatable rows work.
+- Editing a single existing period row still works (regression).
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add tests/project-validation.test.ts src/lib/validation/project.ts src/app/actions/project-members.ts "src/app/(app)/projects/[id]/people/add-person-form.tsx"
+git commit -m "feat: add multiple membership periods in one Add-person submit"
+```
+
+---
+
+### Task 7: Fix — project description doesn't clamp to 3 lines
+
+The clamp EXISTS (`src/app/(app)/projects/[id]/project-description.tsx`: `line-clamp-3` + measured Show more toggle, rendered at `[id]/layout.tsx:60`) but the user reports the detail page showing the full description unclamped. This is a DEBUGGING task — find the root cause before changing anything (superpowers:systematic-debugging).
+
+**Files:**
+- Investigate/Modify: `src/app/(app)/projects/[id]/project-description.tsx` (or wherever the root cause actually is)
+
+**Interfaces:** unchanged — `ProjectDescription({ text: string })`.
+
+- [ ] **Step 1: Reproduce**
+
+Seed/edit a project description long enough to exceed 3 lines (the edit dialog's Notes/description textarea). Load `/projects/<id>` on `npx next dev -p 3005`. Confirm what the user sees: is the text unclamped? Is the "Show more" button missing, or present but non-functional? Check both a description WITH manual line breaks and one long unbroken paragraph.
+
+- [ ] **Step 2: Root-cause**
+
+Only proceed on evidence. Candidate checks, in order:
+1. DevTools on the `<p>`: is `-webkit-line-clamp: 3` actually applied? If the utility classes are missing from the built CSS, the Tailwind side is the problem (e.g. the conditional `` `${expanded ? "" : "line-clamp-3"}` `` being transformed somewhere).
+2. Is the rendered element even this component? (`data-*`/React DevTools) — the description may be rendered by a different code path than layout.tsx on the page the user looks at.
+3. Does `scrollHeight > clientHeight + 1` evaluate false despite visual overflow (broken measurement → toggle hidden, but text should still clamp)?
+4. Newline handling: with pre-line-less `<p>`, multi-paragraph text collapses to one flow — check whether the complaint is really "clamp broken" or "text renders as a wall" (fix must still satisfy: 3 clamped lines + toggle).
+
+- [ ] **Step 3: Fix minimally at the root cause**
+
+Whatever Step 2 finds, keep the contract: ≤3 rendered lines when collapsed, Show more ↔ Show less toggle only when the text actually overflows, no toggle for short text. Don't rewrite the component if a one-line fix suffices.
+
+- [ ] **Step 4: Verify + regression-check**
+
+- Long unbroken description: 3 lines + Show more → full text + Show less.
+- Description with blank lines: same.
+- Two-line description: no toggle.
+- `npm run lint && npm run build` clean.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add -A src/app/(app)/projects
+git commit -m "fix: project description clamps to 3 lines again"
+```
+
+(Adjust the `git add` to the files actually touched.)
+
+---
+
+### Task 8: Final verification sweep
 
 **Files:** none new.
 
@@ -888,6 +1317,9 @@ On `npx next dev -p 3005`:
 - `/people`: three status colors only (green/amber/red), no stacked badges anywhere; Away rows show return dates; summary strip counts (available/busy/away) unchanged and consistent.
 - Add a person with an uploaded photo AND a freshly-added role title in one flow — both persist and render in the list row.
 - `/people/[id]` for an away person: header badge `Away · until <date>`.
+- `/projects`: no priority anywhere (list, create form, edit dialog); both project forms show the "Status & Budget" section.
+- A project Team tab: add a person with two periods in one submit; both appear.
+- A project with a long description: clamped to 3 lines with a working Show more/Show less.
 
 - [ ] **Step 3: Report deploy note**
 
