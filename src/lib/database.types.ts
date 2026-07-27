@@ -1800,6 +1800,7 @@ export type Database = {
           role_title: string | null
           skills: string[] | null
           status: Database["public"]["Enums"]["person_status"] | null
+          vacation_ends_on: string | null
           weekly_capacity_hours: number | null
         }
         Relationships: []
