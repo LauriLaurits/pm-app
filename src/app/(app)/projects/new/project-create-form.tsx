@@ -147,7 +147,7 @@ export function ProjectCreateForm({
               />
             </FormSection>
 
-            <div className="flex justify-end">
+            <div className="sticky bottom-0 z-10 -mx-1 flex justify-end border-t bg-background px-1 py-3 in-[[data-slot=dialog-content]]:bg-popover">
               <Button type="submit" disabled={isPending}>
                 {isPending ? "Creating…" : "Create project"}
               </Button>

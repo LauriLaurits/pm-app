@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
+import { DialogFooter } from "@/components/ui/dialog";
 import type { StatusUpdateRow } from "./types";
 
 const FIELDS: { name: keyof StatusUpdateInput; label: string }[] = [
@@ -111,11 +112,13 @@ export function StatusUpdateForm({
                 />
               ))}
             </div>
-            <Button type="submit" disabled={isPending}>
-              {update
-                ? isPending ? "Saving…" : "Save changes"
-                : isPending ? "Posting…" : "Post update"}
-            </Button>
+            <DialogFooter>
+              <Button type="submit" disabled={isPending}>
+                {update
+                  ? isPending ? "Saving…" : "Save changes"
+                  : isPending ? "Posting…" : "Post update"}
+              </Button>
+            </DialogFooter>
           </form>
         </Form>
     </div>
