@@ -225,8 +225,12 @@ export async function editProjectAction(
     metadata: { fields: projectFields, milestone_count: milestones.length },
   });
 
-  revalidatePath(`/projects/${projectId}`);
-  revalidatePath(`/projects/${projectId}/people`);
+  // The edit dialog now lives in the [id] layout, reachable from all six tabs (Overview,
+  // Parts, Budgets, Links, Credentials, People) -- so a "page" revalidation of just
+  // /projects/[id] left the header + dialog props stale when editing from any other tab.
+  // "layout" per node_modules/next/dist/docs/01-app/03-api-reference/04-functions/revalidatePath.md
+  // invalidates the layout and everything beneath it, covering /people and the rest in one call.
+  revalidatePath(`/projects/${projectId}`, "layout");
   return { success: true as const };
 }
 

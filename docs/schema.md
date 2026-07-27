@@ -270,7 +270,13 @@ wrong-field paste shouldn't have to delete-and-repost, so the author may
 now edit or delete their own row; admin delete stays for moderation.
 `20260727000004_status_update_edit.sql` layers author-scoped
 `UPDATE`/`DELETE` policies on top of the 0003 policies below and grants
-`UPDATE` back:
+`UPDATE` back -- but review found the table-wide grant let an author PATCH
+`project_id` (move their row into a project they don't own -- cross-project
+content injection) or `created_at` (silently backdate/reorder history) via
+PostgREST, since `WITH CHECK (author_id = auth.uid())` doesn't constrain
+either column. `20260727000005_status_update_tighten.sql` (same day)
+column-scopes the grant to the six content fields and adds an
+`edit_status`-on-the-owning-project requirement to both policies:
 
 ```sql
 -- 0003
@@ -280,18 +286,32 @@ create policy "admin delete status update" on public.project_status_updates
   for delete using (public.is_admin());
 grant select, insert, delete on public.project_status_updates to authenticated;
 
--- 0004
+-- 0004 (superseded by 0005 below)
 create policy "authors edit own status update" on public.project_status_updates
   for update using (author_id = auth.uid()) with check (author_id = auth.uid());
 create policy "authors delete own status update" on public.project_status_updates
   for delete using (author_id = auth.uid());
 grant update on public.project_status_updates to authenticated;
+
+-- 0005
+revoke update on public.project_status_updates from authenticated;
+grant update (completed, in_progress, blockers, decisions_needed, next_milestone, handover_info)
+  on public.project_status_updates to authenticated;
+create policy "authors edit own status update" on public.project_status_updates
+  for update
+  using (author_id = auth.uid() and public.has_permission(auth.uid(), 'edit_status', project_id))
+  with check (author_id = auth.uid() and public.has_permission(auth.uid(), 'edit_status', project_id));
+create policy "authors delete own status update" on public.project_status_updates
+  for delete using (author_id = auth.uid() and public.has_permission(auth.uid(), 'edit_status', project_id));
 ```
 A non-author's `UPDATE`/`DELETE` attempt still isn't rejected with an
 error — RLS simply filters the row out, so it "succeeds" affecting 0
 rows. The server actions (`updateStatusUpdateAction`/
 `deleteStatusUpdateAction`) select the row back after the write and treat
 0 rows as a friendly "you can only edit/delete your own updates" error.
+An author's attempt to set `project_id` or `created_at` (columns outside
+the granted set) IS rejected with an error — Postgres raises `42501`
+(permission denied for column) before RLS is even evaluated.
 
 **Cross-cutting rule: every `has_permission` call passes a project arg
 unless the permission is a global-only one.** Global permissions
