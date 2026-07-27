@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   addMemberSchema, createProjectSchema, credentialSchema, credentialUpdateSchema, editProjectSchema,
-  linkSchema, partInlineFieldSchema, partSchema, projectInlineFieldSchema, statusUpdateSchema,
-  updateMemberSchema,
+  linkSchema, partInlineFieldSchema, partSchema, PROJECT_INLINE_FIELDS, projectInlineFieldSchema,
+  statusUpdateSchema, updateMemberSchema,
 } from "@/lib/validation/project";
 
 const validProject = {
@@ -11,7 +11,6 @@ const validProject = {
   description: "Migrate legacy shop to Next.js.",
   status: "active",
   health: "healthy",
-  priority: "high",
   budget_type: "hourly",
   start_date: "2026-01-01",
   deadline: "2026-06-01",
@@ -40,15 +39,12 @@ describe("editProjectSchema", () => {
     ).toBe(false);
   });
 
-  it("rejects an unknown status/health/priority", () => {
+  it("rejects an unknown status/health", () => {
     expect(
       editProjectSchema.safeParse({ ...validProject, status: "cancelled" }).success
     ).toBe(false);
     expect(
       editProjectSchema.safeParse({ ...validProject, health: "bad" }).success
-    ).toBe(false);
-    expect(
-      editProjectSchema.safeParse({ ...validProject, priority: "urgent" }).success
     ).toBe(false);
   });
 
@@ -123,13 +119,13 @@ describe("projectInlineFieldSchema", () => {
   it("accepts a known value for each inline field", () => {
     expect(projectInlineFieldSchema("status").safeParse("on_hold").success).toBe(true);
     expect(projectInlineFieldSchema("health").safeParse("critical").success).toBe(true);
-    expect(projectInlineFieldSchema("priority").safeParse("high").success).toBe(true);
+    expect(PROJECT_INLINE_FIELDS).toEqual(["status", "health"]);
   });
 
   it("rejects an unknown value for each inline field", () => {
     expect(projectInlineFieldSchema("status").safeParse("cancelled").success).toBe(false);
     expect(projectInlineFieldSchema("health").safeParse("bad").success).toBe(false);
-    expect(projectInlineFieldSchema("priority").safeParse("urgent").success).toBe(false);
+    expect(PROJECT_INLINE_FIELDS).toEqual(["status", "health"]);
   });
 });
 
@@ -141,7 +137,6 @@ describe("createProjectSchema", () => {
       budget_type: "fixed",
       status: "planning",
       health: "healthy",
-      priority: "medium",
       client_id: null,
       description: null,
       start_date: null,
@@ -169,7 +164,6 @@ describe("createProjectSchema", () => {
       description: "Migrate legacy shop to Next.js.",
       status: "active",
       health: "warning",
-      priority: "high",
       budget_type: "mixed",
       start_date: "2026-01-01",
       deadline: "2026-06-01",
@@ -178,15 +172,12 @@ describe("createProjectSchema", () => {
     expect(parsed.success).toBe(true);
   });
 
-  it("rejects an unknown status/health/priority", () => {
+  it("rejects an unknown status/health", () => {
     expect(
       createProjectSchema.safeParse({ name: "X", budget_type: "fixed", status: "cancelled" }).success
     ).toBe(false);
     expect(
       createProjectSchema.safeParse({ name: "X", budget_type: "fixed", health: "bad" }).success
-    ).toBe(false);
-    expect(
-      createProjectSchema.safeParse({ name: "X", budget_type: "fixed", priority: "urgent" }).success
     ).toBe(false);
   });
 

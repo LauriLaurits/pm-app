@@ -2,9 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Flag, MoreHorizontal, Settings2, Users,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreHorizontal, Settings2, Users } from "lucide-react";
 import { updateProjectFieldAction } from "@/app/actions/projects";
 import { PersonAvatar } from "@/components/person-avatar";
 import { Badge } from "@/components/ui/badge";
@@ -71,18 +69,8 @@ const OPTIONAL_COLUMNS = [
 export type ColumnKey = (typeof OPTIONAL_COLUMNS)[number]["key"];
 
 type SortKey =
-  | "priority" | "name" | "client" | "pm" | "status" | "health" | "deadline"
+  | "name" | "client" | "pm" | "status" | "health" | "deadline"
   | "team" | "budget" | "progress" | "updated";
-
-// Ascending = most important first, so the first click on the flag surfaces high priority.
-const PRIORITY_RANK = { high: 0, medium: 1, low: 2 } as const;
-
-// Tiny GitHub-style priority dots. LOW renders nothing -- a dot should only appear when it
-// carries a signal, so the column stays empty for the default case.
-const PRIORITY_DOT_CLASS: Record<"high" | "medium", string> = {
-  high: "bg-red-500",
-  medium: "bg-blue-500",
-};
 
 export function ProjectsTable({
   rows,
@@ -129,7 +117,6 @@ export function ProjectsTable({
 
   const accessors = useMemo<SortAccessors<ProjectListRow, SortKey>>(
     () => ({
-      priority: (r) => (r.priority ? PRIORITY_RANK[r.priority] : null),
       name: (r) => r.name,
       client: (r) => r.client_name,
       pm: (r) => r.pm_name,
@@ -157,33 +144,6 @@ export function ProjectsTable({
       <Table className="[&_tbody_td]:py-4">
         <TableHeader>
           <TableRow>
-            <TableHead
-              className="w-8 px-1"
-              aria-sort={
-                sort?.key === "priority"
-                  ? sort.dir === "asc"
-                    ? "ascending"
-                    : "descending"
-                  : undefined
-              }
-            >
-              <button
-                type="button"
-                onClick={() => toggle("priority")}
-                title="Sort by priority (red high, blue medium, gray low)"
-                aria-label="Sort by priority"
-                className="group inline-flex items-center gap-0.5 rounded p-0.5 transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-              >
-                <Flag className="size-3.5" />
-                {sort?.key === "priority" ? (
-                  sort.dir === "asc" ? (
-                    <ChevronUp className="size-3" />
-                  ) : (
-                    <ChevronDown className="size-3" />
-                  )
-                ) : null}
-              </button>
-            </TableHead>
             <SortableHead label="Project" sortKey="name" sort={sort} onToggle={toggle} />
             {show("client") && <SortableHead label="Client" sortKey="client" sort={sort} onToggle={toggle} />}
             {show("pm") && <SortableHead label="PM" sortKey="pm" sort={sort} onToggle={toggle} />}
@@ -240,18 +200,8 @@ export function ProjectsTable({
             const Icon = PROJECT_ICONS[iconKeys?.[projectId] ?? "folder"].icon;
             return (
               <TableRow key={row.id} className="group">
-                {/* Priority dot (red high / blue medium / faint low) under the flag header.
-                    NO edge accent line -- tried twice (priority, then health), rejected both
-                    times: the badges carry the signal. */}
-                <TableCell className="w-8 px-1">
-                  {(row.priority === "high" || row.priority === "medium") && (
-                    <span
-                      aria-label={`${row.priority} priority`}
-                      title={`${row.priority.charAt(0).toUpperCase()}${row.priority.slice(1)} priority`}
-                      className={`block size-2 rounded-full ${PRIORITY_DOT_CLASS[row.priority]}`}
-                    />
-                  )}
-                </TableCell>
+                {/* NO left edge accent line EVER -- tried twice (priority, then health),
+                    rejected both times: the badges carry the signal. */}
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <span
@@ -263,11 +213,6 @@ export function ProjectsTable({
                     <div className="min-w-0">
                       <Link
                         href={`/projects/${row.id}`}
-                        title={
-                          row.priority
-                            ? `${row.priority.charAt(0).toUpperCase()}${row.priority.slice(1)} priority`
-                            : undefined
-                        }
                         className="text-base leading-tight font-semibold transition-opacity hover:opacity-70"
                       >
                         {row.name}

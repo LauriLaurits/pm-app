@@ -9,7 +9,6 @@ export const PROJECT_STATUS_OPTIONS = [
   "archived",
 ] as const;
 export const PROJECT_HEALTH_OPTIONS = ["healthy", "warning", "critical"] as const;
-export const PROJECT_PRIORITY_OPTIONS = ["low", "medium", "high"] as const;
 export const BUDGET_TYPE_OPTIONS = ["fixed", "hourly", "mixed"] as const;
 
 /** Blank/whitespace-only optional text collapses to null so the DB never stores "". */
@@ -77,7 +76,6 @@ export const editProjectSchema = z.object({
   description: nullableText(),
   status: z.enum(PROJECT_STATUS_OPTIONS),
   health: z.enum(PROJECT_HEALTH_OPTIONS),
-  priority: z.enum(PROJECT_PRIORITY_OPTIONS),
   budget_type: z.enum(BUDGET_TYPE_OPTIONS),
   // start_date/deadline are no longer edited directly -- the Timeline section edits milestones
   // and the DB trigger derives the dates from the start/end kinds. The fields stay in the
@@ -108,7 +106,7 @@ export type EditProjectOutput = z.output<typeof editProjectSchema>;
 // One enum field at a time, not the full editProjectSchema payload -- the inline cell only ever
 // submits the single field the user just changed.
 
-export const PROJECT_INLINE_FIELDS = ["status", "health", "priority"] as const;
+export const PROJECT_INLINE_FIELDS = ["status", "health"] as const;
 export type ProjectInlineField = (typeof PROJECT_INLINE_FIELDS)[number];
 
 export function projectInlineFieldSchema(field: ProjectInlineField) {
@@ -117,18 +115,15 @@ export function projectInlineFieldSchema(field: ProjectInlineField) {
       return z.enum(PROJECT_STATUS_OPTIONS);
     case "health":
       return z.enum(PROJECT_HEALTH_OPTIONS);
-    case "priority":
-      return z.enum(PROJECT_PRIORITY_OPTIONS);
   }
 }
 
-// Creation is deliberately minimal: only `name` has no usable default. Status/health/priority
-// all default to the same "healthy new project" values (priority is no longer asked on the
-// create form -- P3 feedback -- so its default always applies there), and budget_type
-// -- NOT NULL in the DB with no column default -- gets one here (the form always submits
-// 'fixed' unless the PM changes it). pm_id: null/blank means "me" (the action fills in the
-// caller); a non-self value is only honored per the "create project" RLS policy -- the caller
-// must hold create_project and the target must be an active PM/admin (see pm_options()).
+// Creation is deliberately minimal: only `name` has no usable default. Status/health both
+// default to the same "healthy new project" values, and budget_type -- NOT NULL in the DB
+// with no column default -- gets one here (the form always submits 'fixed' unless the PM
+// changes it). pm_id: null/blank means "me" (the action fills in the caller); a non-self
+// value is only honored per the "create project" RLS policy -- the caller must hold
+// create_project and the target must be an active PM/admin (see pm_options()).
 export const createProjectSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
   icon_key: z.enum(PROJECT_ICON_KEYS).default("folder"),
@@ -138,7 +133,6 @@ export const createProjectSchema = z.object({
   description: nullableText(),
   status: z.enum(PROJECT_STATUS_OPTIONS).default("planning"),
   health: z.enum(PROJECT_HEALTH_OPTIONS).default("healthy"),
-  priority: z.enum(PROJECT_PRIORITY_OPTIONS).default("medium"),
   budget_type: z.enum(BUDGET_TYPE_OPTIONS),
   // Not form fields anymore -- the Timeline section is a milestone editor and the DB trigger
   // derives both dates from the start/end kinds. Kept so the schema still accepts (and

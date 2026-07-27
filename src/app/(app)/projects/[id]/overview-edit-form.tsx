@@ -7,7 +7,6 @@ import { editProjectAction } from "@/app/actions/projects";
 import {
   BUDGET_TYPE_OPTIONS,
   editProjectSchema,
-  PROJECT_PRIORITY_OPTIONS,
   PROJECT_STATUS_OPTIONS,
   type EditProjectInput,
   type MilestoneKind,
@@ -41,7 +40,6 @@ function toDefaults(project: ProjectRow, milestones: MilestoneRow[]): EditProjec
     description: project.description,
     status: project.status,
     health: project.health,
-    priority: project.priority,
     budget_type: project.budget_type,
     // start_date/deadline round-trip unchanged -- the Timeline section edits milestones now,
     // and the DB sync trigger derives both dates from the start/end kinds on save.
@@ -144,18 +142,15 @@ export function OverviewEditForm({
               </FormItem>
             )}
           />
-          <div className="grid grid-cols-2 gap-3">
-            <ClientField control={form.control} clients={clients} />
-            <EnumSelectField control={form.control} name="budget_type" label="Budget type" options={BUDGET_TYPE_OPTIONS} />
-          </div>
+          <ClientField control={form.control} clients={clients} />
           <ClientContactField control={form.control} contacts={contacts} />
           <PmField control={form.control} candidates={pmCandidates} isAdmin={isAdmin} currentPmName={currentPmName} />
         </FormSection>
 
-        <FormSection tone="amber" title="Status & priority">
+        <FormSection tone="amber" title="Status & Budget">
           <div className="grid grid-cols-2 gap-3">
             <EnumSelectField control={form.control} name="status" label="Status" options={PROJECT_STATUS_OPTIONS} />
-            <EnumSelectField control={form.control} name="priority" label="Priority" options={PROJECT_PRIORITY_OPTIONS} />
+            <EnumSelectField control={form.control} name="budget_type" label="Budget type" options={BUDGET_TYPE_OPTIONS} />
           </div>
         </FormSection>
 

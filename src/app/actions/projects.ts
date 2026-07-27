@@ -275,7 +275,7 @@ export async function toggleMilestoneDoneAction(
 
 /**
  * Inline single-field edit for the projects list table (ux-interaction-audit.md #20) --
- * status/health/priority only, one at a time, not the full editProjectSchema payload the
+ * status/health only, one at a time, not the full editProjectSchema payload the
  * Overview edit dialog submits. `field` selects which enum to validate `value` against; the
  * inline cell only ever sends the one field the user just changed.
  */
@@ -300,9 +300,7 @@ export async function updateProjectFieldAction(
   const patch =
     field === "status"
       ? { status: parsed.data as EditProjectOutput["status"] }
-      : field === "health"
-        ? { health: parsed.data as EditProjectOutput["health"] }
-        : { priority: parsed.data as EditProjectOutput["priority"] };
+      : { health: parsed.data as EditProjectOutput["health"] };
   const { error } = await supabase.from("projects").update(patch).eq("id", projectId);
   if (error) return { error: "Update failed. Try again." };
 

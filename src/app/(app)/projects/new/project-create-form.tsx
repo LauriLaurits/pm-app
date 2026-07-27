@@ -8,7 +8,6 @@ import { createProjectAction } from "@/app/actions/projects";
 import {
   BUDGET_TYPE_OPTIONS,
   createProjectSchema,
-  PROJECT_PRIORITY_OPTIONS,
   PROJECT_STATUS_OPTIONS,
   type CreateProjectInput,
 } from "@/lib/validation/project";
@@ -27,9 +26,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 // Good defaults so a PM can type just a name and hit Create: Planning/Healthy/Fixed are the
-// same "new, low-risk project" baseline the rest of the app already assumes. Priority isn't
-// asked on this form anymore (P3 feedback) -- the schema default ('medium') applies and it
-// stays editable on the list/detail views.
+// same "new, low-risk project" baseline the rest of the app already assumes.
 const DEFAULT_VALUES: Omit<CreateProjectInput, "pm_id"> = {
   name: "",
   icon_key: "folder",
@@ -38,7 +35,6 @@ const DEFAULT_VALUES: Omit<CreateProjectInput, "pm_id"> = {
   description: null,
   status: "planning",
   health: "healthy",
-  priority: "medium",
   budget_type: "fixed",
   start_date: null,
   deadline: null,
@@ -123,12 +119,11 @@ export function ProjectCreateForm({
               <ClientContactField control={form.control} contacts={contacts} />
             </FormSection>
 
-            <FormSection tone="amber" title="Status & priority">
+            <FormSection tone="amber" title="Status & Budget">
               {/* No Health field: health is DERIVED (deadline/budget/progress -- lib/health.ts)
                   and the stored column is never displayed, so a manual pick would be a lie. */}
               <div className="grid grid-cols-2 gap-3">
                 <EnumSelectField control={form.control} name="status" label="Status" options={PROJECT_STATUS_OPTIONS} />
-                <EnumSelectField control={form.control} name="priority" label="Priority" options={PROJECT_PRIORITY_OPTIONS} />
                 <EnumSelectField control={form.control} name="budget_type" label="Budget type" options={BUDGET_TYPE_OPTIONS} />
               </div>
             </FormSection>

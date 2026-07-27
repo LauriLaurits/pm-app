@@ -4,7 +4,6 @@ import type { InlineEditOption } from "@/components/inline-edit-select";
 export type ProjectListRow = Database["public"]["Views"]["project_list_rows"]["Row"];
 export type ProjectStatus = Database["public"]["Enums"]["project_status"];
 export type ProjectHealth = Database["public"]["Enums"]["project_health"];
-export type ProjectPriority = Database["public"]["Enums"]["project_priority"];
 export type BudgetType = Database["public"]["Enums"]["budget_type"];
 
 export const STATUS_OPTIONS: ProjectStatus[] = [
@@ -74,16 +73,6 @@ export const HEALTH_BADGE_CLASS: Record<ProjectHealth, string> = {
   critical: "",
 };
 
-export const PRIORITY_OPTIONS: ProjectPriority[] = ["low", "medium", "high"];
-
-// One priority color scheme for EVERY surface (list inline chip + detail header badge must
-// match): high red, medium blue, low gray -- semantic color where it drives a decision.
-export const PRIORITY_BADGE_CLASS: Record<ProjectPriority, string> = {
-  low: "border-transparent bg-muted/70 font-normal text-muted-foreground",
-  medium: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400",
-  high: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400",
-};
-
 export function humanize(value: string) {
   return value.replace(/_/g, " ");
 }
@@ -107,23 +96,6 @@ export const HEALTH_INLINE_OPTIONS: InlineEditOption[] = HEALTH_OPTIONS.map((h) 
   badgeVariant: h === "critical" ? "destructive" : "outline",
   badgeClassName: HEALTH_BADGE_CLASS[h],
 }));
-
-// Label carries the full phrase ("High priority") so the chip reads as ONE piece -- a colored
-// "high" next to a plain gray "priority" looked broken.
-export const PRIORITY_INLINE_OPTIONS: InlineEditOption[] = PRIORITY_OPTIONS.map((p) => ({
-  value: p,
-  label: `${p.charAt(0).toUpperCase()}${p.slice(1)} priority`,
-  badgeVariant: "outline",
-  badgeClassName: PRIORITY_BADGE_CLASS[p],
-}));
-
-// Compact list presentation: priority tints the project NAME itself (high red / medium blue /
-// low default ink), full wording in the hover title. No extra chip or dot in the row.
-export const PRIORITY_NAME_CLASS: Record<ProjectPriority, string> = {
-  low: "",
-  medium: "text-blue-700 dark:text-blue-400",
-  high: "text-red-700 dark:text-red-400",
-};
 
 export function initials(name: string | null) {
   if (!name) return "?";

@@ -110,7 +110,7 @@ export default async function ProjectsPage({
     .sort((a, b) => a.name.localeCompare(b.name));
   const clientOptions = distinct((optionRows ?? []).map((r) => r.client_name));
 
-  // UX gating only for the inline status/health/priority editors -- InlineEditSelect renders a
+  // UX gating only for the inline status/health editors -- InlineEditSelect renders a
   // plain badge for any row not in this set, but the real boundary is requirePermission inside
   // updateProjectFieldAction, re-checked server-side regardless of what's rendered here. Mirrors
   // has_permission('edit_project', project) exactly without an RPC round trip per row: admin

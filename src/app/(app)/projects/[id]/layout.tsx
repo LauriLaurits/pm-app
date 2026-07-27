@@ -35,9 +35,9 @@ export default async function ProjectDetailLayout({
 
   if (!project) notFound();
 
-  // Client feedback: only the status badge belongs up here -- the derived-health and priority
-  // badges were noise at the title level ("Healthy, medium priority – seda pole vaja"); health
-  // still shows in the projects list, priority stays editable in list/edit.
+  // Client feedback: only the status badge belongs up here -- the derived-health badge
+  // was noise at the title level ("Healthy – seda pole vaja"); health still shows in the
+  // projects list.
   return (
     <div className="space-y-4">
       <Breadcrumb>

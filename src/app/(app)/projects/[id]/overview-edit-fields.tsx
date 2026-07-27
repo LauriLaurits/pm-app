@@ -19,7 +19,7 @@ export const TEXT_FIELDS: { name: FieldPath<EditProjectInput>; label: string }[]
   { name: "client_notes", label: "Client notes" },
 ];
 
-/** Status/health/priority are all enum <Select>s bound the same way — one field renderer for all three. */
+/** Status/health are enum <Select>s bound the same way — one field renderer for both. */
 export function EnumSelectField({
   control,
   name,
@@ -27,7 +27,7 @@ export function EnumSelectField({
   options,
 }: {
   control: Control<EditProjectInput>;
-  name: "status" | "health" | "priority" | "budget_type";
+  name: "status" | "health" | "budget_type";
   label: string;
   options: readonly string[];
 }) {

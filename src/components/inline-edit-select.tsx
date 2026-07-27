@@ -26,7 +26,7 @@ type SaveResult = { error: string } | { success: true };
 
 /**
  * One reusable "click the badge, get an inline <Select>, save on change" cell -- the shared
- * implementation for every list/table inline-edit surface (projects status/health/priority,
+ * implementation for every list/table inline-edit surface (projects status/health,
  * parts status/responsible person, admin user role). Non-editors (canEdit=false) get the plain
  * badge with no interactive affordance at all -- the caller computes canEdit server-side; this
  * component never re-checks permissions itself, since the real boundary is always the

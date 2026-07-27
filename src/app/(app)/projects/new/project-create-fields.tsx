@@ -204,12 +204,10 @@ function ContactSelect({
   );
 }
 
-// Same dot language the list views use: every status gets its own dot (STATUS_DOT), priority
-// dots only where they carry signal (high red / medium blue, low stays plain -- exactly like
-// the table's priority column). budget_type stays plain text.
+// Same dot language the list views use: every status gets its own dot (STATUS_DOT). budget_type
+// stays plain text.
 const OPTION_DOT: Partial<Record<string, Record<string, string | undefined>>> = {
   status: STATUS_DOT as Record<ProjectStatus, string>,
-  priority: { high: "bg-red-500", medium: "bg-blue-500" },
 };
 
 function OptionLabel({ fieldName, value }: { fieldName: string; value: string }) {
@@ -222,8 +220,8 @@ function OptionLabel({ fieldName, value }: { fieldName: string; value: string })
   );
 }
 
-/** Status/health/priority/budget_type are all enum <Select>s bound the same way -- one field
- * renderer for all four, all pre-filled with sensible defaults by the caller's defaultValues. */
+/** Status/health/budget_type are all enum <Select>s bound the same way -- one field
+ * renderer for all three, all pre-filled with sensible defaults by the caller's defaultValues. */
 export function EnumSelectField({
   control,
   name,
@@ -231,7 +229,7 @@ export function EnumSelectField({
   options,
 }: {
   control: Control<CreateProjectInput>;
-  name: "status" | "health" | "priority" | "budget_type";
+  name: "status" | "health" | "budget_type";
   label: string;
   options: readonly string[];
 }) {
