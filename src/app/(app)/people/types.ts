@@ -48,7 +48,7 @@ export function formatMoney(amount: number | null) {
 
 /** "2026-08-03" -> "3 Aug" -- compact enough to live inside a status badge. */
 export function formatShortDate(date: string) {
-  return new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return new Date(date).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
 export function rowMatchesAvailability(row: PersonWorkloadRow, availability: string | undefined) {
