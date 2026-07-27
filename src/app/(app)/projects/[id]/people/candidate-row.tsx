@@ -30,8 +30,7 @@ export function CandidateRow({
         ? await addMemberAction(projectId, {
             user_id: candidate.user_id,
             role_on_project: null,
-            starts_on: null,
-            ends_on: null,
+            periods: [{ starts_on: null, ends_on: null }],
           })
         : candidate.memberId
           ? await removeMemberAction(projectId, candidate.memberId)

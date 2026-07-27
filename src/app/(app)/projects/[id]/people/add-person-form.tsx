@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { PlusIcon, XIcon } from "lucide-react";
 import { addMemberAction } from "@/app/actions/project-members";
 import { addMemberSchema, type AddMemberInput } from "@/lib/validation/project";
 import type { CandidateOption } from "./types";
@@ -15,11 +16,11 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 
-/** Adds a membership PERIOD: person + role + start/end dates. Used twice -- as the "Add person"
- * first-add form (person picked from `candidates`) and, with `fixedPerson` set, as the
- * "Add period" form on an existing member's row (person locked, only the new period's details
- * are asked). Writes plain project_members rows via addMemberAction; allocation is no longer
- * set from this tab (workload plumbing stays in the DB, untouched here). */
+/** Adds one or more membership periods: person + role + repeatable start/end date ranges.
+ * Used twice -- as the "Add person" first-add form (person picked from `candidates`) and, with
+ * `fixedPerson` set, as the "Add period" form on an existing member's row (person locked, only
+ * new period details are asked). Each row in the periods array becomes its own project_members row;
+ * allocation is no longer set from this tab (workload plumbing stays in the DB, untouched here). */
 export function AddPersonForm({
   projectId,
   candidates,
@@ -38,10 +39,18 @@ export function AddPersonForm({
     defaultValues: {
       user_id: fixedPerson?.user_id ?? "",
       role_on_project: null,
-      starts_on: null,
-      ends_on: null,
+      periods: [{ starts_on: null, ends_on: null }],
     },
   });
+
+  const periodRows = useFieldArray({ control: form.control, name: "periods" });
+
+  function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
+    const periods = form.getValues("periods") ?? [];
+    const kept = periods.filter((p) => p.starts_on || p.ends_on);
+    form.setValue("periods", kept.length > 0 ? kept : [{ starts_on: null, ends_on: null }]);
+    form.handleSubmit(onSubmit)(e);
+  }
 
   function onSubmit(values: AddMemberInput) {
     setServerError(null);
@@ -62,7 +71,7 @@ export function AddPersonForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleFormSubmit} className="space-y-4">
         {serverError && (
           <Alert variant="destructive">
             <AlertDescription>{serverError}</AlertDescription>
@@ -110,29 +119,59 @@ export function AddPersonForm({
           )}
         />
 
-        <div className="grid grid-cols-2 gap-3">
-          <FormField
-            control={form.control}
-            name="starts_on"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Starts</FormLabel>
-                <FormControl render={<Input type="date" {...field} value={field.value ?? ""} />} />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="ends_on"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Ends</FormLabel>
-                <FormControl render={<Input type="date" {...field} value={field.value ?? ""} />} />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <div className="space-y-2">
+          <FormLabel>Periods</FormLabel>
+          {periodRows.fields.map((row, i) => (
+            <div key={row.id} className="flex items-start gap-2">
+              <FormField
+                control={form.control}
+                name={`periods.${i}.starts_on`}
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormControl
+                      render={
+                        <Input type="date" aria-label={`Period ${i + 1} start`} {...field} value={field.value ?? ""} />
+                      }
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name={`periods.${i}.ends_on`}
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormControl
+                      render={
+                        <Input type="date" aria-label={`Period ${i + 1} end`} {...field} value={field.value ?? ""} />
+                      }
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {periodRows.fields.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Remove period ${i + 1}`}
+                  onClick={() => periodRows.remove(i)}
+                >
+                  <XIcon />
+                </Button>
+              )}
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => periodRows.append({ starts_on: null, ends_on: null })}
+          >
+            <PlusIcon /> Add period
+          </Button>
         </div>
 
         <DialogFooter>

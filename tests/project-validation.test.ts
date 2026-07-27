@@ -428,34 +428,57 @@ describe("partInlineFieldSchema", () => {
 });
 
 const validMember = {
-  user_id: "10000005-0000-4000-8000-000000000005",
-  role_on_project: "backend lead",
-  starts_on: "2026-01-01",
-  ends_on: null,
+  user_id: "0b0e846e-4c62-4f6e-9f0a-1e9d1a2b3c4d",
+  role_on_project: "Backend",
+  periods: [{ starts_on: "2026-08-01", ends_on: "2026-09-30" }],
 };
 
 describe("addMemberSchema", () => {
-  it("accepts a fully populated valid member", () => {
+  it("accepts a valid member with one period", () => {
     expect(addMemberSchema.safeParse(validMember).success).toBe(true);
   });
 
-  it("rejects a non-uuid user_id", () => {
+  it("accepts several periods, including open-ended ones", () => {
+    expect(
+      addMemberSchema.safeParse({
+        ...validMember,
+        periods: [
+          { starts_on: "2026-08-01", ends_on: "2026-09-30" },
+          { starts_on: "2026-11-01", ends_on: null },
+        ],
+      }).success
+    ).toBe(true);
+  });
+
+  it("rejects an empty periods array", () => {
+    expect(addMemberSchema.safeParse({ ...validMember, periods: [] }).success).toBe(false);
+  });
+
+  it("rejects a period ending before it starts", () => {
+    expect(
+      addMemberSchema.safeParse({
+        ...validMember,
+        periods: [{ starts_on: "2026-09-30", ends_on: "2026-08-01" }],
+      }).success
+    ).toBe(false);
+  });
+
+  it("rejects a non-uuid user", () => {
     expect(addMemberSchema.safeParse({ ...validMember, user_id: "not-a-uuid" }).success).toBe(false);
   });
 
-  it("rejects a missing user_id", () => {
-    const { user_id, ...rest } = validMember;
-    void user_id;
-    expect(addMemberSchema.safeParse(rest).success).toBe(false);
-  });
-
-  it("allows an omitted role_on_project and normalizes blank to null", () => {
+  it("collapses a blank role to null", () => {
     const parsed = addMemberSchema.parse({ ...validMember, role_on_project: "" });
     expect(parsed.role_on_project).toBeNull();
   });
 
-  it("rejects a malformed date", () => {
-    expect(addMemberSchema.safeParse({ ...validMember, starts_on: "01/01/2026" }).success).toBe(false);
+  it("rejects a malformed period date", () => {
+    expect(
+      addMemberSchema.safeParse({
+        ...validMember,
+        periods: [{ starts_on: "01/01/2026", ends_on: null }],
+      }).success
+    ).toBe(false);
   });
 });
 

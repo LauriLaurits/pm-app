@@ -25,12 +25,18 @@ export async function addMemberAction(
   if (!parsed.success) return { error: "Invalid member details." };
 
   const supabase = await createClient();
-  // Plain insert -- since member periods (20260722000001) there is no unique
-  // (project_id, user_id) constraint: inserting an existing member again is legal and simply
-  // creates an ADDITIONAL membership period for them.
-  const { error } = await supabase
-    .from("project_members")
-    .insert({ project_id: projectId, ...parsed.data });
+  // One project_members row per period -- since member periods (20260722000001) there is no
+  // unique (project_id, user_id) constraint, so N rows for the same person are legal and each
+  // is an independent engagement window.
+  const { role_on_project, user_id } = parsed.data;
+  const rows = parsed.data.periods.map((p) => ({
+    project_id: projectId,
+    user_id,
+    role_on_project,
+    starts_on: p.starts_on,
+    ends_on: p.ends_on,
+  }));
+  const { error } = await supabase.from("project_members").insert(rows);
   if (error) return { error: "Add failed. Try again." };
 
   await writeAudit({
@@ -38,8 +44,8 @@ export async function addMemberAction(
     actorId: current.user.id,
     actorEmail: current.profile.email,
     resourceType: "project_member",
-    resourceId: `${projectId}:${parsed.data.user_id}`,
-    metadata: { project_id: projectId, user_id: parsed.data.user_id },
+    resourceId: `${projectId}:${user_id}`,
+    metadata: { project_id: projectId, user_id, period_count: rows.length },
   });
 
   revalidatePath(`/projects/${projectId}/people`);

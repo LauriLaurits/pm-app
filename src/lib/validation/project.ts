@@ -208,19 +208,36 @@ export function partInlineFieldSchema(field: PartInlineField) {
 
 // ---------- project members (access) ----------
 
-/** Adds an existing user_profiles user (picked via their `people` row) as a project member. */
+/** One membership period row. Both dates optional (open-ended engagements are normal), but a
+ * closed range must not end before it starts. */
+export const memberPeriodSchema = z
+  .object({
+    starts_on: nullableDate,
+    ends_on: nullableDate,
+  })
+  .refine((p) => !p.starts_on || !p.ends_on || p.ends_on >= p.starts_on, {
+    message: "End date can't be before start",
+    path: ["ends_on"],
+  });
+
+/** Adds an existing user_profiles user as a project member -- one project_members row PER
+ * period, so several engagement windows can be entered in one submit. */
 export const addMemberSchema = z.object({
   user_id: z.uuid("Select a person"),
   role_on_project: nullableText(200),
-  starts_on: nullableDate,
-  ends_on: nullableDate,
+  periods: z.array(memberPeriodSchema).min(1, "Add at least one period"),
 });
 export type AddMemberInput = z.input<typeof addMemberSchema>;
 export type AddMemberOutput = z.output<typeof addMemberSchema>;
 
-/** Editing an existing membership can change role/dates but never which user it belongs to --
- * that would just be a different membership, not an edit of this one. */
-export const updateMemberSchema = addMemberSchema.omit({ user_id: true });
+/** Editing an existing membership row can change role/dates but never which user it belongs
+ * to -- that would just be a different membership. Deliberately NOT derived from
+ * addMemberSchema anymore: an edit targets ONE period row. */
+export const updateMemberSchema = z.object({
+  role_on_project: nullableText(200),
+  starts_on: nullableDate,
+  ends_on: nullableDate,
+});
 export type UpdateMemberInput = z.input<typeof updateMemberSchema>;
 export type UpdateMemberOutput = z.output<typeof updateMemberSchema>;
 
