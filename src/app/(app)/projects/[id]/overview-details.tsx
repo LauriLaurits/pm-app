@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PersonAvatar } from "@/components/person-avatar";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { visibleProjectTags } from "@/lib/project-icons";
 import { formatDate } from "../types";
 import type { PersonRef } from "./types";
@@ -9,28 +9,27 @@ import type { ProjectRow } from "./types";
 
 // Details + people in one card (progress and deadline moved to the header strip so they aren't
 // repeated; the description now lives at the title level in the detail layout, so it isn't
-// repeated here either). The header answers "where does it stand right now".
+// repeated here either; the Edit-project trigger now lives in the detail layout's header too, so
+// it appears on every tab instead of just this card). The header answers "where does it stand
+// right now".
 export function OverviewDetailsCard({
   project,
   pm,
   owner,
   clientName,
   clientContact,
-  editAction,
 }: {
   project: ProjectRow;
   pm: PersonRef;
   owner: PersonRef;
   clientName: string | null;
   clientContact: { name: string; email: string | null } | null;
-  editAction?: React.ReactNode;
 }) {
   const visibleTags = visibleProjectTags(project.tags);
   return (
     <Card>
       <CardHeader>
         <CardTitle>Details</CardTitle>
-        {editAction && <CardAction>{editAction}</CardAction>}
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-3">

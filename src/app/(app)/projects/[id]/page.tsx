@@ -4,8 +4,6 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { deriveProgress } from "@/lib/progress";
 import { MilestonesCard } from "./milestones-card";
 import { OverviewDetailsCard } from "./overview-details";
-import { OverviewEditDialog } from "./overview-edit-dialog";
-import type { ClientContactOption, ClientOption, PmOption } from "./overview-edit-admin-fields";
 import { OverviewNotesCard } from "./overview-notes";
 import { ProjectHeaderStrip, type ProjectBudgetCell } from "./project-header";
 import { ProjectDangerZone } from "./project-danger-zone";
@@ -50,9 +48,7 @@ export default async function ProjectOverviewPage({
   // feedback: these used to run in series, each adding a full DB round trip to TTFB).
   // Header-strip inputs: progress is derived from part statuses (never the manual column); the
   // budget row's finance columns are RLS-nulled for a non-finance caller (so the Budget cell is
-  // simply omitted for them); team is a headcount of project_members. PM reassignment candidates
-  // are only ever needed by an admin (non-admins get a read-only name instead, see PmField) --
-  // same "linked user account" precedent as the People tab's add-member candidates.
+  // simply omitted for them); team is a headcount of project_members.
   const [
     { data: canEdit },
     { data: canEditStatus },
@@ -62,7 +58,6 @@ export default async function ProjectOverviewPage({
     { data: budgetRow },
     { count: teamCount },
     { data: people },
-    { data: pmCandidateRows },
     { data: clientRow },
     { data: clientContact },
   ] = await Promise.all([
@@ -97,9 +92,6 @@ export default async function ProjectOverviewPage({
           .select("id, user_id, full_name, avatar_url")
           .in("user_id", userIds)
       : Promise.resolve({ data: [] as { id: string; user_id: string | null; full_name: string; avatar_url: string | null }[] }),
-    isAdmin
-      ? supabase.from("people").select("user_id, full_name").not("user_id", "is", null).order("full_name")
-      : Promise.resolve({ data: [] as { user_id: string | null; full_name: string }[] }),
     // Client + contact for the Details card. Both read through their own RLS (view_clients),
     // so a viewer without it (e.g. a plain member) just gets null and the card shows a dash.
     row.client_id
@@ -129,21 +121,6 @@ export default async function ProjectOverviewPage({
       ? { full_name: person.full_name, avatar_url: person.avatar_url, person_id: person.id }
       : null;
   };
-  const currentPmName = toPersonRef(row.pm_id)?.full_name ?? "Unassigned";
-
-  // "view clients" RLS (granted to project_manager/finance/admin) already limits these to
-  // whatever this caller can actually see -- same queries as the New Project page. Depends on
-  // canEdit, so it can't join the wave above.
-  const [{ data: clients }, { data: contactOptions }] = canEdit
-    ? await Promise.all([
-        supabase.from("clients").select("id, name").order("name"),
-        supabase.from("client_contacts").select("id, client_id, name, email").order("name"),
-      ])
-    : [{ data: [] as ClientOption[] }, { data: [] as ClientContactOption[] }];
-
-  const pmCandidates: PmOption[] = (pmCandidateRows ?? [])
-    .filter((p): p is { user_id: string; full_name: string } => !!p.user_id)
-    .map((p) => ({ user_id: p.user_id, full_name: p.full_name }));
 
   return (
     <div className="space-y-4">
@@ -176,19 +153,6 @@ export default async function ProjectOverviewPage({
             owner={toPersonRef(row.owner_id)}
             clientName={clientRow?.name ?? null}
             clientContact={clientContact ?? null}
-            editAction={
-              canEdit ? (
-                <OverviewEditDialog
-                  project={row}
-                  milestones={(milestones ?? []) as MilestoneRow[]}
-                  clients={(clients ?? []) as ClientOption[]}
-                  contacts={(contactOptions ?? []) as ClientContactOption[]}
-                  isAdmin={isAdmin}
-                  pmCandidates={pmCandidates}
-                  currentPmName={currentPmName}
-                />
-              ) : null
-            }
           />
           <ProjectDangerZone
             projectId={row.id}
