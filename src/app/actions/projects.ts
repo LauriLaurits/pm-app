@@ -228,9 +228,13 @@ export async function editProjectAction(
   // The edit dialog now lives in the [id] layout, reachable from all six tabs (Overview,
   // Parts, Budgets, Links, Credentials, People) -- so a "page" revalidation of just
   // /projects/[id] left the header + dialog props stale when editing from any other tab.
-  // "layout" per node_modules/next/dist/docs/01-app/03-api-reference/04-functions/revalidatePath.md
-  // invalidates the layout and everything beneath it, covering /people and the rest in one call.
-  revalidatePath(`/projects/${projectId}`, "layout");
+  // Must be the bracket ROUTE PATTERN, not the resolved id: implicit-tags.js derives layout
+  // cache tags from the route pattern (".../[id]/layout"), never from a resolved segment, so
+  // revalidatePath(`/projects/${projectId}`, "layout") would silently no-op (tag never
+  // registered). Per node_modules/next/dist/docs/01-app/03-api-reference/04-functions/
+  // revalidatePath.md's own '/blog/[slug]' example, "layout" invalidates that layout and
+  // everything beneath it for ALL projects, which is acceptable here.
+  revalidatePath("/projects/[id]", "layout");
   return { success: true as const };
 }
 
