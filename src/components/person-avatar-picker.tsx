@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { CameraIcon, Loader2Icon } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { uploadPersonAvatarAction } from "@/app/actions/avatars";
 import { PERSON_AVATAR_PRESET_META } from "@/components/person-avatar";
 import { PERSON_AVATAR_PRESETS, isPersonAvatarPreset } from "@/lib/person-avatar-presets";
 import { cn } from "@/lib/utils";
@@ -43,17 +43,16 @@ export function PersonAvatarPicker({
     setError(null);
     setUploading(true);
     try {
-      const supabase = createClient();
-      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-      const path = `${crypto.randomUUID()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(path, file, { contentType: file.type });
-      if (uploadError) {
-        setError("Upload failed. Try again.");
+      // Upload runs server-side (session cookies are httpOnly, so the browser Supabase
+      // client has no session and would hit the avatars bucket's RLS policy as `anon`).
+      const formData = new FormData();
+      formData.set("file", file);
+      const result = await uploadPersonAvatarAction(formData);
+      if ("error" in result) {
+        setError(result.error);
         return;
       }
-      onChange(supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl);
+      onChange(result.url);
     } finally {
       setUploading(false);
     }
