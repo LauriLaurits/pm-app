@@ -5,9 +5,27 @@ import { SummaryCards } from "./summary-cards";
 import { AttentionFeed } from "./attention-feed";
 import { MyProjectsCard } from "./my-projects-card";
 import { TeamCard } from "./team-card";
+import { DeadlinesCard } from "./deadlines-card";
+import { ActivityCard, type ActivityData } from "./activity-card";
+import { FinanceCard } from "./finance-card";
 import { DashboardHeader, type CreateProjectProps, type LogTimeProps } from "./dashboard-header";
-import { buildAttentionFeed, buildMyProjects, computeOverallocatedPeople, computeSummary } from "./compute";
-import { fetchDashboardBase, fetchExpiringCredentials, fetchLatestStatusUpdateByProject } from "./queries";
+import {
+  buildAttentionFeed,
+  buildDeadlineTimeline,
+  buildMyProjects,
+  computeFinanceOverview,
+  computeOverallocatedPeople,
+  computeSummary,
+} from "./compute";
+import {
+  fetchDashboardBase,
+  fetchExpiringCredentials,
+  fetchLatestStatusUpdateByProject,
+  fetchMilestonesUpcoming,
+  fetchMonthInvoiceTotal,
+  fetchRecentAudit,
+  fetchRecentStatusUpdates,
+} from "./queries";
 import type { ProjectBudgetRow, ProjectListRow, ValidProject } from "./types";
 import { resolveLogTimeData } from "../people/[id]/log-time-data";
 import type { AssignmentWithProject } from "../people/[id]/types";
@@ -25,6 +43,13 @@ export default async function DashboardPage() {
   // server-side regardless of what renders here.
   const current = await getCurrentUser();
 
+  // Pure, no-DB date math shared by the deadline timeline (fetchMilestonesUpcoming's horizon) and
+  // the finance card (fetchMonthInvoiceTotal's month boundary) -- computed once up front so both
+  // wave entries below use the exact same "today".
+  const now = new Date();
+  const todayISO = now.toISOString().slice(0, 10);
+  const monthStartISO = `${todayISO.slice(0, 7)}-01`;
+
   // One parallel wave for everything that doesn't depend on another read. New-project dialog
   // data (canCreate/clients/contacts/pm_options) rides here per the plan -- see
   // ProjectCreateDialog's option-fetch block in projects/page.tsx for precedent. The viewer's own
@@ -36,7 +61,10 @@ export default async function DashboardPage() {
     base,
     latestStatusByProject,
     expiringCreds,
+    milestones,
+    monthInvoiceTotal,
     canCreateRes,
+    viewAuditRes,
     createClientsRes,
     createContactsRes,
     createPmsRes,
@@ -47,8 +75,20 @@ export default async function DashboardPage() {
     fetchDashboardBase(supabase),
     fetchLatestStatusUpdateByProject(supabase),
     fetchExpiringCredentials(supabase),
+    // Deadlines card (Task 5) -- undone milestones due within the same 30-day window
+    // buildDeadlineTimeline windows project deadlines against.
+    fetchMilestonesUpcoming(supabase, todayISO),
+    // Finance card (Task 5) -- portfolio-wide invoiced total for the current month. Safe to call
+    // unconditionally (gated by view_budget alone, same as project_budget_rows' own RLS); the card
+    // itself stays hidden whenever computeFinanceOverview returns null for this viewer.
+    fetchMonthInvoiceTotal(supabase, monthStartISO),
     current
       ? supabase.rpc("has_permission", { uid: current.user.id, perm: "create_project" })
+      : Promise.resolve({ data: false }),
+    // Activity card (Task 5) -- gates which feed page.tsx reads below (audit rows vs. the
+    // status-update fallback), mirrored in the wave next to the other has_permission check above.
+    current
+      ? supabase.rpc("has_permission", { uid: current.user.id, perm: "view_audit" })
       : Promise.resolve({ data: false }),
     supabase.from("clients").select("id, name").order("name"),
     supabase.from("client_contacts").select("id, client_id, name, email").order("name"),
@@ -118,6 +158,31 @@ export default async function DashboardPage() {
     .map((p) => ({ ...p, pm_id: pmIdByProjectId.get(p.id) ?? null }))
     .filter((p) => p.status !== "completed" && p.status !== "archived");
   const myProjects = buildMyProjects(myProjectsCandidates, budgetRows, progressById, current?.user.id ?? null);
+
+  // Deadlines timeline (Task 5) -- overdue + next-30-days project deadlines and undone milestones,
+  // merged/sorted/capped by buildDeadlineTimeline itself.
+  const deadlines = buildDeadlineTimeline(projects, milestones, todayISO);
+
+  // Financial overview (Task 5) -- null (card hidden entirely) unless the viewer has budget
+  // visibility; margin is further gated on internal-cost visibility, same one-liner
+  // reports/page.tsx uses for its own hasFinanceVisibility.
+  const hasFinanceVisibility = budgetRows.some((r) => r.internal_cost !== null);
+  const financeOverview = computeFinanceOverview(
+    budgetRows,
+    projects,
+    monthInvoiceTotal,
+    summary.hasBudgetVisibility,
+    hasFinanceVisibility
+  );
+
+  // Recent activity (Task 5) -- audit_logs rows for view_audit holders, or a status-update
+  // fallback for everyone else. The permission check itself already happened in the wave above
+  // (viewAuditRes); this is the conditional "second await" for whichever feed it unlocked, same
+  // idiom the old dashboard used for its conditionally-awaited finance data.
+  const canViewAudit = Boolean(viewAuditRes.data);
+  const activityData: ActivityData = canViewAudit
+    ? { kind: "audit", rows: await fetchRecentAudit(supabase) }
+    : { kind: "status", rows: await fetchRecentStatusUpdates(supabase) };
 
   // New-project dialog data -- gated on create_project (UX only). PM options mirror
   // projects/page.tsx: the viewer is unshifted onto pm_options() if missing (a brand-new PM with
@@ -209,6 +274,15 @@ export default async function DashboardPage() {
             <AttentionFeed items={attentionFeed} />
             <MyProjectsCard rows={myProjects} hasBudget={summary.hasBudgetVisibility} />
             <TeamCard people={people} />
+          </div>
+
+          {/* Deadlines + Activity + Finance (Task 5). FinanceCard is omitted entirely (not an
+              empty placeholder) for viewers without budget visibility -- the grid just flows the
+              remaining two cards into the first two columns rather than leaving a boxed hole. */}
+          <div className="grid gap-4 xl:grid-cols-3">
+            <DeadlinesCard entries={deadlines} />
+            <ActivityCard data={activityData} />
+            {financeOverview && <FinanceCard overview={financeOverview} />}
           </div>
         </>
       )}
