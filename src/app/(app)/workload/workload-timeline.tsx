@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { utilizationBadgeClasses, utilizationCellClasses } from "@/lib/workload";
-import { formatWeekLabel, type PersonTimelineRow, type WeekCell } from "./types";
+import { formatRangeLabel, formatWeekLabel, weekEndISO, type PersonTimelineRow, type WeekCell } from "./types";
 
 const PERSON_COL = "260px";
 const WEEK_COL = "minmax(44px, 1fr)";
@@ -25,14 +25,29 @@ export function WorkloadTimeline({
         <div className="sticky left-0 z-20 border-b bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground">
           Person
         </div>
-        {weekStarts.map((weekStart) => (
-          <div
-            key={weekStart}
-            className="border-b border-l px-1 py-2 text-center text-xs font-medium text-muted-foreground"
-          >
-            {formatWeekLabel(weekStart)}
-          </div>
-        ))}
+        {/* Each column is a Mon–Sun week; the header shows the full span ("27 Jul –2 Aug") so
+            the column reads as a week, not a single day. Server-rendered `today` marks the
+            current week (this is a server component -- no hydration drift). */}
+        {weekStarts.map((weekStart) => {
+          const weekEnd = weekEndISO(weekStart);
+          const today = new Date().toISOString().slice(0, 10);
+          const isCurrent = today >= weekStart && today <= weekEnd;
+          return (
+            <div
+              key={weekStart}
+              title={formatRangeLabel(weekStart, weekEnd)}
+              className={cn(
+                "border-b border-l px-1 py-1.5 text-center text-[10px] leading-tight font-medium text-muted-foreground",
+                isCurrent && "bg-primary/5 font-semibold text-foreground"
+              )}
+            >
+              <div>{formatWeekLabel(weekStart)}</div>
+              <div className={cn("text-muted-foreground/70", isCurrent && "text-foreground/60")}>
+                –{formatWeekLabel(weekEnd)}
+              </div>
+            </div>
+          );
+        })}
 
         {rows.map((row, i) => (
           <PersonRowCells key={row.id} row={row} striped={i % 2 === 1} />
