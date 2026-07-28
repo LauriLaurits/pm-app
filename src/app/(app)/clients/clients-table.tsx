@@ -40,18 +40,30 @@ const ACTIVITY_LABEL: Record<ActivityFilter, string> = {
 };
 const ACTIVITY_OPTIONS: ActivityFilter[] = ["all", "with", "without"];
 
+/** Digits-only view of a phone-ish string, so "5301 2244", "+372 5301-2244" and "53012244"
+ * all match each other regardless of spacing/dashes/country-code punctuation. */
+function digits(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
 function matchesQuery(row: ClientListRow, query: string): boolean {
   if (row.name.toLowerCase().includes(query)) return true;
+  // Phone matching compares digit-to-digit; require at least 3 query digits so a lone "1"
+  // in a mixed query doesn't light up every row.
+  const queryDigits = digits(query);
   return row.contacts.some(
     (c) =>
       c.name.toLowerCase().includes(query) ||
-      (c.email !== null && c.email.toLowerCase().includes(query))
+      (c.email !== null && c.email.toLowerCase().includes(query)) ||
+      (c.phone !== null &&
+        (c.phone.toLowerCase().includes(query) ||
+          (queryDigits.length >= 3 && digits(c.phone).includes(queryDigits))))
   );
 }
 
 export function ClientsTable({ rows, canManage }: { rows: ClientListRow[]; canManage: boolean }) {
   const router = useRouter();
-  // Client-side search (list is small): client name, any contact name, any contact email.
+  // Client-side search (list is small): client name, any contact name/email/phone.
   const [q, setQ] = useState("");
   const [activity, setActivity] = useState<ActivityFilter>("all");
   const [page, setPage] = useState(1);

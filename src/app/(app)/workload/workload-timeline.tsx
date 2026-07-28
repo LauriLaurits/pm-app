@@ -10,7 +10,9 @@ import {
 } from "./types";
 
 const PERSON_COL = "260px";
-const WEEK_COL = "minmax(44px, 1fr)";
+// Wide enough for a one-line "27 Jul – 2 Aug" range at 10px -- the range on a single row
+// (user preference) beats the extra-compact 44px columns it replaced.
+const WEEK_COL = "minmax(78px, 1fr)";
 
 /** Consecutive weeks grouped by their Monday's month -> [{label: "July", span: 3}, …]. */
 function monthSpans(weekStarts: string[]): { label: string; span: number }[] {
@@ -74,8 +76,9 @@ export function WorkloadTimeline({
               <div className={cn("text-[11px] font-semibold", !isCurrent && "text-foreground/70")}>
                 W{isoWeekNumber(weekStart)}
               </div>
-              <div>{formatWeekLabel(weekStart)}</div>
-              <div className="text-muted-foreground/70">–{formatWeekLabel(weekEnd)}</div>
+              <div className="whitespace-nowrap">
+                {formatWeekLabel(weekStart)} – {formatWeekLabel(weekEnd)}
+              </div>
             </div>
           );
         })}
