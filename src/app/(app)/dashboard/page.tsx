@@ -60,6 +60,12 @@ export default async function DashboardPage() {
         <p className="text-destructive">Failed to load the dashboard. Try again.</p>
       ) : (
         <>
+          {/* Transitional: computeSummary was reworked to the 5-tile action-first shape (Task 2)
+              but SummaryCards/this page's layout aren't rewired to it yet (Task 3 does the real
+              rework, per the plan). Budget/margin no longer live on `summary` -- they move into
+              computeFinanceOverview -- so those two tiles are inert (finance=null hides them) and
+              overallocatedCount is recomputed inline from the still-present computeOverallocatedPeople
+              until Task 3 replaces this whole component. */}
           <SummaryCards
             activeProjects={summary.activeProjects}
             planningProjects={summary.planningProjects}
@@ -68,12 +74,12 @@ export default async function DashboardPage() {
             criticalProjects={summary.criticalProjects}
             warningProjects={summary.warningProjects}
             teamUtilizationPct={summary.teamUtilizationPct}
-            overallocatedCount={summary.overallocatedCount}
+            overallocatedCount={computeOverallocatedPeople(people).length}
             approachingDeadlines={summary.approachingDeadlines}
             nextDeadline={summary.nextDeadline}
-            totalActiveBudget={summary.totalActiveBudget}
-            budgetRemaining={summary.budgetRemaining}
-            finance={summary.finance}
+            totalActiveBudget={null}
+            budgetRemaining={null}
+            finance={null}
           />
 
           <AttentionSections
