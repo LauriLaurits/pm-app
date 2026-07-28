@@ -58,13 +58,3 @@ export type MilestoneLite = {
   done: boolean;
   projectName: string | null;
 };
-
-// Generic shape for items returned by computeOverallocatedPeople (used in page.tsx).
-export type AttentionItem = {
-  id: string;
-  href: string;
-  primary: string;
-  secondary?: string;
-  badgeLabel?: string;
-  badgeClassName?: string;
-};

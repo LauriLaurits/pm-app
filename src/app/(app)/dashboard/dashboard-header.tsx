@@ -36,7 +36,7 @@ export function DashboardHeader({
   logTimeProps: LogTimeProps | null;
 }) {
   const greeting = greetingWord(new Date().getHours());
-  const greetingLabel = greeting.charAt(0).toUpperCase() + greeting.slice(1);
+  const greetingLabel = `Good ${greeting}`;
 
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">

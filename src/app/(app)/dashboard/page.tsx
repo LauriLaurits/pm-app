@@ -16,7 +16,6 @@ import {
   buildDeadlineTimeline,
   buildMyProjects,
   computeFinanceOverview,
-  computeOverallocatedPeople,
   computeSummary,
 } from "./compute";
 import {
@@ -288,7 +287,8 @@ export default async function DashboardPage() {
             needsAttentionCritical={needsAttentionCritical}
             needsAttentionWarning={needsAttentionWarning}
             teamUtilizationPct={summary.teamUtilizationPct}
-            overallocatedCount={computeOverallocatedPeople(people).length}
+            availableCount={summary.availableCount}
+            peopleCount={summary.peopleCount}
             approachingDeadlines={summary.approachingDeadlines}
             nextDeadline={summary.nextDeadline}
             invoicesWaiting={summary.invoicesWaiting}

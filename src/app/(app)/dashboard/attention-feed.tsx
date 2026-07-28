@@ -16,8 +16,11 @@ const SEVERITY_DOT_CLASS: Record<AttentionSeverity, string> = {
 };
 
 // One chip label per source. `kind: "project"` covers both the critical and warning tiers of
-// deriveHealth (overdue/over-budget/behind-schedule reasons all land here) -- critical items read
-// "Critical", the rest ("due soon" being the common warning reason) read "Deadline". Every other
+// deriveHealth, whose reasons are deterministic templates (lib/health.ts): "N days overdue" /
+// "due in N days" for the deadline signal, "N% of budget used" / "over budget (N%)" for the
+// budget signal, "progress behind schedule" for the schedule-lag signal. Severity alone can't
+// tell deadline from budget apart (a critical item can be over-budget with no overdue deadline),
+// so the chip is picked by matching item.reason against those templates instead. Every other
 // kind maps 1:1 to a fixed label.
 const KIND_LABEL: Record<Exclude<FeedItem["kind"], "project">, string> = {
   budget: "Budget",
@@ -28,7 +31,11 @@ const KIND_LABEL: Record<Exclude<FeedItem["kind"], "project">, string> = {
 };
 
 function chipLabel(item: FeedItem): string {
-  if (item.kind === "project") return item.severity === "critical" ? "Critical" : "Deadline";
+  if (item.kind === "project") {
+    if (item.reason.includes("overdue") || item.reason.includes("due in")) return "Deadline";
+    if (item.reason.includes("budget")) return "Budget";
+    return "Deadline"; // schedule-lag-only reason ("progress behind schedule"): no better bucket
+  }
   return KIND_LABEL[item.kind];
 }
 

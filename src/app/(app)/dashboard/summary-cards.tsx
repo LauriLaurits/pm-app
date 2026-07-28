@@ -42,7 +42,8 @@ export function SummaryCards(props: {
   needsAttentionCritical: number;
   needsAttentionWarning: number;
   teamUtilizationPct: number | null;
-  overallocatedCount: number;
+  availableCount: number;
+  peopleCount: number;
   approachingDeadlines: number;
   nextDeadline: { name: string; days: number } | null;
   invoicesWaiting: { count: number; outstanding: number } | null;
@@ -77,11 +78,7 @@ export function SummaryCards(props: {
         icon={Gauge}
         label="Team load"
         value={util === null ? "—" : `${util.toFixed(0)}%`}
-        context={
-          props.overallocatedCount > 0
-            ? `avg · ${props.overallocatedCount} over capacity`
-            : "avg · all within capacity"
-        }
+        context={`${props.availableCount} of ${props.peopleCount} available`}
         tone={utilTone}
         href="/workload"
       />

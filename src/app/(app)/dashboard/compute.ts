@@ -1,5 +1,5 @@
 import { consumptionSeverity, marginPct } from "@/lib/budget";
-import { utilizationBadgeClasses, utilizationClass } from "@/lib/workload";
+import { utilizationClass } from "@/lib/workload";
 import { daysUntil, isApproachingDeadline, isStaleStatus } from "@/lib/dashboard";
 import {
   deriveHealth,
@@ -8,18 +8,15 @@ import {
   type DerivedHealthLevel,
 } from "@/lib/health";
 import {
-  type AttentionItem,
   type BudgetRow,
   type ExpiringCredential,
   type MilestoneLite,
-  type ValidPerson,
   type ValidProject,
   type WorkloadPerson,
 } from "./types";
 
 const DEADLINE_DAYS = 14;
 const STALE_DAYS = 14;
-const ATTENTION_LIMIT = 8;
 const DEADLINE_WINDOW_DAYS = 30;
 const DEADLINE_TIMELINE_CAP = 8;
 const MY_PROJECTS_CAP = 6;
@@ -64,10 +61,6 @@ export function computeSummary(
 
   const activeProjects = projects.filter((p) => p.status === "active").length;
   const planningProjects = projects.filter((p) => p.status === "planning").length;
-  const healthLevels = projects.map((p) => rowHealth(p).level);
-  const criticalProjects = healthLevels.filter((l) => l === "critical").length;
-  const warningProjects = healthLevels.filter((l) => l === "warning").length;
-  const atRiskProjects = criticalProjects + warningProjects;
   const approachingDeadlines = projects.filter(
     (p) =>
       p.status !== "completed" &&
@@ -90,7 +83,8 @@ export function computeSummary(
     : null;
 
   // Available = active, not on vacation right now, and under "full" utilization -- verbatim the
-  // People directory's rule (src/app/(app)/people/page.tsx availableCount, ~lines 78-83).
+  // People directory's rule (src/app/(app)/people/page.tsx availableCount, ~lines 78-83). Both
+  // feed the Team load tile's context line ("N of M available", summary-cards.tsx).
   const peopleCount = people.length;
   const availableCount = people.filter((p) => {
     if (p.status !== "active" || p.on_vacation_now) return false;
@@ -107,9 +101,6 @@ export function computeSummary(
     activeProjects,
     planningProjects,
     totalProjects: projects.length,
-    atRiskProjects,
-    criticalProjects,
-    warningProjects,
     teamUtilizationPct,
     availableCount,
     peopleCount,
@@ -120,27 +111,11 @@ export function computeSummary(
   };
 }
 
-// ---- overallocated people (used by unified attention feed) ----
-export function computeOverallocatedPeople(people: ValidPerson[]): AttentionItem[] {
-  return people
-    .filter((p) => (p.current_allocation_pct ?? 0) > 100)
-    .sort((a, b) => (b.current_allocation_pct ?? 0) - (a.current_allocation_pct ?? 0))
-    .slice(0, ATTENTION_LIMIT)
-    .map((p) => ({
-      id: p.id,
-      href: `/people/${p.id}`,
-      primary: p.full_name,
-      secondary: `${p.current_allocation_pct}% allocated`,
-      badgeLabel: "Overallocated",
-      badgeClassName: utilizationBadgeClasses(p.current_allocation_pct ?? 0),
-    }));
-}
-
 // ---- unified attention feed (action-first redesign) ----
-// Replaces the six computeXxx lists above on the new dashboard (Task 4 mounts it; the functions
-// above stay for now so the current page keeps compiling until then). Every predicate below is
-// copied verbatim from its computeXxx counterpart -- the SOURCES move into one feed, the RULES
-// that decide what counts as "needs attention" do not change.
+// Replaces the six computeXxx lists the old dashboard rendered as separate panels (all now
+// removed -- their predicates were copied verbatim into the loops below, one ranked feed instead
+// of six boxes). The SOURCES moved into one feed; the RULES that decide what counts as "needs
+// attention" did not change.
 
 export type AttentionSeverity = "critical" | "warning" | "info";
 
@@ -195,8 +170,8 @@ export function buildAttentionFeed(input: {
     });
   }
 
-  // Overallocated people -- verbatim computeOverallocatedPeople predicate + secondary text
-  // ("N% allocated"). Warning tier: a capacity caution, not a blown deadline/budget.
+  // Overallocated people -- allocation over 100%, secondary text "N% allocated". Warning tier: a
+  // capacity caution, not a blown deadline/budget.
   for (const p of input.people) {
     if ((p.current_allocation_pct ?? 0) <= 100) continue;
     items.push({
