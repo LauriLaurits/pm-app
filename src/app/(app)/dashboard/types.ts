@@ -68,16 +68,3 @@ export type AttentionItem = {
   badgeLabel?: string;
   badgeClassName?: string;
 };
-
-export function humanize(value: string) {
-  return value.replace(/_/g, " ");
-}
-
-export function formatDate(date: string | null) {
-  if (!date) return "—";
-  return new Date(date).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
