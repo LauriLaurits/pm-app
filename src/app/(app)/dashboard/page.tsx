@@ -1,11 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { monthLabel } from "@/lib/dashboard";
 import { SummaryCards } from "./summary-cards";
-import { ChartsSection } from "./charts-section";
 import { AttentionSections } from "./attention-sections";
 import {
-  computeBudgetSpentChart,
-  computeCapacityChart,
   computeNeedsAttention,
   computeNoPm,
   computeOverBudget,
@@ -13,36 +9,16 @@ import {
   computeStaleStatus,
   computeSummary,
 } from "./compute";
-import {
-  fetchDashboardBase,
-  fetchExpiringCredentials,
-  fetchLatestStatusUpdateByProject,
-  fetchMonthlyActualCosts,
-  fetchMonthlyHours,
-} from "./queries";
-import { PERIOD_OPTIONS, type PeriodMonths } from "./period-selector";
+import { fetchDashboardBase, fetchExpiringCredentials, fetchLatestStatusUpdateByProject } from "./queries";
 import { formatDate, type AttentionItem, type ProjectBudgetRow, type ProjectListRow } from "./types";
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ months?: string }>;
-}) {
-  const { months: monthsParam } = await searchParams;
-  const months: PeriodMonths = (PERIOD_OPTIONS as readonly number[]).includes(Number(monthsParam))
-    ? (Number(monthsParam) as PeriodMonths)
-    : 6;
-
+export default async function DashboardPage() {
   const supabase = await createClient();
 
-  // fetchMonthlyHours only depends on the selected window, so it joins the first parallel wave
-  // (perf: it used to wait behind this wave for no reason). Only the cost chart stays in a second
-  // wave -- it's gated on finance visibility, which is derived from the base rows.
-  const [base, latestStatusByProject, expiringCreds, monthlyHoursRaw] = await Promise.all([
+  const [base, latestStatusByProject, expiringCreds] = await Promise.all([
     fetchDashboardBase(supabase),
     fetchLatestStatusUpdateByProject(supabase),
     fetchExpiringCredentials(supabase),
-    fetchMonthlyHours(supabase, months),
   ]);
 
   const hasError = Boolean(base.projectsError || base.budgetError || base.workloadError);
@@ -63,14 +39,6 @@ export default async function DashboardPage({
   );
 
   const summary = computeSummary(projects, budgetRows, people);
-
-  const monthlyCostRaw = summary.finance ? await fetchMonthlyActualCosts(supabase, months) : null;
-  const monthlyCost = monthlyCostRaw?.map((p) => ({ month: monthLabel(p.month), cost: p.cost })) ?? null;
-  const monthlyHours = monthlyHoursRaw.map((p) => ({
-    month: monthLabel(p.month),
-    billable: p.billable,
-    nonBillable: p.nonBillable,
-  }));
 
   const expiringCredItems: AttentionItem[] = expiringCreds.map((c) => ({
     id: c.id,
@@ -106,14 +74,6 @@ export default async function DashboardPage({
             totalActiveBudget={summary.totalActiveBudget}
             budgetRemaining={summary.budgetRemaining}
             finance={summary.finance}
-          />
-
-          <ChartsSection
-            months={months}
-            monthlyHours={monthlyHours}
-            monthlyCost={monthlyCost}
-            budgetSpent={computeBudgetSpentChart(budgetRows, summary.hasBudgetVisibility)}
-            capacity={computeCapacityChart(people)}
           />
 
           <AttentionSections

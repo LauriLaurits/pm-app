@@ -2,16 +2,18 @@ import { consumptionBadgeClasses, consumptionSeverity, formatMoney, marginPct } 
 import { utilizationBadgeClasses } from "@/lib/workload";
 import { daysUntil, isApproachingDeadline, isStaleStatus } from "@/lib/dashboard";
 import { DERIVED_HEALTH_BADGE_CLASS, deriveHealth, healthTitle, type DerivedHealth } from "@/lib/health";
-import type { BudgetSpentRow } from "@/components/charts/budget-spent-chart";
-import type { CapacityRow } from "@/components/charts/capacity-chart";
 import type { FinanceSummary } from "./summary-cards";
-import { formatDate, type AttentionItem, type ProjectBudgetRow, type ProjectListRow } from "./types";
+import {
+  formatDate,
+  type AttentionItem,
+  type ProjectListRow,
+  type ValidBudgetRow,
+  type ValidPerson,
+} from "./types";
 
 const DEADLINE_DAYS = 14;
 const STALE_DAYS = 14;
 const ATTENTION_LIMIT = 8;
-const CHART_TOP_N = 6;
-const CAPACITY_TOP_N = 8;
 
 type ValidProject = ProjectListRow & { id: string; name: string };
 
@@ -28,14 +30,6 @@ function rowHealth(p: ValidProject): DerivedHealth {
     progressPct: null,
   });
 }
-type ValidBudgetRow = ProjectBudgetRow & { id: string; name: string };
-type ValidPerson = {
-  id: string;
-  full_name: string;
-  current_allocation_pct: number | null;
-  weekly_capacity_hours: number | null;
-};
-
 // ---- summary cards ----
 export function computeSummary(
   projects: ValidProject[],
@@ -114,27 +108,6 @@ export function computeSummary(
     finance,
     hasBudgetVisibility,
   };
-}
-
-// ---- charts ----
-export function computeBudgetSpentChart(budgetRows: ValidBudgetRow[], hasBudgetVisibility: boolean) {
-  if (!hasBudgetVisibility) return null;
-  return budgetRows
-    .filter((r) => r.client_amount !== null)
-    .sort((a, b) => (b.client_amount ?? 0) - (a.client_amount ?? 0))
-    .slice(0, CHART_TOP_N)
-    .map((r): BudgetSpentRow => ({ id: r.id, name: r.name, invoiced: r.invoiced ?? 0, remaining: Math.max(r.remaining ?? 0, 0) }));
-}
-
-export function computeCapacityChart(people: ValidPerson[]): CapacityRow[] {
-  return people
-    .sort((a, b) => (b.current_allocation_pct ?? 0) - (a.current_allocation_pct ?? 0))
-    .slice(0, CAPACITY_TOP_N)
-    .map((p) => {
-      const capacityHours = Number(p.weekly_capacity_hours ?? 0);
-      const allocatedHours = Math.round(((p.current_allocation_pct ?? 0) / 100) * capacityHours * 10) / 10;
-      return { id: p.id, name: p.full_name, capacityHours, allocatedHours };
-    });
 }
 
 // ---- attention sections ----

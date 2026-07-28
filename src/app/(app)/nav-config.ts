@@ -4,6 +4,7 @@ import {
   Building2,
   Users,
   Gauge,
+  BarChart3,
   Wallet,
   KeyRound,
   ArrowRightLeft,
@@ -28,6 +29,7 @@ export const NAV_ITEMS: NavItem[] = [
   // Client feedback round 1: user-facing name is "Employees" (route stays /people).
   { label: "Employees", href: "/people", icon: Users },
   { label: "Workload", href: "/workload", icon: Gauge },
+  { label: "Reports", href: "/reports", icon: BarChart3 },
   // comingSoon: temporarily hidden behind a "Soon" badge for the demo — flip back after.
   { label: "Budgets", href: "/budgets", icon: Wallet, comingSoon: true },
   { label: "Credentials", href: "/credentials", icon: KeyRound, comingSoon: true },
