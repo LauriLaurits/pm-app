@@ -18,13 +18,13 @@ const SEVERITY_DOT_CLASS: Record<AttentionSeverity, string> = {
   info: "bg-muted-foreground/40",
 };
 
-// One chip label per source. `kind: "project"` covers both the critical and warning tiers of
-// deriveHealth, whose reasons are deterministic templates (lib/health.ts): "N days overdue" /
-// "due in N days" for the deadline signal, "N% of budget used" / "over budget (N%)" for the
-// budget signal, "progress behind schedule" for the schedule-lag signal. Severity alone can't
-// tell deadline from budget apart (a critical item can be over-budget with no overdue deadline),
-// so the chip is picked by matching item.reason against those templates instead. Every other
-// kind maps 1:1 to a fixed label.
+// One chip label per source, keyed by CAUSE (item.reason), not by severity -- an over-budget
+// critical (e.g. "over budget (106%)") stays an orange "Budget" pill, it does NOT borrow the red
+// "Critical" pill; only an overdue-deadline reason gets that (deriveHealth's reasons are
+// deterministic templates, lib/health.ts: "N days overdue" for the overdue-deadline signal,
+// "due in N days" for the due-soon signal, "N% of budget used" / "over budget (N%)" for the
+// budget signal, "progress behind schedule" for the schedule-lag signal). Every non-project kind
+// maps 1:1 to a fixed label.
 const KIND_LABEL: Record<Exclude<FeedItem["kind"], "project">, string> = {
   budget: "Budget",
   person: "Workload",
@@ -33,20 +33,6 @@ const KIND_LABEL: Record<Exclude<FeedItem["kind"], "project">, string> = {
   credential: "Credential",
 };
 
-function chipLabel(item: FeedItem): string {
-  if (item.kind === "project") {
-    if (item.reason.includes("overdue") || item.reason.includes("due in")) return "Deadline";
-    if (item.reason.includes("budget")) return "Budget";
-    return "Deadline"; // schedule-lag-only reason ("progress behind schedule"): no better bucket
-  }
-  return KIND_LABEL[item.kind];
-}
-
-// Tinted pill per chip label -- critical severity always wins and renders as a red "Critical"
-// pill regardless of source (the strongest signal on the row), since kind "budget" (over-budget)
-// is always critical and would otherwise never show its own distinct color. Warning-tier chips
-// (Budget/Workload/Deadline) get their own hue; info-tier chips (PM/Status/Credential) stay the
-// plain muted outline Badge already renders by default.
 const PILL_CRITICAL =
   "border-red-500/30 bg-red-500/10 text-red-700 dark:border-red-500/40 dark:bg-red-500/15 dark:text-red-400";
 const PILL_BUDGET =
@@ -57,11 +43,12 @@ const PILL_DEADLINE =
   "border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:border-yellow-500/40 dark:bg-yellow-500/15 dark:text-yellow-400";
 
 function chipDisplay(item: FeedItem): { label: string; className: string } {
-  if (item.severity === "critical") return { label: "Critical", className: PILL_CRITICAL };
-  const label = chipLabel(item);
-  const className =
-    label === "Budget" ? PILL_BUDGET : label === "Workload" ? PILL_WORKLOAD : label === "Deadline" ? PILL_DEADLINE : "";
-  return { label, className };
+  if (item.reason.includes("overdue")) return { label: "Critical", className: PILL_CRITICAL };
+  if (item.reason.includes("budget")) return { label: "Budget", className: PILL_BUDGET };
+  if (item.reason.includes("% allocated")) return { label: "Workload", className: PILL_WORKLOAD };
+  if (item.reason.includes("due in")) return { label: "Deadline", className: PILL_DEADLINE };
+  if (item.kind === "project") return { label: "Deadline", className: PILL_DEADLINE }; // schedule-lag-only reason: no better bucket
+  return { label: KIND_LABEL[item.kind], className: "" }; // info kinds (PM/Status/Credential): plain muted outline
 }
 
 // Unified "go fix this" queue (Task 2's buildAttentionFeed) replacing the old six separate
