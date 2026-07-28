@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { deadlineCountdown } from "@/lib/deadline";
 import { daysUntil } from "@/lib/dashboard";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,11 @@ export function DeadlinesCard({ entries }: { entries: DeadlineEntry[] }) {
     <Card>
       <CardHeader>
         <CardTitle>Deadlines</CardTitle>
+        <CardAction>
+          <Button variant="outline" size="sm" render={<Link href="/projects" />}>
+            View projects
+          </Button>
+        </CardAction>
       </CardHeader>
       <CardContent>
         {entries.length === 0 ? (

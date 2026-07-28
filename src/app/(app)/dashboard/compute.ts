@@ -125,6 +125,13 @@ export type FeedItem = {
   reason: string;
   kind: "project" | "budget" | "person" | "credential" | "status" | "pm";
   href: string;
+  // Optional row avatar for the feed's right-side avatar+chevron (attention-feed.tsx). Person
+  // items carry the overallocated person's own avatar; project/status items carry the project's
+  // PM avatar (project_list_rows.pm_avatar_url/pm_name -- already on ValidProject, no extra
+  // query). Left undefined for kinds with no resolvable person (budget, pm, credential) so the
+  // feed can skip the avatar slot entirely rather than render an empty one.
+  avatarUrl?: string | null;
+  avatarName?: string | null;
 };
 
 const SEVERITY_RANK: Record<AttentionSeverity, number> = { critical: 0, warning: 1, info: 2 };
@@ -153,6 +160,8 @@ export function buildAttentionFeed(input: {
       reason: healthTitle(health),
       kind: "project",
       href: `/projects/${p.id}`,
+      avatarUrl: p.pm_avatar_url ?? null,
+      avatarName: p.pm_name ?? null,
     });
   }
 
@@ -180,6 +189,8 @@ export function buildAttentionFeed(input: {
       reason: `${p.current_allocation_pct}% allocated`,
       kind: "person",
       href: `/people/${p.id}`,
+      avatarUrl: p.avatar_url,
+      avatarName: p.full_name,
     });
   }
 
@@ -206,6 +217,8 @@ export function buildAttentionFeed(input: {
       reason: last ? `no update in ${pluralDays(-daysUntil(last.slice(0, 10)))}` : "no status update yet",
       kind: "status",
       href: `/projects/${p.id}`,
+      avatarUrl: p.pm_avatar_url ?? null,
+      avatarName: p.pm_name ?? null,
     });
   }
 

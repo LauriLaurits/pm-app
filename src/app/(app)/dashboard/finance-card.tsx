@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { consumptionBarClasses, formatMoney } from "@/lib/budget";
 import type { FinanceOverview } from "./compute";
 
@@ -10,6 +11,11 @@ export function FinanceCard({ overview }: { overview: NonNullable<FinanceOvervie
     <Card>
       <CardHeader>
         <CardTitle>Financial overview</CardTitle>
+        <CardAction>
+          <Button variant="outline" size="sm" render={<Link href="/budgets" />}>
+            View budgets
+          </Button>
+        </CardAction>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
@@ -60,11 +66,6 @@ export function FinanceCard({ overview }: { overview: NonNullable<FinanceOvervie
           </div>
         )}
       </CardContent>
-      <CardFooter>
-        <Link href="/budgets" className="text-sm font-medium hover:underline">
-          View all budgets
-        </Link>
-      </CardFooter>
     </Card>
   );
 }

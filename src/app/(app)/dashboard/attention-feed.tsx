@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PersonAvatar } from "@/components/person-avatar";
+import { cn } from "@/lib/utils";
 import { DERIVED_HEALTH_DOT } from "@/lib/health";
 import type { AttentionSeverity, FeedItem } from "./compute";
 
@@ -39,6 +42,28 @@ function chipLabel(item: FeedItem): string {
   return KIND_LABEL[item.kind];
 }
 
+// Tinted pill per chip label -- critical severity always wins and renders as a red "Critical"
+// pill regardless of source (the strongest signal on the row), since kind "budget" (over-budget)
+// is always critical and would otherwise never show its own distinct color. Warning-tier chips
+// (Budget/Workload/Deadline) get their own hue; info-tier chips (PM/Status/Credential) stay the
+// plain muted outline Badge already renders by default.
+const PILL_CRITICAL =
+  "border-red-500/30 bg-red-500/10 text-red-700 dark:border-red-500/40 dark:bg-red-500/15 dark:text-red-400";
+const PILL_BUDGET =
+  "border-orange-500/30 bg-orange-500/10 text-orange-700 dark:border-orange-500/40 dark:bg-orange-500/15 dark:text-orange-400";
+const PILL_WORKLOAD =
+  "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-400";
+const PILL_DEADLINE =
+  "border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:border-yellow-500/40 dark:bg-yellow-500/15 dark:text-yellow-400";
+
+function chipDisplay(item: FeedItem): { label: string; className: string } {
+  if (item.severity === "critical") return { label: "Critical", className: PILL_CRITICAL };
+  const label = chipLabel(item);
+  const className =
+    label === "Budget" ? PILL_BUDGET : label === "Workload" ? PILL_WORKLOAD : label === "Deadline" ? PILL_DEADLINE : "";
+  return { label, className };
+}
+
 // Unified "go fix this" queue (Task 2's buildAttentionFeed) replacing the old six separate
 // AttentionList boxes -- one ranked list, capped at 10 with a link to see the rest, instead of six
 // panels (several empty) fighting for attention. The KPI tile's "Needs attention" count
@@ -57,26 +82,33 @@ export function AttentionFeed({ items }: { items: FeedItem[] }) {
           <p className="py-2 text-sm text-muted-foreground">Nothing needs your attention. 🎉</p>
         ) : (
           <ul className="-mx-2">
-            {visible.map((item, i) => (
-              <li key={`${item.kind}-${item.href}-${i}`}>
-                <Link
-                  href={item.href}
-                  className="flex items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-                >
-                  <span
-                    aria-hidden
-                    className={`size-1.5 shrink-0 rounded-full ${SEVERITY_DOT_CLASS[item.severity]}`}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold">{item.title}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{item.reason}</span>
-                  </span>
-                  <Badge variant="outline" className="shrink-0">
-                    {chipLabel(item)}
-                  </Badge>
-                </Link>
-              </li>
-            ))}
+            {visible.map((item, i) => {
+              const { label, className } = chipDisplay(item);
+              return (
+                <li key={`${item.kind}-${item.href}-${i}`}>
+                  <Link
+                    href={item.href}
+                    className="flex items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                  >
+                    <span
+                      aria-hidden
+                      className={`size-1.5 shrink-0 rounded-full ${SEVERITY_DOT_CLASS[item.severity]}`}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold">{item.title}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{item.reason}</span>
+                    </span>
+                    <Badge variant="outline" className={cn("shrink-0", className)}>
+                      {label}
+                    </Badge>
+                    {item.avatarName && (
+                      <PersonAvatar name={item.avatarName} avatarUrl={item.avatarUrl ?? null} className="size-6 shrink-0" />
+                    )}
+                    <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground/60" />
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
         {overflow > 0 && (
