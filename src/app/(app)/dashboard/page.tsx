@@ -1,19 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
+import { deriveProgress, type ProgressPart } from "@/lib/progress";
 import { SummaryCards } from "./summary-cards";
-import { AttentionSections } from "./attention-sections";
+import { AttentionFeed } from "./attention-feed";
+import { MyProjectsCard } from "./my-projects-card";
+import { TeamCard } from "./team-card";
 import { DashboardHeader, type CreateProjectProps, type LogTimeProps } from "./dashboard-header";
-import {
-  buildAttentionFeed,
-  computeNeedsAttention,
-  computeNoPm,
-  computeOverBudget,
-  computeOverallocatedPeople,
-  computeStaleStatus,
-  computeSummary,
-} from "./compute";
+import { buildAttentionFeed, buildMyProjects, computeOverallocatedPeople, computeSummary } from "./compute";
 import { fetchDashboardBase, fetchExpiringCredentials, fetchLatestStatusUpdateByProject } from "./queries";
-import { formatDate, type AttentionItem, type ProjectBudgetRow, type ProjectListRow } from "./types";
+import type { ProjectBudgetRow, ProjectListRow, ValidProject } from "./types";
 import { resolveLogTimeData } from "../people/[id]/log-time-data";
 import type { AssignmentWithProject } from "../people/[id]/types";
 import type { ClientContactOption, ClientOption, PmOption } from "../projects/new/project-create-fields";
@@ -46,6 +41,8 @@ export default async function DashboardPage() {
     createContactsRes,
     createPmsRes,
     personRowRes,
+    pmIdsRes,
+    partsRes,
   ] = await Promise.all([
     fetchDashboardBase(supabase),
     fetchLatestStatusUpdateByProject(supabase),
@@ -59,6 +56,13 @@ export default async function DashboardPage() {
     current
       ? supabase.from("people").select("id").eq("user_id", current.user.id).maybeSingle()
       : Promise.resolve({ data: null as { id: string } | null }),
+    // project_list_rows (base.projects) has no pm_id column -- My projects (Task 4) needs the real
+    // pm_id to test "is this the viewer's own project", so it's merged in from a lightweight
+    // second read, same two-step idiom projects/page.tsx already uses for editable-ids checks.
+    supabase.from("projects").select("id, pm_id"),
+    // Parts for every visible project -- small table at this scale, cheaper to read once here
+    // than to first resolve My-projects' candidate ids and read only those (Task 4 carried note).
+    supabase.from("project_parts").select("project_id, status, estimated_hours"),
   ]);
 
   const hasError = Boolean(base.projectsError || base.budgetError || base.workloadError);
@@ -80,9 +84,8 @@ export default async function DashboardPage() {
 
   const summary = computeSummary(projects, budgetRows, people);
 
-  // Unified attention feed (Task 2) -- only its length/severity breakdown is consumed here, for
-  // the KPI tile; the feed itself renders below the fold starting Task 4 (AttentionSections stays
-  // the visible list until then).
+  // Unified attention feed (Task 2) -- drives both the KPI tile's count/severity breakdown and
+  // the AttentionFeed card rendered below, so the two numbers can never disagree.
   const latestUpdateByProject: Record<string, string | null> = Object.fromEntries(latestStatusByProject);
   const attentionFeed = buildAttentionFeed({
     projects,
@@ -93,6 +96,28 @@ export default async function DashboardPage() {
   });
   const needsAttentionCritical = attentionFeed.filter((i) => i.severity === "critical").length;
   const needsAttentionWarning = attentionFeed.filter((i) => i.severity === "warning").length;
+
+  // My projects (Task 4) -- pm_id merged in from the lightweight `projects` read above (see the
+  // wave comment); progress per project derived from `project_parts` the same way the projects
+  // list does (src/app/(app)/projects/page.tsx). Own-PM rows are pre-filtered to non-completed/
+  // -archived before buildMyProjects sees them: buildMyProjects itself doesn't apply that filter
+  // to a viewer's own projects (only to the no-PM-projects "all active" fallback branch), so a
+  // wrapped-up project a PM owns would otherwise still show here looking like open work.
+  const pmIdByProjectId = new Map((pmIdsRes.data ?? []).map((p) => [p.id, p.pm_id]));
+  const partsByProjectId = new Map<string, ProgressPart[]>();
+  for (const part of partsRes.data ?? []) {
+    const list = partsByProjectId.get(part.project_id) ?? [];
+    list.push({ status: part.status, estimated_hours: part.estimated_hours });
+    partsByProjectId.set(part.project_id, list);
+  }
+  const progressById: Record<string, number | null> = {};
+  for (const p of projects) {
+    progressById[p.id] = deriveProgress(partsByProjectId.get(p.id) ?? []).pct;
+  }
+  const myProjectsCandidates: ValidProject[] = projects
+    .map((p) => ({ ...p, pm_id: pmIdByProjectId.get(p.id) ?? null }))
+    .filter((p) => p.status !== "completed" && p.status !== "archived");
+  const myProjects = buildMyProjects(myProjectsCandidates, budgetRows, progressById, current?.user.id ?? null);
 
   // New-project dialog data -- gated on create_project (UX only). PM options mirror
   // projects/page.tsx: the viewer is unshifted onto pm_options() if missing (a brand-new PM with
@@ -151,13 +176,6 @@ export default async function DashboardPage() {
 
   const displayName = firstWord(current?.profile.full_name || current?.profile.email || "there");
 
-  const expiringCredItems: AttentionItem[] = expiringCreds.map((c) => ({
-    id: c.id,
-    href: `/projects/${c.project_id}/credentials`,
-    primary: c.name,
-    secondary: `${c.projectName ? `${c.projectName} — ` : ""}expires ${formatDate(c.expires_at)}`,
-  }));
-
   return (
     <div className="space-y-4">
       <DashboardHeader
@@ -185,17 +203,13 @@ export default async function DashboardPage() {
             invoicesWaiting={summary.invoicesWaiting}
           />
 
-          {/* Transitional: Task 4 replaces this block with the unified attentionFeed (computed
-              above) rendered under a #needs-attention anchor. Kept rendering the OLD per-list
-              sections here so the page stays shippable until then. */}
-          <AttentionSections
-            needsAttention={computeNeedsAttention(projects)}
-            expiringCredentials={expiringCredItems}
-            overBudget={computeOverBudget(budgetRows, summary.hasBudgetVisibility)}
-            overallocatedPeople={computeOverallocatedPeople(people)}
-            noPm={computeNoPm(projects)}
-            staleStatus={computeStaleStatus(projects, latestStatusByProject)}
-          />
+          {/* Unified attention feed + My projects + Team, replacing the old six-list grid.
+              Feed first (widest signal), same #needs-attention anchor the KPI tile links to. */}
+          <div className="grid gap-4 xl:grid-cols-3">
+            <AttentionFeed items={attentionFeed} />
+            <MyProjectsCard rows={myProjects} hasBudget={summary.hasBudgetVisibility} />
+            <TeamCard people={people} />
+          </div>
         </>
       )}
     </div>
