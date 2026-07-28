@@ -19,6 +19,20 @@ export function weekEndISO(startISO: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** ISO 8601 week number (the "W31" PMs actually say) -- nearest-Thursday algorithm, UTC. */
+export function isoWeekNumber(iso: string): number {
+  const d = new Date(`${iso}T00:00:00Z`);
+  const day = d.getUTCDay() || 7; // Mon=1 .. Sun=7
+  d.setUTCDate(d.getUTCDate() + 4 - day); // shift to the week's Thursday
+  const yearStart = Date.UTC(d.getUTCFullYear(), 0, 1);
+  return Math.ceil(((d.getTime() - yearStart) / 86_400_000 + 1) / 7);
+}
+
+/** Month name of a week's Monday -- feeds the calendar band above the grid. */
+export function monthLabel(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" });
+}
+
 export function formatRangeLabel(startISO: string, endISO: string): string {
   const start = new Date(`${startISO}T00:00:00Z`);
   const end = new Date(`${endISO}T00:00:00Z`);

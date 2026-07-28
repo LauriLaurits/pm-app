@@ -4,10 +4,25 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { utilizationBadgeClasses, utilizationCellClasses } from "@/lib/workload";
-import { formatRangeLabel, formatWeekLabel, weekEndISO, type PersonTimelineRow, type WeekCell } from "./types";
+import {
+  formatRangeLabel, formatWeekLabel, isoWeekNumber, monthLabel, weekEndISO,
+  type PersonTimelineRow, type WeekCell,
+} from "./types";
 
 const PERSON_COL = "260px";
 const WEEK_COL = "minmax(44px, 1fr)";
+
+/** Consecutive weeks grouped by their Monday's month -> [{label: "July", span: 3}, …]. */
+function monthSpans(weekStarts: string[]): { label: string; span: number }[] {
+  const spans: { label: string; span: number }[] = [];
+  for (const weekStart of weekStarts) {
+    const label = monthLabel(weekStart);
+    const last = spans[spans.length - 1];
+    if (last && last.label === label) last.span += 1;
+    else spans.push({ label, span: 1 });
+  }
+  return spans;
+}
 
 export function WorkloadTimeline({
   rows,
@@ -22,12 +37,27 @@ export function WorkloadTimeline({
         className="grid min-w-max"
         style={{ gridTemplateColumns: `${PERSON_COL} repeat(${weekStarts.length}, ${WEEK_COL})` }}
       >
+        {/* Calendar band: month names spanning their weeks, so the 12 columns read as a
+            quarter-at-a-glance calendar rather than a bare list of dates. Grouped by the month
+            of each week's MONDAY (a week straddling a month boundary sits under its start
+            month -- the per-column range still shows the true span). */}
+        <div aria-hidden className="sticky left-0 z-20 border-b bg-muted/50" />
+        {monthSpans(weekStarts).map(({ label, span }, i) => (
+          <div
+            key={`${label}-${i}`}
+            style={{ gridColumn: `span ${span}` }}
+            className="border-b border-l bg-muted/30 px-2 py-1 text-xs font-medium text-muted-foreground"
+          >
+            {label}
+          </div>
+        ))}
+
         <div className="sticky left-0 z-20 border-b bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground">
           Person
         </div>
-        {/* Each column is a Mon–Sun week; the header shows the full span ("27 Jul –2 Aug") so
-            the column reads as a week, not a single day. Server-rendered `today` marks the
-            current week (this is a server component -- no hydration drift). */}
+        {/* Each column is a Mon–Sun week: "W31" (the week number PMs actually use) over its
+            date span. Server-rendered `today` marks the current week (server component --
+            no hydration drift). */}
         {weekStarts.map((weekStart) => {
           const weekEnd = weekEndISO(weekStart);
           const today = new Date().toISOString().slice(0, 10);
@@ -38,13 +68,14 @@ export function WorkloadTimeline({
               title={formatRangeLabel(weekStart, weekEnd)}
               className={cn(
                 "border-b border-l px-1 py-1.5 text-center text-[10px] leading-tight font-medium text-muted-foreground",
-                isCurrent && "bg-primary/5 font-semibold text-foreground"
+                isCurrent && "bg-primary/5 text-foreground"
               )}
             >
-              <div>{formatWeekLabel(weekStart)}</div>
-              <div className={cn("text-muted-foreground/70", isCurrent && "text-foreground/60")}>
-                –{formatWeekLabel(weekEnd)}
+              <div className={cn("text-[11px] font-semibold", !isCurrent && "text-foreground/70")}>
+                W{isoWeekNumber(weekStart)}
               </div>
+              <div>{formatWeekLabel(weekStart)}</div>
+              <div className="text-muted-foreground/70">–{formatWeekLabel(weekEnd)}</div>
             </div>
           );
         })}

@@ -106,7 +106,7 @@ export default async function WorkloadPage({
         <div>
           <h1 className="text-2xl font-semibold">Workload</h1>
           <p className="text-sm text-muted-foreground">
-            {formatRangeLabel(windowStart, windowEnd)} — who&apos;s free, who&apos;s overallocated, and where the gaps are.
+            {formatRangeLabel(windowStart, windowEnd)} · one column per week (Mon–Sun) — who&apos;s free, who&apos;s overallocated, and where the gaps are.
           </p>
         </div>
         <div className="flex items-center gap-2">
