@@ -59,8 +59,7 @@ export type MilestoneLite = {
   projectName: string | null;
 };
 
-// Generic shape for every "attention" list on the dashboard -- each row links out to the detail
-// screen where the viewer can actually act on it.
+// Generic shape for items returned by computeOverallocatedPeople (used in page.tsx).
 export type AttentionItem = {
   id: string;
   href: string;

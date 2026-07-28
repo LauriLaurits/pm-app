@@ -1,20 +1,17 @@
-import { consumptionBadgeClasses, consumptionSeverity, formatMoney, marginPct } from "@/lib/budget";
+import { consumptionSeverity, marginPct } from "@/lib/budget";
 import { utilizationBadgeClasses, utilizationClass } from "@/lib/workload";
 import { daysUntil, isApproachingDeadline, isStaleStatus } from "@/lib/dashboard";
 import {
-  DERIVED_HEALTH_BADGE_CLASS,
   deriveHealth,
   healthTitle,
   type DerivedHealth,
   type DerivedHealthLevel,
 } from "@/lib/health";
 import {
-  formatDate,
   type AttentionItem,
   type BudgetRow,
   type ExpiringCredential,
   type MilestoneLite,
-  type ValidBudgetRow,
   type ValidPerson,
   type ValidProject,
   type WorkloadPerson,
@@ -123,44 +120,7 @@ export function computeSummary(
   };
 }
 
-// ---- attention sections ----
-export function computeNeedsAttention(projects: ValidProject[]): AttentionItem[] {
-  return projects
-    .map((p) => ({ p, health: rowHealth(p) }))
-    .filter(({ health }) => health.level !== "healthy")
-    .sort((a, b) => (b.health.level === "critical" ? 1 : 0) - (a.health.level === "critical" ? 1 : 0))
-    .slice(0, ATTENTION_LIMIT)
-    .map(({ p, health }) => ({
-      id: p.id,
-      href: `/projects/${p.id}`,
-      // The reasons ARE the attention message ("12 days overdue · over budget (104%)") --
-      // far more actionable than repeating the client name here.
-      primary: p.name,
-      secondary: healthTitle(health),
-      badgeLabel: health.level,
-      badgeClassName: DERIVED_HEALTH_BADGE_CLASS[health.level],
-    }));
-}
-
-export function computeOverBudget(
-  budgetRows: ValidBudgetRow[],
-  hasBudgetVisibility: boolean
-): AttentionItem[] | null {
-  if (!hasBudgetVisibility) return null;
-  return budgetRows
-    .filter((r) => r.client_amount !== null && consumptionSeverity(r.consumption_pct) === "over")
-    .sort((a, b) => (b.consumption_pct ?? 0) - (a.consumption_pct ?? 0))
-    .slice(0, ATTENTION_LIMIT)
-    .map((r) => ({
-      id: r.id,
-      href: `/projects/${r.id}/budget`,
-      primary: r.name,
-      secondary: `${formatMoney(r.invoiced)} invoiced of ${formatMoney(r.client_amount)}`,
-      badgeLabel: `${(r.consumption_pct ?? 0).toFixed(0)}%`,
-      badgeClassName: consumptionBadgeClasses(r.consumption_pct),
-    }));
-}
-
+// ---- overallocated people (used by unified attention feed) ----
 export function computeOverallocatedPeople(people: ValidPerson[]): AttentionItem[] {
   return people
     .filter((p) => (p.current_allocation_pct ?? 0) > 100)
@@ -173,35 +133,6 @@ export function computeOverallocatedPeople(people: ValidPerson[]): AttentionItem
       secondary: `${p.current_allocation_pct}% allocated`,
       badgeLabel: "Overallocated",
       badgeClassName: utilizationBadgeClasses(p.current_allocation_pct ?? 0),
-    }));
-}
-
-export function computeNoPm(projects: ValidProject[]): AttentionItem[] {
-  return projects
-    .filter((p) => !p.pm_name)
-    .slice(0, ATTENTION_LIMIT)
-    .map((p) => ({ id: p.id, href: `/projects/${p.id}`, primary: p.name, secondary: p.client_name ?? undefined }));
-}
-
-export function computeStaleStatus(
-  projects: ValidProject[],
-  latestByProject: Map<string, string>
-): AttentionItem[] {
-  return projects
-    .filter(
-      (p) =>
-        p.status !== "completed" &&
-        p.status !== "archived" &&
-        isStaleStatus(latestByProject.get(p.id) ?? null, STALE_DAYS)
-    )
-    .slice(0, ATTENTION_LIMIT)
-    .map((p) => ({
-      id: p.id,
-      href: `/projects/${p.id}`,
-      primary: p.name,
-      secondary: latestByProject.has(p.id)
-        ? `Last update ${formatDate(latestByProject.get(p.id)!)}`
-        : "No status update yet",
     }));
 }
 

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { deriveProgress, type ProgressPart } from "@/lib/progress";
+import { deriveHealth } from "@/lib/health";
 import { SummaryCards } from "./summary-cards";
 import { AttentionFeed } from "./attention-feed";
 import { MyProjectsCard } from "./my-projects-card";
@@ -8,6 +9,7 @@ import { TeamCard } from "./team-card";
 import { DeadlinesCard } from "./deadlines-card";
 import { ActivityCard, type ActivityData } from "./activity-card";
 import { FinanceCard } from "./finance-card";
+import { HealthStrip } from "./health-strip";
 import { DashboardHeader, type CreateProjectProps, type LogTimeProps } from "./dashboard-header";
 import {
   buildAttentionFeed,
@@ -123,6 +125,30 @@ export default async function DashboardPage() {
   );
 
   const summary = computeSummary(projects, budgetRows, people);
+
+  // Health strip counts -- projects that are not completed/archived, grouped by health level.
+  // Uses the same deriveHealth logic as projects/page.tsx, but without parts-derived progress
+  // (dashboard has no parts data). Same two-step pattern: derive health for each project, then
+  // count by level.
+  const activeProjects = projects.filter(
+    (p) => p.status !== "completed" && p.status !== "archived"
+  );
+  const healthLevelById = new Map(
+    activeProjects.map((p) => [
+      p.id,
+      deriveHealth({
+        status: p.status,
+        startDate: p.start_date,
+        deadline: p.deadline,
+        consumptionPct:
+          p.budget_total && p.budget_used !== null ? (p.budget_used / p.budget_total) * 100 : null,
+        progressPct: null,
+      }).level,
+    ])
+  );
+  const healthyCount = activeProjects.filter((p) => healthLevelById.get(p.id) === "healthy").length;
+  const warningCount = activeProjects.filter((p) => healthLevelById.get(p.id) === "warning").length;
+  const criticalCount = activeProjects.filter((p) => healthLevelById.get(p.id) === "critical").length;
 
   // Unified attention feed (Task 2) -- drives both the KPI tile's count/severity breakdown and
   // the AttentionFeed card rendered below, so the two numbers can never disagree.
@@ -284,6 +310,14 @@ export default async function DashboardPage() {
             <ActivityCard data={activityData} />
             {financeOverview && <FinanceCard overview={financeOverview} />}
           </div>
+
+          {/* Health strip (Task 6) -- portfolio health at a glance. Three segments link to the
+              projects list filtered by health level. */}
+          <HealthStrip
+            healthy={healthyCount}
+            warning={warningCount}
+            critical={criticalCount}
+          />
         </>
       )}
     </div>
