@@ -4,17 +4,11 @@ import {
   CalendarClock,
   FolderKanban,
   Gauge,
-  TrendingUp,
-  Wallet,
+  Receipt,
   type LucideIcon,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatMoney } from "@/lib/budget";
-
-export type FinanceSummary = {
-  totalMargin: number | null;
-  blendedMarginPct: number | null;
-};
 
 type Tone = "neutral" | "info" | "good" | "warn" | "critical";
 
@@ -36,46 +30,29 @@ const ICON_TONE: Record<Tone, string> = {
   critical: "bg-red-500/10 text-red-600 dark:text-red-400",
 };
 
-// Six focused KPIs. Every tile pairs its number with a one-line interpretation (a bare "6" is
-// noise) and links to the place that answers "which exactly" -- the tile is the glance, the target
-// is the detail. Four core tiles always render; the two finance tiles are added only when the
-// viewer has finance visibility.
+// Five action-first KPIs. Every tile pairs its number with a one-line interpretation (a bare "6"
+// is noise) and links to the place that answers "which exactly" -- the tile is the glance, the
+// target is the detail. Four core tiles always render; the invoices tile is added only when the
+// viewer has budget visibility (hidden entirely, not zeroed, for viewers who can't see money).
 export function SummaryCards(props: {
   activeProjects: number;
   planningProjects: number;
   totalProjects: number;
-  atRiskProjects: number;
-  criticalProjects: number;
-  warningProjects: number;
+  needsAttentionCount: number;
+  needsAttentionCritical: number;
+  needsAttentionWarning: number;
   teamUtilizationPct: number | null;
   overallocatedCount: number;
   approachingDeadlines: number;
   nextDeadline: { name: string; days: number } | null;
-  totalActiveBudget: number | null;
-  budgetRemaining: number | null;
-  finance: FinanceSummary | null;
+  invoicesWaiting: { count: number; outstanding: number } | null;
 }) {
   const util = props.teamUtilizationPct;
   const utilTone: Tone =
     util === null ? "neutral" : util > 100 ? "critical" : util >= 90 ? "warn" : "info";
 
-  const remainingRatio =
-    props.totalActiveBudget && props.totalActiveBudget > 0 && props.budgetRemaining !== null
-      ? props.budgetRemaining / props.totalActiveBudget
-      : null;
-  const budgetTone: Tone =
-    remainingRatio === null ? "neutral" : remainingRatio < 0.1 ? "critical" : remainingRatio < 0.25 ? "warn" : "info";
-  const spentPct =
-    props.totalActiveBudget && props.totalActiveBudget > 0 && props.budgetRemaining !== null
-      ? Math.round(((props.totalActiveBudget - props.budgetRemaining) / props.totalActiveBudget) * 100)
-      : null;
-
-  const marginPctVal = props.finance?.blendedMarginPct ?? null;
-  const marginTone: Tone =
-    marginPctVal === null ? "neutral" : marginPctVal < 15 ? "critical" : marginPctVal < 25 ? "warn" : "good";
-
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
       <StatTile
         icon={FolderKanban}
         label="Active projects"
@@ -87,13 +64,13 @@ export function SummaryCards(props: {
       <StatTile
         icon={AlertTriangle}
         label="Needs attention"
-        value={String(props.atRiskProjects)}
+        value={String(props.needsAttentionCount)}
         context={
-          props.atRiskProjects === 0
-            ? "all projects healthy"
-            : `${props.criticalProjects} critical, ${props.warningProjects} warning`
+          props.needsAttentionCount === 0
+            ? "all clear"
+            : `${props.needsAttentionCritical} critical, ${props.needsAttentionWarning} warning`
         }
-        tone={props.atRiskProjects > 0 ? "warn" : "good"}
+        tone={props.needsAttentionCount > 0 ? "warn" : "good"}
         href="#needs-attention"
       />
       <StatTile
@@ -120,29 +97,19 @@ export function SummaryCards(props: {
         tone={props.approachingDeadlines > 0 ? "warn" : "neutral"}
         href="/projects"
       />
-      {props.finance && (
-        <>
-          <StatTile
-            icon={Wallet}
-            label="Budget remaining"
-            value={formatMoney(props.budgetRemaining)}
-            context={
-              props.totalActiveBudget !== null
-                ? `of ${formatMoney(props.totalActiveBudget)}${spentPct !== null ? ` · ${spentPct}% spent` : ""}`
-                : "active projects"
-            }
-            tone={budgetTone}
-            href="/budgets"
-          />
-          <StatTile
-            icon={TrendingUp}
-            label="Blended margin"
-            value={formatMoney(props.finance.totalMargin)}
-            context={marginPctVal === null ? "active projects" : `${marginPctVal.toFixed(1)}% of client value`}
-            tone={marginTone}
-            href="/budgets"
-          />
-        </>
+      {props.invoicesWaiting && (
+        <StatTile
+          icon={Receipt}
+          label="Invoices waiting"
+          value={String(props.invoicesWaiting.count)}
+          context={
+            props.invoicesWaiting.count > 0
+              ? `${formatMoney(props.invoicesWaiting.outstanding)} outstanding`
+              : "all settled"
+          }
+          tone={props.invoicesWaiting.count > 0 ? "warn" : "good"}
+          href="/budgets"
+        />
       )}
     </div>
   );
