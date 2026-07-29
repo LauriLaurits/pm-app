@@ -5,6 +5,17 @@ import { createClient } from "@/lib/supabase/server";
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 
+// Explicit raster allowlist, mirroring the avatars bucket's allowed_mime_types
+// (20260729000001_security_hardening.sql). A startsWith("image/") prefix match would admit
+// image/svg+xml -- and a script-bearing SVG served from the public bucket's raw URL is stored
+// XSS on the storage origin.
+const ALLOWED_AVATAR_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+]);
+
 // The person-avatar picker (src/components/person-avatar-picker.tsx) previously uploaded
 // straight from the browser Supabase client. This app sets Supabase session cookies
 // httpOnly: true (see src/lib/supabase/server.ts / middleware.ts), so the browser client
@@ -20,8 +31,8 @@ export async function uploadPersonAvatarAction(
   await requirePermission("manage_people");
 
   const file = formData.get("file");
-  if (!(file instanceof File) || !file.type.startsWith("image/")) {
-    return { error: "Choose an image file." };
+  if (!(file instanceof File) || !ALLOWED_AVATAR_MIME_TYPES.has(file.type)) {
+    return { error: "Choose a PNG, JPEG, WebP, or GIF image." };
   }
   if (file.size > MAX_AVATAR_BYTES) {
     return { error: "Image must be under 2 MB." };

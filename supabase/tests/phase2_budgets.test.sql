@@ -96,10 +96,14 @@ select lives_ok(
      values ('e5000000-0000-4000-8000-000000000001','invoice','Attributed', 100) $$,
   'default attribution works');
 
--- postgres: seed a budget_items row attributed to finance Fred (simulating a colleague's entry)
+-- postgres: seed a budget_items row attributed to finance Fred (simulating a colleague's entry).
+-- item_type must be a NON-cost type here: since the H2 hardening (20260729000001), the UPDATE
+-- policy filters cost rows away from a manage_budget-only PM, so a planned_cost row would make
+-- the "manager can update items created by others" assertion below a silent no-op instead of a
+-- real update. Cost-row update/re-type blocking is asserted in phase9_security_invariants.
 reset role;
 insert into public.budget_items (budget_id, item_type, name, amount, created_by) values
-  ('e5000000-0000-4000-8000-000000000001','planned_cost','Fred entry', 250, 'e0000000-0000-4000-8000-000000000002');
+  ('e5000000-0000-4000-8000-000000000001','invoice','Fred entry', 250, 'e0000000-0000-4000-8000-000000000002');
 
 -- PM Petra manages budget items she didn't personally create, but cannot rewrite attribution
 set local role authenticated;
