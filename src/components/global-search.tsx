@@ -33,9 +33,13 @@ export function GlobalSearch() {
   // -- the "too short, skip" case is handled by onChange below instead of an early setState here.
   useEffect(() => {
     const trimmed = query.trim();
+    // Bump on every query transition, not just the >=2-char branch -- otherwise shortening/
+    // clearing the query below 2 chars leaves requestIdRef untouched, so an in-flight request
+    // from the previous (longer) query still matches on resolution and reopens the dropdown with
+    // stale results even though onChange already closed it.
+    const requestId = ++requestIdRef.current;
     if (trimmed.length < 2) return;
 
-    const requestId = ++requestIdRef.current;
     const timeout = setTimeout(() => {
       globalSearchAction(trimmed).then((res) => {
         // Ignore out-of-order resolutions -- only the most recently fired request may commit.

@@ -80,7 +80,9 @@ export async function globalSearchAction(q: string): Promise<{ results: SearchSe
       href: `/clients/${client.id}`,
     });
   }
-  if (clientItems.length > 0) results.push({ section: "Clients", items: clientItems });
+  // Direct matches + contact-resolved matches combined can exceed LIMIT (up to 5 + 5 before
+  // dedup) -- cap the merged group at LIMIT same as every other section.
+  if (clientItems.length > 0) results.push({ section: "Clients", items: clientItems.slice(0, LIMIT) });
 
   const peopleItems: SearchResultItem[] = (peopleRes.data ?? []).map((p) => ({
     id: p.id,
