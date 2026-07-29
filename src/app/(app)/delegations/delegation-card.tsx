@@ -2,9 +2,37 @@ import Link from "next/link";
 import { PersonAvatar } from "@/components/person-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { DotBadge } from "@/components/dot-badge";
 import { RevokeButton } from "./revoke-button";
 import { formatDate, humanize } from "./types";
 import type { DelegationListItem } from "./types";
+
+// Same dot-badge language as project statuses (STATUS_DOT in projects/types.ts): emerald = live,
+// blue = scheduled, muted = elapsed with no action taken, red = explicitly revoked.
+const STATUS_DOT_CLASS = {
+  active: "bg-emerald-500",
+  upcoming: "bg-blue-500",
+  expired: "bg-muted-foreground/40",
+  revoked: "bg-red-500",
+} as const;
+
+/** Header-row status pill: active/upcoming come straight from `group`; the merged "past" bucket
+ * splits back into Expired (window elapsed, dot only) vs Revoked (explicit action, dot + date --
+ * revoke is immediate per revoke-button.tsx, so the date is the moment access actually stopped). */
+function StatusBadge({ item }: { item: DelegationListItem }) {
+  if (item.group === "active") return <DotBadge dotClassName={STATUS_DOT_CLASS.active}>Active</DotBadge>;
+  if (item.group === "upcoming") {
+    return <DotBadge dotClassName={STATUS_DOT_CLASS.upcoming}>Upcoming</DotBadge>;
+  }
+  if (item.revoked_at) {
+    return (
+      <DotBadge dotClassName={STATUS_DOT_CLASS.revoked}>
+        Revoked {formatDate(item.revoked_at)}
+      </DotBadge>
+    );
+  }
+  return <DotBadge dotClassName={STATUS_DOT_CLASS.expired}>Expired</DotBadge>;
+}
 
 /** One delegation: who granted → who received, the projects + permissions it covers, its window,
  * and handover notes. `item.canRevoke` (resolved server-side in page.tsx from from_user/admin +
@@ -19,14 +47,14 @@ export function DelegationCard({ item }: { item: DelegationListItem }) {
           <span className="text-muted-foreground">→</span>
           <PersonBadge name={item.to_name} avatar={item.to_avatar} />
         </div>
-        {item.canRevoke && <RevokeButton delegationId={item.id} />}
+        <div className="flex shrink-0 items-center gap-2">
+          <StatusBadge item={item} />
+          {item.canRevoke && <RevokeButton delegationId={item.id} />}
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground tabular-nums">
           {formatDate(item.starts_at)} – {formatDate(item.ends_at)}
-          {item.revoked_at && (
-            <span className="text-destructive"> · revoked {formatDate(item.revoked_at)}</span>
-          )}
         </p>
         <div className="flex flex-wrap gap-1">
           {item.projects.map((p) => (

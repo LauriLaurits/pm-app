@@ -1,6 +1,8 @@
+import { ArrowRightLeft, CalendarClock, History } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { classifyDelegation } from "@/lib/delegations";
+import { StatCard } from "@/components/stat-card";
 import { DelegationFormDialog } from "./delegation-form-dialog";
 import { DelegationSections } from "./delegation-sections";
 import type { DelegationListItem, PermissionOption, PersonOption, ProjectOption } from "./types";
@@ -111,10 +113,27 @@ export default async function DelegationsPage() {
     };
   });
 
+  // Subtitle-strip + StatCard counts -- same three buckets DelegationSections groups by, so the
+  // tiles above always agree with what's rendered below (no separate counting logic to drift).
+  const activeCount = items.filter((i) => i.group === "active").length;
+  const upcomingCount = items.filter((i) => i.group === "upcoming").length;
+  const pastCount = items.filter((i) => i.group === "past").length;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Delegations</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-semibold">Delegations</h1>
+          {items.length > 0 && (
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {activeCount} active
+              <span className="mx-1.5 text-border">·</span>
+              {upcomingCount} upcoming
+              <span className="mx-1.5 text-border">·</span>
+              {pastCount} past
+            </p>
+          )}
+        </div>
         {canCreate && (
           <DelegationFormDialog
             people={peopleOptions}
@@ -123,6 +142,29 @@ export default async function DelegationsPage() {
           />
         )}
       </div>
+
+      {items.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <StatCard
+            icon={ArrowRightLeft}
+            label="Active"
+            value={String(activeCount)}
+            iconClass="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+          />
+          <StatCard
+            icon={CalendarClock}
+            label="Upcoming"
+            value={String(upcomingCount)}
+            iconClass="bg-blue-500/10 text-blue-600 dark:text-blue-400"
+          />
+          <StatCard
+            icon={History}
+            label="Past"
+            value={String(pastCount)}
+            iconClass="bg-violet-500/10 text-violet-600 dark:text-violet-400"
+          />
+        </div>
+      )}
 
       {items.length === 0 ? (
         <EmptyState />
