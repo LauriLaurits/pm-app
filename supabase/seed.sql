@@ -124,6 +124,25 @@ insert into public.projects (id, name, client_id, pm_id, status, health, priorit
   ('30000008-0000-4000-8000-000000000008','Legacy CRM maintenance','20000002-0000-4000-8000-000000000002','10000003-0000-4000-8000-000000000003','active','healthy','low', current_date-300, null, 0,'hourly','Ongoing support retainer.','{support}'),
   ('30000009-0000-4000-8000-000000000009','Payment gateway integration','20000003-0000-4000-8000-000000000003','10000002-0000-4000-8000-000000000002','completed','healthy','medium', current_date-200, current_date-20, 100,'fixed','Done and invoiced.','{fintech}');
 
+-- Demo project icons (hidden _icon:<key> tag convention -- src/lib/project-icons.ts; every
+-- tags READ must filter these, every tags WRITE must re-append). Keys must exist in
+-- PROJECT_ICONS. Mirrors the 2026-07-27 prod enrichment (FinServ landmark) and gives the
+-- rest a sensible spread so icon tiles differentiate in demos.
+update public.projects set tags = array_append(tags, v.icon)
+from (values
+  ('30000001-0000-4000-8000-000000000001'::uuid, '_icon:shopping'),
+  ('30000002-0000-4000-8000-000000000002'::uuid, '_icon:package'),
+  ('30000003-0000-4000-8000-000000000003'::uuid, '_icon:landmark'),
+  ('30000004-0000-4000-8000-000000000004'::uuid, '_icon:database'),
+  ('30000005-0000-4000-8000-000000000005'::uuid, '_icon:truck'),
+  ('30000006-0000-4000-8000-000000000006'::uuid, '_icon:globe'),
+  ('30000007-0000-4000-8000-000000000007'::uuid, '_icon:star'),
+  ('30000008-0000-4000-8000-000000000008'::uuid, '_icon:wrench'),
+  ('30000009-0000-4000-8000-000000000009'::uuid, '_icon:landmark')
+) as v(id, icon)
+where projects.id = v.id
+  and not exists (select 1 from unnest(projects.tags) t where t like '_icon:%');
+
 -- ===== 8. project members (access) — the two PM users + Milo on Bella's critical project =====
 insert into public.project_members (project_id, user_id, role_on_project) values
   ('30000001-0000-4000-8000-000000000001','10000005-0000-4000-8000-000000000005','backend lead'),
