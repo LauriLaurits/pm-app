@@ -4,11 +4,45 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2Icon, SearchIcon } from "lucide-react";
-import { globalSearchAction, type SearchSection } from "@/app/actions/search";
+import { globalSearchAction, type SearchResultItem, type SearchSection } from "@/app/actions/search";
 import { Input } from "@/components/ui/input";
+import { PersonAvatar } from "@/components/person-avatar";
+import { avatarTint } from "@/lib/avatar-tint";
+import { PROJECT_ICONS } from "@/lib/project-icons";
 import { cn } from "@/lib/utils";
 
 const DEBOUNCE_MS = 250;
+
+/** Each row leads with its section's identity visual (user ask: "what is what" at a glance) --
+ * projects get their icon tile, employees their PersonAvatar, clients a tinted initials chip.
+ * Same visual language as the list pages, shrunk to dropdown size. */
+function ResultVisual({ section, item }: { section: SearchSection["section"]; item: SearchResultItem }) {
+  if (section === "Projects") {
+    const Icon = PROJECT_ICONS[item.iconKey ?? "folder"].icon;
+    return (
+      <span
+        aria-hidden
+        className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border/25 bg-muted/30 text-muted-foreground"
+      >
+        <Icon className="size-3.5" />
+      </span>
+    );
+  }
+  if (section === "Employees") {
+    return <PersonAvatar name={item.label} avatarUrl={item.avatarUrl} className="size-7 shrink-0" />;
+  }
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "flex size-7 shrink-0 items-center justify-center rounded-md text-[10px] font-medium",
+        avatarTint(item.label)
+      )}
+    >
+      {item.label.slice(0, 2).toUpperCase()}
+    </span>
+  );
+}
 
 /** Header-mounted global search: debounced lookup across projects/clients/employees with a
  * grouped dropdown. Roving focus is a flat index over every result row (across sections) rather
@@ -160,14 +194,17 @@ export function GlobalSearch() {
                     onMouseEnter={() => setActiveIndex(flatIndex)}
                     onClick={() => setOpen(false)}
                     className={cn(
-                      "flex flex-col rounded-md px-3 py-1.5 text-sm",
+                      "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm",
                       active ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"
                     )}
                   >
-                    <span className="truncate">{item.label}</span>
-                    {item.sublabel && (
-                      <span className="truncate text-xs text-muted-foreground">{item.sublabel}</span>
-                    )}
+                    <ResultVisual section={section.section} item={item} />
+                    <span className="min-w-0">
+                      <span className="block truncate">{item.label}</span>
+                      {item.sublabel && (
+                        <span className="block truncate text-xs text-muted-foreground">{item.sublabel}</span>
+                      )}
+                    </span>
                   </Link>
                 );
               })}

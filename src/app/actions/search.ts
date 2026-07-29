@@ -3,12 +3,17 @@
 import { requireActiveUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { escapeIlike } from "@/lib/search";
+import { projectIconKey, type ProjectIconKey } from "@/lib/project-icons";
 
 export type SearchResultItem = {
   id: string;
   label: string;
   sublabel?: string | null;
   href: string;
+  /** Projects only: the identity-tile icon key (resolved server-side from the hidden _icon tag). */
+  iconKey?: ProjectIconKey;
+  /** Employees only: directory photo/preset for the row's PersonAvatar. */
+  avatarUrl?: string | null;
 };
 
 export type SearchSection = {
@@ -33,7 +38,7 @@ export async function globalSearchAction(q: string): Promise<{ results: SearchSe
   const supabase = await createClient();
 
   const [projectsRes, clientsRes, peopleRes, contactsRes] = await Promise.all([
-    supabase.from("projects").select("id, name, status").ilike("name", pattern).order("name").limit(LIMIT),
+    supabase.from("projects").select("id, name, status, tags").ilike("name", pattern).order("name").limit(LIMIT),
     supabase.from("clients").select("id, name").ilike("name", pattern).order("name").limit(LIMIT),
     supabase
       .from("people")
@@ -56,6 +61,7 @@ export async function globalSearchAction(q: string): Promise<{ results: SearchSe
     label: p.name,
     sublabel: p.status,
     href: `/projects/${p.id}`,
+    iconKey: projectIconKey(p.tags),
   }));
   if (projectItems.length > 0) results.push({ section: "Projects", items: projectItems });
 
@@ -89,6 +95,7 @@ export async function globalSearchAction(q: string): Promise<{ results: SearchSe
     label: p.full_name,
     sublabel: p.role_title,
     href: `/people/${p.id}`,
+    avatarUrl: p.avatar_url,
   }));
   if (peopleItems.length > 0) results.push({ section: "Employees", items: peopleItems });
 
