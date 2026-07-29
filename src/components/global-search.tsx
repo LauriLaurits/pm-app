@@ -48,6 +48,8 @@ export function GlobalSearch() {
         setIsPending(false);
         setOpen(true);
         setActiveIndex(0);
+      }).catch(() => {
+        if (requestId === requestIdRef.current) setIsPending(false);
       });
     }, DEBOUNCE_MS);
 
@@ -81,6 +83,7 @@ export function GlobalSearch() {
       e.preventDefault();
       setActiveIndex((i) => Math.max(i - 1, 0));
     } else if (e.key === "Enter") {
+      if (!open) return;
       const active = flatItems[activeIndex];
       if (active) {
         e.preventDefault();

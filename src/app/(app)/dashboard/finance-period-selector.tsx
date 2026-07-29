@@ -19,6 +19,7 @@ export function FinanceMonthSelector({ active }: { active: FinMonth }) {
           <Link
             key={m}
             href={`/dashboard?finMonth=${m}`}
+            scroll={false}
             aria-current={on ? "true" : undefined}
             className={cn(
               "rounded-md px-2.5 py-1 text-sm font-medium transition",
