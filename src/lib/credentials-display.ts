@@ -23,10 +23,15 @@ export function expiryStatus(expiresAt: string | null): "soon" | "expired" | nul
 }
 
 /** Groups an already-RLS-filtered list of credentials by environment -- display-only, never a
- * filter (RLS already narrowed the rows to whatever this caller may see). Generic over T so
- * callers that decorate rows with extra display fields (e.g. the global index's project_name)
- * don't lose them through this helper. */
-export function groupByEnvironment<T extends DisplayCredentialRow>(credentials: T[]) {
+ * filter (RLS already narrowed the rows to whatever this caller may see). Generic over T (only
+ * constrained on `environment`, not the full DisplayCredentialRow shape) so callers that decorate
+ * rows with extra display fields (e.g. the global index's project_name) OR that pass a narrowed
+ * render-safe projection (e.g. the global index's SafeCredentialRow, which deliberately omits
+ * secret_id/owner_id/notes before crossing the client boundary) both keep working through this
+ * helper. */
+export function groupByEnvironment<T extends { environment: DisplayCredentialRow["environment"] }>(
+  credentials: T[],
+) {
   const groups = new Map<DisplayCredentialRow["environment"], T[]>();
   for (const c of credentials) groups.set(c.environment, [...(groups.get(c.environment) ?? []), c]);
   return [...groups.entries()];

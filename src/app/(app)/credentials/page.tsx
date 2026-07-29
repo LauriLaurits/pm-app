@@ -4,9 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { StatCard } from "@/components/stat-card";
 import { expiryStatus } from "@/lib/credentials-display";
-import type { DisplayCredentialRow } from "../projects/[id]/credentials/types";
 import { CredentialsIndexList } from "./credentials-index-list";
-import type { ProjectCredentialGroup } from "./types";
+import type { ProjectCredentialGroup, SafeCredentialRow } from "./types";
 
 export default async function CredentialsIndexPage() {
   const supabase = await createClient();
@@ -56,8 +55,21 @@ export default async function CredentialsIndexPage() {
     );
   }
 
-  const displayRows: (DisplayCredentialRow & { project_name: string })[] = rows.map((c) => ({
-    ...c,
+  // CredentialsIndexList (below) is a client component -- it owns the search box's local state --
+  // so this shape crosses the server/client boundary and gets serialized into the flight payload,
+  // readable in the raw page response by ANY caller who can load this page, reveal rights or not.
+  // Build an explicit allowlist (SafeCredentialRow) rather than spreading `c`: secret_id (the
+  // Vault reference), owner_id, notes, and the timestamps must never leave the server for rows
+  // nothing here renders.
+  const displayRows: SafeCredentialRow[] = rows.map((c) => ({
+    id: c.id,
+    project_id: c.project_id,
+    name: c.name,
+    type: c.type,
+    environment: c.environment,
+    visibility: c.visibility,
+    username: c.username,
+    expires_at: c.expires_at,
     owner_name: c.owner_id ? (ownerNameByUserId.get(c.owner_id) ?? null) : null,
     project_name: projectNameById.get(c.project_id) ?? "Unknown project",
   }));
