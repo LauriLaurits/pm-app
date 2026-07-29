@@ -340,8 +340,17 @@ export function buildDeadlineTimeline(
 // ---- financial overview ----
 
 export type FinanceOverview = {
-  invoicedThisMonth: number;
-  outstanding: number;
+  // Portfolio-wide sum of budget_items(item_type='invoice') for whichever month the finance
+  // card's selector points at (page.tsx picks the bound via financeMonthRange) -- "this" or "last"
+  // is carried separately as the finMonth prop, this is just the number.
+  monthInvoiced: number;
+  // Σ client_amount over active, non-null-client_amount projects -- the denominator both bars
+  // below are a percentage of ("of portfolio value" / "left").
+  totalClientAmount: number;
+  monthInvoicedPct: number;
+  // totalClientAmount − Σ invoiced (same active-row scope), i.e. budget not yet billed.
+  remaining: number;
+  remainingPct: number;
   topConsumers: { id: string; name: string; pct: number }[];
   margin: { amount: number; pct: number } | null;
 } | null;
@@ -359,6 +368,14 @@ export function computeFinanceOverview(
 
   const statusById = new Map(projects.map((p) => [p.id, p.status]));
   const activeRows = budgetRows.filter((r) => r.client_amount !== null && statusById.get(r.id) === "active");
+
+  const totalClientAmount = activeRows.reduce((s, r) => s + (r.client_amount ?? 0), 0);
+  const totalInvoiced = activeRows.reduce((s, r) => s + (r.invoiced ?? 0), 0);
+  const remaining = totalClientAmount - totalInvoiced;
+  const monthInvoiced = monthInvoiceTotal ?? 0;
+  // Guard division by zero -- a portfolio with no active client_amount yet (early on, or a
+  // finance-only viewer with nothing budgeted) shows 0% bars instead of NaN/Infinity.
+  const pctOfPortfolio = (n: number) => (totalClientAmount > 0 ? (n / totalClientAmount) * 100 : 0);
 
   const topConsumers = activeRows
     .filter((r) => r.consumption_pct !== null)
@@ -379,8 +396,11 @@ export function computeFinanceOverview(
   }
 
   return {
-    invoicedThisMonth: monthInvoiceTotal ?? 0,
-    outstanding: sumOutstanding(invoicesWaitingRows(budgetRows)),
+    monthInvoiced,
+    totalClientAmount,
+    monthInvoicedPct: pctOfPortfolio(monthInvoiced),
+    remaining,
+    remainingPct: pctOfPortfolio(remaining),
     topConsumers,
     margin,
   };

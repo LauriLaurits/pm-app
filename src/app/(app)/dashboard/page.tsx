@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { deriveProgress, type ProgressPart } from "@/lib/progress";
-import { deriveHealth } from "@/lib/health";
+import { financeMonthRange } from "@/lib/dashboard";
 import { SummaryCards } from "./summary-cards";
 import { AttentionFeed } from "./attention-feed";
 import { MyProjectsCard } from "./my-projects-card";
@@ -9,7 +9,7 @@ import { TeamCard } from "./team-card";
 import { DeadlinesCard } from "./deadlines-card";
 import { ActivityCard, type ActivityData } from "./activity-card";
 import { FinanceCard } from "./finance-card";
-import { HealthStrip } from "./health-strip";
+import { FIN_MONTH_OPTIONS, type FinMonth } from "./finance-period-selector";
 import { DashboardHeader, type CreateProjectProps, type LogTimeProps } from "./dashboard-header";
 import {
   buildAttentionFeed,
@@ -36,7 +36,11 @@ function firstWord(value: string): string {
   return value.trim().split(/\s+/)[0] || value;
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ finMonth?: string }>;
+}) {
   const supabase = await createClient();
 
   // UX gating only, mirrors projects/page.tsx -- the real boundaries are createProjectAction's
@@ -44,12 +48,20 @@ export default async function DashboardPage() {
   // server-side regardless of what renders here.
   const current = await getCurrentUser();
 
+  // Finance card's month selector -- server-side link pattern, same idiom as the reports page's
+  // ?months= period selector (src/app/(app)/reports/page.tsx). Invalid/missing values fall back to
+  // "this" rather than erroring.
+  const { finMonth: finMonthParam } = await searchParams;
+  const finMonth: FinMonth = (FIN_MONTH_OPTIONS as readonly string[]).includes(finMonthParam ?? "")
+    ? (finMonthParam as FinMonth)
+    : "this";
+
   // Pure, no-DB date math shared by the deadline timeline (fetchMilestonesUpcoming's horizon) and
   // the finance card (fetchMonthInvoiceTotal's month boundary) -- computed once up front so both
   // wave entries below use the exact same "today".
   const now = new Date();
   const todayISO = now.toISOString().slice(0, 10);
-  const monthStartISO = `${todayISO.slice(0, 7)}-01`;
+  const { start: finMonthStart, end: finMonthEnd } = financeMonthRange(finMonth, now);
 
   // One parallel wave for everything that doesn't depend on another read. New-project dialog
   // data (canCreate/clients/contacts/pm_options) rides here per the plan -- see
@@ -79,10 +91,11 @@ export default async function DashboardPage() {
     // Deadlines card (Task 5) -- undone milestones due within the same 30-day window
     // buildDeadlineTimeline windows project deadlines against.
     fetchMilestonesUpcoming(supabase, todayISO),
-    // Finance card (Task 5) -- portfolio-wide invoiced total for the current month. Safe to call
-    // unconditionally (gated by view_budget alone, same as project_budget_rows' own RLS); the card
-    // itself stays hidden whenever computeFinanceOverview returns null for this viewer.
-    fetchMonthInvoiceTotal(supabase, monthStartISO),
+    // Finance card (Task 5) -- portfolio-wide invoiced total for the selected month (finMonth's
+    // [start, end) bound, computed above). Safe to call unconditionally (gated by view_budget
+    // alone, same as project_budget_rows' own RLS); the card itself stays hidden whenever
+    // computeFinanceOverview returns null for this viewer.
+    fetchMonthInvoiceTotal(supabase, finMonthStart, finMonthEnd),
     current
       ? supabase.rpc("has_permission", { uid: current.user.id, perm: "create_project" })
       : Promise.resolve({ data: false }),
@@ -124,30 +137,6 @@ export default async function DashboardPage() {
   );
 
   const summary = computeSummary(projects, budgetRows, people);
-
-  // Health strip counts -- projects that are not completed/archived, grouped by health level.
-  // Uses the same deriveHealth logic as projects/page.tsx, but without parts-derived progress
-  // (dashboard has no parts data). Same two-step pattern: derive health for each project, then
-  // count by level.
-  const activeProjects = projects.filter(
-    (p) => p.status !== "completed" && p.status !== "archived"
-  );
-  const healthLevelById = new Map(
-    activeProjects.map((p) => [
-      p.id,
-      deriveHealth({
-        status: p.status,
-        startDate: p.start_date,
-        deadline: p.deadline,
-        consumptionPct:
-          p.budget_total && p.budget_used !== null ? (p.budget_used / p.budget_total) * 100 : null,
-        progressPct: null,
-      }).level,
-    ])
-  );
-  const healthyCount = activeProjects.filter((p) => healthLevelById.get(p.id) === "healthy").length;
-  const warningCount = activeProjects.filter((p) => healthLevelById.get(p.id) === "warning").length;
-  const criticalCount = activeProjects.filter((p) => healthLevelById.get(p.id) === "critical").length;
 
   // Unified attention feed (Task 2) -- drives both the KPI tile's count/severity breakdown and
   // the AttentionFeed card rendered below, so the two numbers can never disagree.
@@ -308,16 +297,8 @@ export default async function DashboardPage() {
           <div className="grid gap-4 xl:grid-cols-3">
             <DeadlinesCard entries={deadlines} />
             <ActivityCard data={activityData} />
-            {financeOverview && <FinanceCard overview={financeOverview} />}
+            {financeOverview && <FinanceCard overview={financeOverview} finMonth={finMonth} />}
           </div>
-
-          {/* Health strip (Task 6) -- portfolio health at a glance. Three segments link to the
-              projects list filtered by health level. */}
-          <HealthStrip
-            healthy={healthyCount}
-            warning={warningCount}
-            critical={criticalCount}
-          />
         </>
       )}
     </div>

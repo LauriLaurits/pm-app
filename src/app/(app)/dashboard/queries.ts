@@ -121,18 +121,25 @@ export async function fetchMilestonesUpcoming(supabase: Supabase, todayISO: stri
   return rows.map((r) => ({ ...r, projectName: nameById.get(r.project_id) ?? null }));
 }
 
-// Sum of budget_items where item_type = 'invoice', occurred_on within the current month --
+// Sum of budget_items where item_type = 'invoice', occurred_on within [startISO, endISO) --
 // client-facing money, gated by view_budget alone (see "view budget items" policy,
 // 20260715000005_budgets.sql: cost-type rows need view_internal_cost too, invoice/payment/change
 // don't), so this is safe to call whenever project_budget_rows shows any client_amount. Summed in
 // JS (same pattern as reports/queries.ts's fetchMonthlyActualCosts) since there's no project scope
-// to filter by here -- it's a portfolio-wide total.
-export async function fetchMonthInvoiceTotal(supabase: Supabase, monthStartISO: string): Promise<number | null> {
+// to filter by here -- it's a portfolio-wide total. `endISO` is exclusive (the first day of the
+// month after the one being scoped) -- page.tsx derives both bounds from financeMonthRange so the
+// finance card's "This month"/"Last month" selector can re-scope this to either calendar month.
+export async function fetchMonthInvoiceTotal(
+  supabase: Supabase,
+  startISO: string,
+  endISO: string
+): Promise<number | null> {
   const { data, error } = await supabase
     .from("budget_items")
     .select("amount")
     .eq("item_type", "invoice")
-    .gte("occurred_on", monthStartISO);
+    .gte("occurred_on", startISO)
+    .lt("occurred_on", endISO);
   if (error || !data) return null;
   return data.reduce((sum, r) => sum + Number(r.amount), 0);
 }

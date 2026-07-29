@@ -19,7 +19,7 @@ export function TeamCard({ people }: { people: WorkloadPerson[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Team</CardTitle>
+        <CardTitle className="text-base font-semibold">Team</CardTitle>
         <CardAction>
           <Button variant="outline" size="sm" render={<Link href="/workload" />}>
             View full

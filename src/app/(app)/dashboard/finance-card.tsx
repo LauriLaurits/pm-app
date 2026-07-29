@@ -2,30 +2,53 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { consumptionBarClasses, formatMoney } from "@/lib/budget";
+import { FinanceMonthSelector, type FinMonth } from "./finance-period-selector";
 import type { FinanceOverview } from "./compute";
+
+const FIN_MONTH_WORDS: Record<FinMonth, string> = { this: "this month", last: "last month" };
 
 // Only ever mounted when computeFinanceOverview returned non-null (i.e. the viewer has budget
 // visibility) -- page.tsx does the null check, this component can assume a real overview.
-export function FinanceCard({ overview }: { overview: NonNullable<FinanceOverview> }) {
+export function FinanceCard({
+  overview,
+  finMonth,
+}: {
+  overview: NonNullable<FinanceOverview>;
+  finMonth: FinMonth;
+}) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Financial overview</CardTitle>
+        <CardTitle className="text-base font-semibold">Financial overview</CardTitle>
         <CardAction>
-          <Button variant="outline" size="sm" render={<Link href="/budgets" />}>
-            View budgets
-          </Button>
+          <FinanceMonthSelector active={finMonth} />
         </CardAction>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <div className="text-xs text-muted-foreground">Invoiced this month</div>
-            <div className="text-xl font-semibold tabular-nums">{formatMoney(overview.invoicedThisMonth)}</div>
+          <div className="rounded-lg border p-3">
+            <div className="text-xs text-muted-foreground">Invoiced {FIN_MONTH_WORDS[finMonth]}</div>
+            <div className="text-xl font-semibold tabular-nums">{formatMoney(overview.monthInvoiced)}</div>
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-emerald-500"
+                style={{ width: `${Math.min(Math.max(overview.monthInvoicedPct, 0), 100)}%` }}
+              />
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {Math.round(overview.monthInvoicedPct)}% of portfolio value
+            </div>
           </div>
-          <div>
-            <div className="text-xs text-muted-foreground">Outstanding</div>
-            <div className="text-xl font-semibold tabular-nums">{formatMoney(overview.outstanding)}</div>
+          <div className="rounded-lg border p-3">
+            <div className="text-xs text-muted-foreground">Remaining budget</div>
+            <div className="text-xl font-semibold tabular-nums">{formatMoney(overview.remaining)}</div>
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-muted-foreground/40"
+                style={{ width: `${Math.min(Math.max(overview.remainingPct, 0), 100)}%` }}
+              />
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">{Math.round(overview.remainingPct)}% left</div>
           </div>
         </div>
 
@@ -65,6 +88,10 @@ export function FinanceCard({ overview }: { overview: NonNullable<FinanceOvervie
             </span>
           </div>
         )}
+
+        <Button variant="outline" className="w-full" render={<Link href="/budgets" />}>
+          View all budgets
+        </Button>
       </CardContent>
     </Card>
   );

@@ -62,7 +62,7 @@ export function AttentionFeed({ items }: { items: FeedItem[] }) {
   return (
     <Card id="needs-attention" className="scroll-mt-20">
       <CardHeader>
-        <CardTitle>Needs your attention</CardTitle>
+        <CardTitle className="text-base font-semibold">Needs your attention</CardTitle>
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (
@@ -75,22 +75,27 @@ export function AttentionFeed({ items }: { items: FeedItem[] }) {
                 <li key={`${item.kind}-${item.href}-${i}`}>
                   <Link
                     href={item.href}
-                    className="flex items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                    className="grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
                   >
                     <span
                       aria-hidden
                       className={`size-1.5 shrink-0 rounded-full ${SEVERITY_DOT_CLASS[item.severity]}`}
                     />
-                    <span className="min-w-0 flex-1">
+                    <span className="min-w-0">
                       <span className="block truncate font-semibold">{item.title}</span>
                       <span className="block truncate text-xs text-muted-foreground">{item.reason}</span>
                     </span>
                     <Badge variant="outline" className={cn("shrink-0", className)}>
                       {label}
                     </Badge>
-                    {item.avatarName && (
-                      <PersonAvatar name={item.avatarName} avatarUrl={item.avatarUrl ?? null} className="size-6 shrink-0" />
-                    )}
+                    {/* Always-present size-6 slot (even with no avatar) so this column's width is
+                        identical on every row -- otherwise an avatar-less row's chevron would
+                        creep left relative to rows that do have one. */}
+                    <span className="size-6 shrink-0">
+                      {item.avatarName && (
+                        <PersonAvatar name={item.avatarName} avatarUrl={item.avatarUrl ?? null} className="size-6" />
+                      )}
+                    </span>
                     <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground/60" />
                   </Link>
                 </li>

@@ -14,7 +14,7 @@ export function MyProjectsCard({ rows, hasBudget }: { rows: MyProjectRow[]; hasB
   return (
     <Card>
       <CardHeader>
-        <CardTitle>My projects</CardTitle>
+        <CardTitle className="text-base font-semibold">My projects</CardTitle>
         <CardAction>
           <Button variant="outline" size="sm" render={<Link href="/projects" />}>
             View all

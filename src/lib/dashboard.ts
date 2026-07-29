@@ -62,3 +62,16 @@ export function lastNMonthKeys(count: number, from: Date = new Date()): string[]
   }
   return keys;
 }
+
+// [start, end) ISO date bounds for the calendar month the finance card's selector points at --
+// "this" is the month of `from`, "last" is the one before it. Exclusive end bound (first day of
+// the following month) so callers can use a plain `.lt("occurred_on", end)` instead of an
+// inclusive last-day computation.
+export function financeMonthRange(kind: "this" | "last", from: Date = new Date()): { start: string; end: string } {
+  const offset = kind === "this" ? 0 : -1;
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  return {
+    start: iso(new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + offset, 1))),
+    end: iso(new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + offset + 1, 1))),
+  };
+}
