@@ -16,15 +16,18 @@ import {
 import {
   consumptionBarClasses, consumptionLabel, consumptionSeverity, formatMoney,
 } from "@/lib/budget";
-import { avatarTint } from "@/lib/avatar-tint";
-import { BUDGET_TYPE_CHIP_CLASS, initials } from "../projects/types";
+import { PROJECT_ICONS, type ProjectIconKey } from "@/lib/project-icons";
+import { BUDGET_TYPE_CHIP_CLASS } from "../projects/types";
 import { BudgetFilters } from "./budget-filters";
-import { SEVERITY_ALL, humanize } from "./types";
+import {
+  BUDGET_STATUS_BADGE_CLASS, BUDGET_STATUS_LABEL, BUDGET_STATUS_RANK,
+  SEVERITY_ALL, budgetStatus, humanize,
+} from "./types";
 import type { ProjectBudgetRow, SeverityFacet } from "./types";
 
 const PAGE_SIZE = 10;
 
-type SortKey = "project" | "type" | "amount" | "consumption" | "remaining" | "margin";
+type SortKey = "project" | "type" | "amount" | "consumption" | "remaining" | "margin" | "status";
 
 const ACCESSORS: SortAccessors<ProjectBudgetRow, SortKey> = {
   project: (r) => r.name,
@@ -33,15 +36,20 @@ const ACCESSORS: SortAccessors<ProjectBudgetRow, SortKey> = {
   consumption: (r) => r.consumption_pct,
   remaining: (r) => r.remaining,
   margin: (r) => r.margin,
+  status: (r) => BUDGET_STATUS_RANK[budgetStatus(r)],
 };
 
 export function BudgetPortfolioTable({
   rows,
   clientIdByName = {},
+  iconKeys = {},
 }: {
   rows: ProjectBudgetRow[];
   /** name -> client id, built server-side (the budget view carries names only). */
   clientIdByName?: Record<string, string>;
+  /** project id -> icon key, built server-side the same way projects/page.tsx builds it (the
+   * budget view carries no tags). */
+  iconKeys?: Record<string, ProjectIconKey>;
 }) {
   // Client-side search + severity facet (list is small, same pattern as ClientsTable/PeopleTable):
   // matches project OR client name. The KPI tiles in page.tsx are computed from the full,
@@ -118,6 +126,7 @@ export function BudgetPortfolioTable({
                 />
                 <SortableHead label="Remaining" sortKey="remaining" sort={sort} onToggle={toggle} />
                 <SortableHead label="Margin" sortKey="margin" sort={sort} onToggle={toggle} />
+                <SortableHead label="Status" sortKey="status" sort={sort} onToggle={toggle} />
                 <TableHead className="w-10 text-right">
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -130,6 +139,7 @@ export function BudgetPortfolioTable({
                 if (!row.id) return null;
                 const projectId = row.id;
                 const clientId = row.client_name ? clientIdByName[row.client_name] : undefined;
+                const Icon = PROJECT_ICONS[iconKeys[projectId] ?? "folder"].icon;
                 return (
                   <TableRow key={projectId} className="group">
                     {/* NO left edge accent line EVER -- the badges/bar carry the signal. */}
@@ -137,9 +147,9 @@ export function BudgetPortfolioTable({
                       <div className="flex items-center gap-3">
                         <span
                           aria-hidden
-                          className={`flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium ${avatarTint(row.name)}`}
+                          className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/25 bg-muted/30 text-muted-foreground"
                         >
-                          {initials(row.name)}
+                          <Icon className="size-4.5" />
                         </span>
                         <div className="min-w-0">
                           <Link
@@ -168,6 +178,9 @@ export function BudgetPortfolioTable({
                     <TableCell>{formatMoney(row.remaining)}</TableCell>
                     <TableCell>
                       <MarginCell row={row} />
+                    </TableCell>
+                    <TableCell>
+                      <StatusPill row={row} />
                     </TableCell>
                     <TableCell className="text-right">
                       {/* Actions surface on row hover -- stay visible while focused or while the
@@ -248,27 +261,38 @@ export function BudgetPortfolioTable({
   );
 }
 
-// Muted client subline under the project name -- size-5 tinted initials chip + name, linking to
-// the client detail page when this viewer can resolve it (RLS-scoped: a viewer without the
-// clients permission simply gets an unlinked name).
+// Muted client subline under the project name -- plain text (per the mockup, no avatar chip),
+// linking to the client detail page when this viewer can resolve it (RLS-scoped: a viewer
+// without the clients permission simply gets an unlinked name).
 function ClientSubline({ name, clientId }: { name: string | null; clientId?: string }) {
   if (!name) return <div className="mt-0.5 text-xs text-muted-foreground">—</div>;
-  const inner = (
-    <span className="flex items-center gap-1.5">
-      <span
-        aria-hidden
-        className={`flex size-5 shrink-0 items-center justify-center rounded-md text-[9px] font-medium ${avatarTint(name)}`}
-      >
-        {initials(name)}
-      </span>
-      <span className="text-xs text-muted-foreground">{name}</span>
-    </span>
-  );
-  if (!clientId) return <div className="mt-0.5">{inner}</div>;
+  if (!clientId) return <div className="mt-0.5 text-xs text-muted-foreground">{name}</div>;
   return (
-    <Link href={`/clients/${clientId}`} className="mt-0.5 inline-flex transition-opacity hover:opacity-70">
-      {inner}
+    <Link
+      href={`/clients/${clientId}`}
+      className="mt-0.5 inline-block text-xs text-muted-foreground transition-opacity hover:opacity-70"
+    >
+      {name}
     </Link>
+  );
+}
+
+// Coarse triage pill (mockup-driven) -- see budgetStatus in types.ts for the exact tiering
+// (reuses consumptionSeverity verbatim, never forks the thresholds). Distinct from
+// ConsumptionCell's 4-tier bar: this is the one-glance "where's my attention needed" signal.
+function StatusPill({ row }: { row: ProjectBudgetRow }) {
+  const status = budgetStatus(row);
+  if (status === "no_budget") {
+    return (
+      <Badge variant="outline" className="border-border text-muted-foreground">
+        {BUDGET_STATUS_LABEL[status]}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className={BUDGET_STATUS_BADGE_CLASS[status]}>
+      {BUDGET_STATUS_LABEL[status]}
+    </Badge>
   );
 }
 

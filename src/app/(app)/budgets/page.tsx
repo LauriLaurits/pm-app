@@ -1,6 +1,7 @@
 import { Banknote, PiggyBank, Receipt, TrendingUp, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { consumptionSeverity, formatMoney, marginPct } from "@/lib/budget";
+import { projectIconKey, type ProjectIconKey } from "@/lib/project-icons";
 import { StatCard } from "@/components/stat-card";
 import { BudgetPortfolioTable } from "./budget-portfolio-table";
 import type { ProjectBudgetRow } from "./types";
@@ -15,19 +16,24 @@ export default async function BudgetsPage() {
   // component. Never re-derive margin here; only read the columns the view already gated.
   // Client-name -> id (second query) is for the client sublink (the budget view carries names
   // only). RLS-scoped: viewers without the clients permission get zero rows and the names render
-  // unlinked. Both reads are independent, so they run as one parallel round trip (perf feedback:
+  // unlinked. The third query is the same lightweight `id, tags` read projects/page.tsx does for
+  // the identity-cell icon tile -- the budget view doesn't carry tags, so it's resolved here.
+  // All three reads are independent, so they run as one parallel round trip (perf feedback:
   // sequential awaits each added a full DB round trip to TTFB).
-  const [{ data, error }, { data: clientRefs }] = await Promise.all([
+  const [{ data, error }, { data: clientRefs }, { data: projectRefs }] = await Promise.all([
     supabase
       .from("project_budget_rows")
       .select("*")
       .order("consumption_pct", { ascending: false, nullsFirst: false }),
     supabase.from("clients").select("id, name"),
+    supabase.from("projects").select("id, tags"),
   ]);
 
   const rows = (data ?? []) as ProjectBudgetRow[];
   const clientIdByName: Record<string, string> = {};
   for (const c of clientRefs ?? []) clientIdByName[c.name] = c.id;
+  const iconKeys: Record<string, ProjectIconKey> = {};
+  for (const p of projectRefs ?? []) iconKeys[p.id] = projectIconKey(p.tags);
 
   // Card/subtitle totals are computed across the FULL portfolio -- filtering (search + severity)
   // lives entirely client-side inside BudgetPortfolioTable and never reaches these numbers, so a
@@ -141,7 +147,7 @@ export default async function BudgetsPage() {
       ) : rows.length === 0 ? (
         <EmptyState />
       ) : (
-        <BudgetPortfolioTable rows={rows} clientIdByName={clientIdByName} />
+        <BudgetPortfolioTable rows={rows} clientIdByName={clientIdByName} iconKeys={iconKeys} />
       )}
     </div>
   );
