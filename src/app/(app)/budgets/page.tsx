@@ -1,16 +1,11 @@
+import { Banknote, PiggyBank, Receipt, TrendingUp, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { consumptionSeverity, marginPct } from "@/lib/budget";
-import { BudgetCards } from "./budget-cards";
-import { BudgetFilters } from "./budget-filters";
+import { consumptionSeverity, formatMoney, marginPct } from "@/lib/budget";
+import { StatCard } from "@/components/stat-card";
 import { BudgetPortfolioTable } from "./budget-portfolio-table";
-import type { ProjectBudgetRow, SeverityFilter } from "./types";
+import type { ProjectBudgetRow } from "./types";
 
-export default async function BudgetsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ severity?: string }>;
-}) {
-  const params = await searchParams;
+export default async function BudgetsPage() {
   const supabase = await createClient();
 
   // One RLS-scoped read of the whole portfolio: `project_budget_rows` is a security_invoker view
@@ -34,17 +29,11 @@ export default async function BudgetsPage({
   const clientIdByName: Record<string, string> = {};
   for (const c of clientRefs ?? []) clientIdByName[c.name] = c.id;
 
-  const severity: SeverityFilter =
-    params.severity === "at_risk" || params.severity === "over" ? params.severity : "all";
-  const filteredRows = rows.filter((row) => {
-    if (severity === "all") return true;
-    const sev = consumptionSeverity(row.consumption_pct);
-    return severity === "over" ? sev === "over" : sev !== "ok";
-  });
-
-  // Card totals are computed across the FULL visible portfolio (never the filtered subset) --
-  // only over rows where the relevant tier is actually visible to this viewer, so a member (no
-  // view_budget anywhere) gets "—" cards rather than a misleading zero.
+  // Card/subtitle totals are computed across the FULL portfolio -- filtering (search + severity)
+  // lives entirely client-side inside BudgetPortfolioTable and never reaches these numbers, so a
+  // search or severity chip narrows the rows without ever touching the tiles above them. Each sum
+  // only runs over rows where the relevant tier is actually visible to this viewer, so a member
+  // (no view_budget anywhere) gets "—" cards rather than a misleading zero.
   const budgetRows = rows.filter((row) => row.client_amount !== null);
   const totalClientAmount = budgetRows.length
     ? budgetRows.reduce((sum, row) => sum + (row.client_amount ?? 0), 0)
@@ -57,7 +46,7 @@ export default async function BudgetsPage({
     : null;
 
   // Total internal cost sums EVERY project whose cost the viewer can see (view_internal_cost),
-  // independent of whether that project also has client billing — a cost-only project (cost but
+  // independent of whether that project also has client billing -- a cost-only project (cost but
   // no billing row) still counts. Blended margin, by contrast, is only meaningful over projects
   // that have BOTH client amount and cost, so it uses the margin-paired subset.
   const costRows = rows.filter((row) => row.internal_cost !== null);
@@ -75,41 +64,93 @@ export default async function BudgetsPage({
     : null;
   const blendedMarginPct = marginPct(totalMargin, totalClientAmountForMargin);
 
+  // Subtitle-strip counts, same "at risk is inclusive of over" semantics as the table's severity
+  // facet: at_risk = >=75% consumption (including the >=100% over-budget rows), over = strictly
+  // >=100%. Portfolio-wide (unfiltered), like every number above.
+  const overCount = rows.filter((r) => consumptionSeverity(r.consumption_pct) === "over").length;
+  const atRiskCount = rows.filter((r) => consumptionSeverity(r.consumption_pct) !== "ok").length;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Budgets</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">Budgets</h1>
+          {rows.length > 0 && (
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {rows.length} project{rows.length === 1 ? "" : "s"}
+              <span className="mx-1.5 text-border">·</span>
+              {overCount} over budget
+              <span className="mx-1.5 text-border">·</span>
+              {atRiskCount} at risk
+              {totalClientAmount !== null && (
+                <>
+                  <span className="mx-1.5 text-border">·</span>
+                  {formatMoney(totalClientAmount)} portfolio
+                </>
+              )}
+            </p>
+          )}
+        </div>
       </div>
 
-      <BudgetCards
-        totalClientAmount={totalClientAmount}
-        totalInvoiced={totalInvoiced}
-        totalRemaining={totalRemaining}
-        hasFinanceVisibility={hasFinanceVisibility}
-        totalInternalCost={totalInternalCost}
-        totalMargin={totalMargin}
-        blendedMarginPct={blendedMarginPct}
-      />
-
-      <BudgetFilters current={severity} />
+      {rows.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <StatCard
+            icon={Wallet}
+            label="Portfolio value"
+            value={formatMoney(totalClientAmount)}
+            iconClass="bg-blue-500/10 text-blue-600 dark:text-blue-400"
+          />
+          <StatCard
+            icon={Receipt}
+            label="Invoiced"
+            value={formatMoney(totalInvoiced)}
+            iconClass="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+          />
+          <StatCard
+            icon={PiggyBank}
+            label="Remaining"
+            value={formatMoney(totalRemaining)}
+            iconClass="bg-amber-500/10 text-amber-600 dark:text-amber-400"
+          />
+          {hasFinanceVisibility && (
+            <>
+              <StatCard
+                icon={Banknote}
+                label="Internal cost"
+                value={formatMoney(totalInternalCost)}
+                iconClass="bg-violet-500/10 text-violet-600 dark:text-violet-400"
+              />
+              <StatCard
+                icon={TrendingUp}
+                label="Margin"
+                value={
+                  blendedMarginPct === null
+                    ? formatMoney(totalMargin)
+                    : `${formatMoney(totalMargin)} · ${blendedMarginPct.toFixed(1)}%`
+                }
+                iconClass="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              />
+            </>
+          )}
+        </div>
+      )}
 
       {error ? (
         <p className="text-destructive">Failed to load budgets. Try again.</p>
       ) : rows.length === 0 ? (
-        <EmptyState hasFilters={false} />
-      ) : filteredRows.length === 0 ? (
-        <EmptyState hasFilters />
+        <EmptyState />
       ) : (
-        <BudgetPortfolioTable rows={filteredRows} clientIdByName={clientIdByName} />
+        <BudgetPortfolioTable rows={rows} clientIdByName={clientIdByName} />
       )}
     </div>
   );
 }
 
-function EmptyState({ hasFilters }: { hasFilters: boolean }) {
+function EmptyState() {
   return (
     <div className="rounded-xl border border-dashed p-12 text-center text-muted-foreground">
-      {hasFilters ? "No projects match this filter." : "No budgets yet."}
+      No budgets yet.
     </div>
   );
 }

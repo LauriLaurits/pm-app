@@ -1,16 +1,28 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
-  Table, TableBody, TableCell, TableHeader, TableRow,
-} from "@/components/ui/table";
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SortableHead } from "@/components/data-table/sortable-head";
 import { useSort, type SortAccessors } from "@/components/data-table/use-sort";
 import {
-  consumptionBarClasses, consumptionLabel, formatMoney,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  consumptionBarClasses, consumptionLabel, consumptionSeverity, formatMoney,
 } from "@/lib/budget";
-import { humanize } from "./types";
-import type { ProjectBudgetRow } from "./types";
+import { avatarTint } from "@/lib/avatar-tint";
+import { BUDGET_TYPE_CHIP_CLASS, initials } from "../projects/types";
+import { BudgetFilters } from "./budget-filters";
+import { SEVERITY_ALL, humanize } from "./types";
+import type { ProjectBudgetRow, SeverityFacet } from "./types";
+
+const PAGE_SIZE = 10;
 
 type SortKey = "project" | "type" | "amount" | "consumption" | "remaining" | "margin";
 
@@ -31,75 +43,238 @@ export function BudgetPortfolioTable({
   /** name -> client id, built server-side (the budget view carries names only). */
   clientIdByName?: Record<string, string>;
 }) {
-  const { rows: sorted, sort, toggle } = useSort(rows, ACCESSORS, {
+  // Client-side search + severity facet (list is small, same pattern as ClientsTable/PeopleTable):
+  // matches project OR client name. The KPI tiles in page.tsx are computed from the full,
+  // unfiltered `rows` prop -- this component's local state never reaches them, so totals stay
+  // portfolio-wide no matter what's typed/selected here.
+  const [q, setQ] = useState("");
+  const [severity, setSeverity] = useState<SeverityFacet | typeof SEVERITY_ALL>(SEVERITY_ALL);
+  const [page, setPage] = useState(1);
+
+  const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (
+        query &&
+        !(row.name ?? "").toLowerCase().includes(query) &&
+        !(row.client_name ?? "").toLowerCase().includes(query)
+      ) {
+        return false;
+      }
+      if (severity !== SEVERITY_ALL) {
+        const sev = consumptionSeverity(row.consumption_pct);
+        // "at_risk" is inclusive of "over" (both are >=75%); "over" is the strict >=100% subset.
+        const matches = severity === "over" ? sev === "over" : sev !== "ok";
+        if (!matches) return false;
+      }
+      return true;
+    });
+  }, [rows, q, severity]);
+
+  const { rows: sorted, sort, toggle } = useSort(filtered, ACCESSORS, {
     key: "consumption",
     dir: "desc",
   });
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const hasActiveFilters = Boolean(q.trim()) || severity !== SEVERITY_ALL;
+
+  function clearAll() {
+    setQ("");
+    setSeverity(SEVERITY_ALL);
+  }
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <SortableHead label="Project" sortKey="project" sort={sort} onToggle={toggle} />
-          <SortableHead label="Type" sortKey="type" sort={sort} onToggle={toggle} />
-          <SortableHead label="Client amount" sortKey="amount" sort={sort} onToggle={toggle} />
-          <SortableHead
-            label="Invoiced / consumption"
-            sortKey="consumption"
-            sort={sort}
-            onToggle={toggle}
-            className="w-48"
-          />
-          <SortableHead label="Remaining" sortKey="remaining" sort={sort} onToggle={toggle} />
-          <SortableHead label="Margin" sortKey="margin" sort={sort} onToggle={toggle} />
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {sorted.map((row) => {
-          const clientId = row.client_name ? clientIdByName[row.client_name] : undefined;
-          return (
-            <TableRow key={row.id}>
-              <TableCell>
-                <Link href={`/projects/${row.id}`} className="font-medium hover:underline">
-                  {row.name}
-                </Link>
-                <div className="text-xs text-muted-foreground">
-                  {clientId ? (
-                    <Link href={`/clients/${clientId}`} className="hover:underline">
-                      {row.client_name}
-                    </Link>
-                  ) : (
-                    (row.client_name ?? "—")
-                  )}
-                </div>
-              </TableCell>
-              <TableCell className="text-sm text-muted-foreground">
-                {row.budget_type ? humanize(row.budget_type) : "—"}
-              </TableCell>
-              <TableCell>{formatMoney(row.client_amount)}</TableCell>
-              <TableCell>
-                <ConsumptionCell row={row} />
-              </TableCell>
-              <TableCell>{formatMoney(row.remaining)}</TableCell>
-              <TableCell>
-                {row.margin === null ? (
-                  <span className="text-muted-foreground">—</span>
-                ) : (
-                  <div>
-                    <div>{formatMoney(row.margin)}</div>
-                    {row.margin_pct !== null && (
-                      <div className="text-xs text-muted-foreground">{row.margin_pct.toFixed(1)}%</div>
-                    )}
-                  </div>
-                )}
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+    <div className="space-y-4">
+      <BudgetFilters
+        q={q}
+        onQChange={setQ}
+        severity={severity}
+        onSeverityChange={setSeverity}
+        hasActiveFilters={hasActiveFilters}
+        onClear={clearAll}
+      />
+      {sorted.length === 0 ? (
+        <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+          No projects match your filters.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <Table className="[&_tbody_td]:py-4">
+            <TableHeader>
+              <TableRow>
+                <SortableHead label="Project" sortKey="project" sort={sort} onToggle={toggle} />
+                <SortableHead label="Type" sortKey="type" sort={sort} onToggle={toggle} />
+                <SortableHead label="Client amount" sortKey="amount" sort={sort} onToggle={toggle} />
+                <SortableHead
+                  label="Invoiced / consumption"
+                  sortKey="consumption"
+                  sort={sort}
+                  onToggle={toggle}
+                  className="w-48"
+                />
+                <SortableHead label="Remaining" sortKey="remaining" sort={sort} onToggle={toggle} />
+                <SortableHead label="Margin" sortKey="margin" sort={sort} onToggle={toggle} />
+                <TableHead className="w-10 text-right">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pageRows.map((row) => {
+                // project_budget_rows is a plain view, so every column is nullable even though
+                // `id` is never actually null in practice (it's the projects table's PK).
+                if (!row.id) return null;
+                const projectId = row.id;
+                const clientId = row.client_name ? clientIdByName[row.client_name] : undefined;
+                return (
+                  <TableRow key={projectId} className="group">
+                    {/* NO left edge accent line EVER -- the badges/bar carry the signal. */}
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <span
+                          aria-hidden
+                          className={`flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium ${avatarTint(row.name)}`}
+                        >
+                          {initials(row.name)}
+                        </span>
+                        <div className="min-w-0">
+                          <Link
+                            href={`/projects/${projectId}/budget`}
+                            className="text-base leading-tight font-semibold transition-opacity hover:opacity-70"
+                          >
+                            {row.name}
+                          </Link>
+                          <ClientSubline name={row.client_name} clientId={clientId} />
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {row.budget_type ? (
+                        <Badge variant="outline" className={BUDGET_TYPE_CHIP_CLASS[row.budget_type]}>
+                          {humanize(row.budget_type)}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{formatMoney(row.client_amount)}</TableCell>
+                    <TableCell className="w-48">
+                      <ConsumptionCell row={row} />
+                    </TableCell>
+                    <TableCell>{formatMoney(row.remaining)}</TableCell>
+                    <TableCell>
+                      <MarginCell row={row} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {/* Actions surface on row hover -- stay visible while focused or while the
+                          menu is open, so keyboard users aren't locked out. */}
+                      <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          render={<Link href={`/projects/${projectId}/budget`} />}
+                        >
+                          Open
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            aria-label={`Actions for ${row.name}`}
+                            className="rounded p-1 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2"
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem render={<Link href={`/projects/${projectId}`}>Overview</Link>} />
+                            <DropdownMenuItem
+                              render={<Link href={`/projects/${projectId}/budget`}>Budgets</Link>}
+                            />
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-sm text-muted-foreground">
+            <span>
+              Showing {sorted.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1} to{" "}
+              {Math.min(currentPage * PAGE_SIZE, sorted.length)} of {sorted.length} project
+              {sorted.length === 1 ? "" : "s"}
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setPage(currentPage - 1)}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft />
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <Button
+                    key={p}
+                    variant={p === currentPage ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setPage(p)}
+                  >
+                    {p}
+                  </Button>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setPage(currentPage + 1)}
+                  aria-label="Next page"
+                >
+                  <ChevronRight />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
+// Muted client subline under the project name -- size-5 tinted initials chip + name, linking to
+// the client detail page when this viewer can resolve it (RLS-scoped: a viewer without the
+// clients permission simply gets an unlinked name).
+function ClientSubline({ name, clientId }: { name: string | null; clientId?: string }) {
+  if (!name) return <div className="mt-0.5 text-xs text-muted-foreground">—</div>;
+  const inner = (
+    <span className="flex items-center gap-1.5">
+      <span
+        aria-hidden
+        className={`flex size-5 shrink-0 items-center justify-center rounded-md text-[9px] font-medium ${avatarTint(name)}`}
+      >
+        {initials(name)}
+      </span>
+      <span className="text-xs text-muted-foreground">{name}</span>
+    </span>
+  );
+  if (!clientId) return <div className="mt-0.5">{inner}</div>;
+  return (
+    <Link href={`/clients/${clientId}`} className="mt-0.5 inline-flex transition-opacity hover:opacity-70">
+      {inner}
+    </Link>
+  );
+}
+
+// Flagship bar anatomy (same as BudgetCell/WorkloadCell): h-[11px] track, values BELOW the bar,
+// pct pinned to the column's right edge. role="progressbar" + aria-value* kept from the previous
+// implementation -- do not drop these when restyling.
 function ConsumptionCell({ row }: { row: ProjectBudgetRow }) {
   if (row.client_amount === null) {
     return <span className="text-muted-foreground">—</span>;
@@ -107,13 +282,9 @@ function ConsumptionCell({ row }: { row: ProjectBudgetRow }) {
   const pct = row.consumption_pct ?? 0;
   const width = Math.min(Math.max(pct, 0), 100);
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-xs">
-        <span>{formatMoney(row.invoiced)}</span>
-        <span className="text-muted-foreground">{pct.toFixed(0)}%</span>
-      </div>
+    <div className="min-w-40 text-xs">
       <div
-        className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+        className="h-[11px] w-full overflow-hidden rounded-full bg-muted"
         role="progressbar"
         aria-valuenow={pct}
         aria-valuemin={0}
@@ -121,10 +292,30 @@ function ConsumptionCell({ row }: { row: ProjectBudgetRow }) {
         aria-label={consumptionLabel(row.consumption_pct)}
       >
         <div
-          className={`h-full rounded-full transition-all ${consumptionBarClasses(row.consumption_pct)}`}
+          className={`h-full rounded-full ${consumptionBarClasses(row.consumption_pct)}`}
           style={{ width: `${width}%` }}
         />
       </div>
+      <div className="mt-1 flex items-baseline justify-between gap-2 tabular-nums whitespace-nowrap">
+        <span className="text-sm font-medium text-foreground">{formatMoney(row.invoiced)}</span>
+        <span className="text-muted-foreground">{pct.toFixed(0)}%</span>
+      </div>
+    </div>
+  );
+}
+
+// Finance-gated (view_internal_cost): null margin renders "—" rather than a misleading zero --
+// the value comes straight off the gated view column, never re-derived here.
+function MarginCell({ row }: { row: ProjectBudgetRow }) {
+  if (row.margin === null) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  return (
+    <div className="text-sm tabular-nums">
+      <span className="font-medium text-foreground">{formatMoney(row.margin)}</span>
+      {row.margin_pct !== null && (
+        <span className="ml-1.5 text-xs text-muted-foreground">{row.margin_pct.toFixed(1)}%</span>
+      )}
     </div>
   );
 }
