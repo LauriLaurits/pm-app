@@ -30,17 +30,10 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Employees", href: "/people", icon: Users },
   { label: "Workload", href: "/workload", icon: Gauge },
   { label: "Reports", href: "/reports", icon: BarChart3 },
-  // comingSoon: temporarily hidden behind a "Soon" badge for the demo — flip back after.
-  { label: "Budgets", href: "/budgets", icon: Wallet, comingSoon: true },
-  { label: "Credentials", href: "/credentials", icon: KeyRound, comingSoon: true },
-  { label: "Delegations", href: "/delegations", icon: ArrowRightLeft, comingSoon: true },
-  { label: "Activity", href: "/activity", icon: Activity, comingSoon: true },
-  {
-    label: "User access",
-    href: "/admin/users",
-    icon: ShieldCheck,
-    adminOnly: true,
-    comingSoon: true,
-  },
+  { label: "Budgets", href: "/budgets", icon: Wallet },
+  { label: "Credentials", href: "/credentials", icon: KeyRound },
+  { label: "Delegations", href: "/delegations", icon: ArrowRightLeft },
+  { label: "Activity", href: "/activity", icon: Activity },
+  { label: "User access", href: "/admin/users", icon: ShieldCheck, adminOnly: true },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
