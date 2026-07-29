@@ -1,4 +1,4 @@
-import { Banknote, PiggyBank, Receipt, TrendingUp, Wallet } from "lucide-react";
+import { BarChart3, PiggyBank, Receipt, ShieldAlert, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { consumptionSeverity, formatMoney, marginPct } from "@/lib/budget";
 import { projectIconKey, type ProjectIconKey } from "@/lib/project-icons";
@@ -51,6 +51,17 @@ export default async function BudgetsPage() {
     ? budgetRows.reduce((sum, row) => sum + (row.remaining ?? 0), 0)
     : null;
 
+  // Mockup tile contexts: shares of the visible portfolio + the total overage (Σ of each
+  // over-budget project's negative remaining -- "how much money is already burned past plan").
+  const budgetRowCount = budgetRows.length;
+  const invoicedPct =
+    totalClientAmount && totalInvoiced !== null ? (totalInvoiced / totalClientAmount) * 100 : null;
+  const remainingPct =
+    totalClientAmount && totalRemaining !== null ? (totalRemaining / totalClientAmount) * 100 : null;
+  const totalOverage = budgetRows.length
+    ? budgetRows.reduce((sum, row) => sum + Math.max(-(row.remaining ?? 0), 0), 0)
+    : null;
+
   // Total internal cost sums EVERY project whose cost the viewer can see (view_internal_cost),
   // independent of whether that project also has client billing -- a cost-only project (cost but
   // no billing row) still counts. Blended margin, by contrast, is only meaningful over projects
@@ -94,11 +105,29 @@ export default async function BudgetsPage() {
                   {formatMoney(totalClientAmount)} portfolio
                 </>
               )}
+              {/* Finance rollups moved here from the (dropped) internal-cost/margin tiles --
+                  the mockup's tile row has no finance tiles; per-row margin stays a column. */}
+              {hasFinanceVisibility && totalInternalCost !== null && (
+                <>
+                  <span className="mx-1.5 text-border">·</span>
+                  {formatMoney(totalInternalCost)} internal cost
+                </>
+              )}
+              {totalMargin !== null && (
+                <>
+                  <span className="mx-1.5 text-border">·</span>
+                  {formatMoney(totalMargin)} margin
+                  {blendedMarginPct !== null && <> ({blendedMarginPct.toFixed(1)}%)</>}
+                </>
+              )}
             </p>
           )}
         </div>
       </div>
 
+      {/* Mockup tile set: Portfolio / Invoiced / Remaining / Over budget / At risk, each with a
+          context line. Internal-cost & margin tiles folded into the subtitle strip (finance) --
+          the mockup carries no finance tiles and margin stays a per-row table column. */}
       {rows.length > 0 && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
           <StatCard
@@ -106,39 +135,42 @@ export default async function BudgetsPage() {
             label="Portfolio value"
             value={formatMoney(totalClientAmount)}
             iconClass="bg-blue-500/10 text-blue-600 dark:text-blue-400"
+            context={`total budget across ${budgetRowCount} project${budgetRowCount === 1 ? "" : "s"}`}
           />
           <StatCard
             icon={Receipt}
             label="Invoiced"
             value={formatMoney(totalInvoiced)}
             iconClass="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+            context={invoicedPct === null ? undefined : `${invoicedPct.toFixed(1)}% of portfolio`}
           />
           <StatCard
             icon={PiggyBank}
             label="Remaining"
             value={formatMoney(totalRemaining)}
             iconClass="bg-amber-500/10 text-amber-600 dark:text-amber-400"
+            context={remainingPct === null ? undefined : `${remainingPct.toFixed(1)}% of portfolio`}
           />
-          {hasFinanceVisibility && (
-            <>
-              <StatCard
-                icon={Banknote}
-                label="Internal cost"
-                value={formatMoney(totalInternalCost)}
-                iconClass="bg-violet-500/10 text-violet-600 dark:text-violet-400"
-              />
-              <StatCard
-                icon={TrendingUp}
-                label="Margin"
-                value={
-                  blendedMarginPct === null
-                    ? formatMoney(totalMargin)
-                    : `${formatMoney(totalMargin)} · ${blendedMarginPct.toFixed(1)}%`
-                }
-                iconClass="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-              />
-            </>
-          )}
+          <StatCard
+            icon={ShieldAlert}
+            label="Over budget"
+            value={formatMoney(totalOverage)}
+            iconClass="bg-red-500/10 text-red-600 dark:text-red-400"
+            context={
+              overCount === 0
+                ? "no projects over budget"
+                : `${overCount} project${overCount === 1 ? "" : "s"} over budget`
+            }
+            contextClass={overCount > 0 ? "text-red-600 dark:text-red-400" : undefined}
+          />
+          <StatCard
+            icon={BarChart3}
+            label="At risk"
+            value={String(atRiskCount)}
+            iconClass="bg-violet-500/10 text-violet-600 dark:text-violet-400"
+            context={`${atRiskCount} project${atRiskCount === 1 ? "" : "s"} at risk`}
+            contextClass={atRiskCount > 0 ? "text-amber-600 dark:text-amber-400" : undefined}
+          />
         </div>
       )}
 

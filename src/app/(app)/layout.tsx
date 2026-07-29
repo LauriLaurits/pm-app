@@ -9,6 +9,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
+import { GlobalSearch } from "@/components/global-search";
 import { UserMenu } from "./user-menu";
 
 export default async function AppLayout({
@@ -42,11 +43,18 @@ export default async function AppLayout({
             <SidebarTrigger />
             <Separator orientation="vertical" className="h-4" />
           </div>
-          <UserMenu
-            name={current.profile.full_name ?? current.profile.email}
-            email={current.profile.email}
-            avatarUrl={me?.avatar_url}
-          />
+          <div className="flex min-w-0 items-center gap-3">
+            {/* Global search lives in the topbar so it's reachable from EVERY view (user ask);
+                hidden on phones where the 288px input would crowd out the menu. */}
+            <div className="max-sm:hidden">
+              <GlobalSearch />
+            </div>
+            <UserMenu
+              name={current.profile.full_name ?? current.profile.email}
+              email={current.profile.email}
+              avatarUrl={me?.avatar_url}
+            />
+          </div>
         </header>
         <main className="flex-1 p-6">{children}</main>
       </SidebarInset>

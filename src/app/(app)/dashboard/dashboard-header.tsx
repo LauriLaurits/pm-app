@@ -6,7 +6,6 @@ import type {
   PmOption,
 } from "../projects/new/project-create-fields";
 import type { AssignedProjectOption, PartOption } from "../people/[id]/types";
-import { GlobalSearch } from "@/components/global-search";
 import { greetingWord } from "./greeting";
 
 export type CreateProjectProps = {
@@ -49,8 +48,8 @@ export function DashboardHeader({
           Here&apos;s what&apos;s happening with your projects today.
         </p>
       </div>
+      {/* Search moved to the app topbar (every view) -- only the quick actions stay here. */}
       <div className="flex flex-wrap items-center gap-2">
-        <GlobalSearch />
         {logTimeProps && (
           <LogTimeDialog projects={logTimeProps.projects} partsByProject={logTimeProps.partsByProject} />
         )}

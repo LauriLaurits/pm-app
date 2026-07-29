@@ -10,11 +10,18 @@ export function StatCard({
   label,
   value,
   iconClass,
+  context,
+  contextClass,
 }: {
   icon: LucideIcon;
   label: string;
   value: string;
   iconClass: string;
+  /** Optional third line under the value ("28.7% of portfolio", "1 project over budget") --
+   * mockup-driven; existing two-line consumers are unaffected when omitted. */
+  context?: string;
+  /** Override the context line's tone (e.g. amber/red when it carries a warning). */
+  contextClass?: string;
 }) {
   return (
     <Card size="sm">
@@ -25,6 +32,9 @@ export function StatCard({
         <div className="min-w-0">
           <p className="truncate text-xs text-muted-foreground">{label}</p>
           <p className="text-xl leading-tight font-semibold tabular-nums">{value}</p>
+          {context && (
+            <p className={`truncate text-xs ${contextClass ?? "text-muted-foreground"}`}>{context}</p>
+          )}
         </div>
       </CardContent>
     </Card>
