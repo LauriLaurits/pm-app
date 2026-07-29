@@ -7,6 +7,15 @@ import type { FinanceOverview } from "./compute";
 
 const FIN_MONTH_WORDS: Record<FinMonth, string> = { this: "this month", last: "last month" };
 
+// Both bars already clamp their width to [0, 100] -- the text labels next to them need the same
+// clamp. monthInvoicedPct's numerator (fetchMonthInvoiceTotal) and remainingPct's numerator
+// (compute.ts's `remaining`) are each scoped to match their shared denominator (active projects'
+// client_amount) so this shouldn't normally exceed 100%, but it's cheap insurance against a
+// "134% of portfolio value" label if that invariant is ever violated by a future data edge case.
+function clampPct(pct: number): number {
+  return Math.min(Math.max(pct, 0), 100);
+}
+
 // Only ever mounted when computeFinanceOverview returned non-null (i.e. the viewer has budget
 // visibility) -- page.tsx does the null check, this component can assume a real overview.
 export function FinanceCard({
@@ -32,11 +41,11 @@ export function FinanceCard({
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full bg-emerald-500"
-                style={{ width: `${Math.min(Math.max(overview.monthInvoicedPct, 0), 100)}%` }}
+                style={{ width: `${clampPct(overview.monthInvoicedPct)}%` }}
               />
             </div>
             <div className="mt-1 text-xs text-muted-foreground">
-              {Math.round(overview.monthInvoicedPct)}% of portfolio value
+              {Math.round(clampPct(overview.monthInvoicedPct))}% of portfolio value
             </div>
           </div>
           <div className="rounded-lg border p-3">
@@ -45,10 +54,10 @@ export function FinanceCard({
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full bg-muted-foreground/40"
-                style={{ width: `${Math.min(Math.max(overview.remainingPct, 0), 100)}%` }}
+                style={{ width: `${clampPct(overview.remainingPct)}%` }}
               />
             </div>
-            <div className="mt-1 text-xs text-muted-foreground">{Math.round(overview.remainingPct)}% left</div>
+            <div className="mt-1 text-xs text-muted-foreground">{Math.round(clampPct(overview.remainingPct))}% left</div>
           </div>
         </div>
 

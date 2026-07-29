@@ -121,23 +121,46 @@ export async function fetchMilestonesUpcoming(supabase: Supabase, todayISO: stri
   return rows.map((r) => ({ ...r, projectName: nameById.get(r.project_id) ?? null }));
 }
 
-// Sum of budget_items where item_type = 'invoice', occurred_on within [startISO, endISO) --
-// client-facing money, gated by view_budget alone (see "view budget items" policy,
-// 20260715000005_budgets.sql: cost-type rows need view_internal_cost too, invoice/payment/change
-// don't), so this is safe to call whenever project_budget_rows shows any client_amount. Summed in
-// JS (same pattern as reports/queries.ts's fetchMonthlyActualCosts) since there's no project scope
-// to filter by here -- it's a portfolio-wide total. `endISO` is exclusive (the first day of the
-// month after the one being scoped) -- page.tsx derives both bounds from financeMonthRange so the
-// finance card's "This month"/"Last month" selector can re-scope this to either calendar month.
+// Sum of budget_items where item_type = 'invoice', occurred_on within [startISO, endISO), scoped
+// to ACTIVE projects only -- client-facing money, gated by view_budget alone (see "view budget
+// items" policy, 20260715000005_budgets.sql: cost-type rows need view_internal_cost too,
+// invoice/payment/change don't), so this is safe to call whenever project_budget_rows shows any
+// client_amount. The active-project scope matters here: computeFinanceOverview's
+// totalClientAmount/remaining denominator (compute.ts) is active-projects-only, so this numerator
+// has to match that scope too, or monthInvoicedPct could read over 100% on a portfolio with a
+// completed/archived project invoiced in the selected month. Two-step fetch -- active project ids,
+// then their budget ids, then the items themselves -- same idiom as reports/queries.ts's
+// fetchMonthlyActualCosts (which reads every budget id unscoped; this adds the status filter via a
+// project read first). RLS already scopes every read here to what the caller may see -- this join
+// is a STATUS filter, not a security one. `endISO` is exclusive (the first day of the month after
+// the one being scoped) -- page.tsx derives both bounds from financeMonthRange so the finance
+// card's "This month"/"Last month" selector can re-scope this to either calendar month.
 export async function fetchMonthInvoiceTotal(
   supabase: Supabase,
   startISO: string,
   endISO: string
 ): Promise<number | null> {
+  const { data: activeProjects, error: projectsError } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("status", "active");
+  if (projectsError) return null;
+  const activeProjectIds = activeProjects.map((p) => p.id);
+  if (activeProjectIds.length === 0) return 0;
+
+  const { data: budgets, error: budgetsError } = await supabase
+    .from("budgets")
+    .select("id")
+    .in("project_id", activeProjectIds);
+  if (budgetsError) return null;
+  const budgetIds = budgets.map((b) => b.id);
+  if (budgetIds.length === 0) return 0;
+
   const { data, error } = await supabase
     .from("budget_items")
     .select("amount")
     .eq("item_type", "invoice")
+    .in("budget_id", budgetIds)
     .gte("occurred_on", startISO)
     .lt("occurred_on", endISO);
   if (error || !data) return null;
