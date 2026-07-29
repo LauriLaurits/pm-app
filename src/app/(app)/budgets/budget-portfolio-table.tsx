@@ -280,14 +280,17 @@ function ClientSubline({ name, clientId }: { name: string | null; clientId?: str
 // Coarse triage pill (mockup-driven) -- see budgetStatus in types.ts for the exact tiering
 // (reuses consumptionSeverity verbatim, never forks the thresholds). Distinct from
 // ConsumptionCell's 4-tier bar: this is the one-glance "where's my attention needed" signal.
+//
+// A null client_amount NEVER renders a "No budget" badge -- project_budget_rows collapses
+// "genuinely no budget" and "RLS-hidden from this viewer" into the identical NULL (view_budget
+// is per-project for PMs, so one viewer's portfolio can mix visible and hidden rows), and the
+// view's own migration comment is explicit that null must read as "you can't see this," never as
+// an affirmative claim. So this cell falls back to the exact same plain muted dash every other
+// gated cell in the row already uses for that null (see ConsumptionCell/MarginCell below).
 function StatusPill({ row }: { row: ProjectBudgetRow }) {
   const status = budgetStatus(row);
   if (status === "no_budget") {
-    return (
-      <Badge variant="outline" className="border-border text-muted-foreground">
-        {BUDGET_STATUS_LABEL[status]}
-      </Badge>
-    );
+    return <span className="text-muted-foreground">—</span>;
   }
   return (
     <Badge variant="outline" className={BUDGET_STATUS_BADGE_CLASS[status]}>

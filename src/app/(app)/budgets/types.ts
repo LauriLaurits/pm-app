@@ -36,13 +36,25 @@ export const SEVERITY_ALL = "__all__" as const;
 
 // Coarse status pill for the portfolio table's Status column (mockup-driven) -- a simpler
 // triage signal than ConsumptionCell's 4-tier bar. Reuses consumptionSeverity's thresholds
-// verbatim (never forks them): "over" stays red, the "high" (90-99%) tier reads amber "At
-// risk", everything else (ok + the 75-89% "warn" tier) reads green "On track". A project with
-// no client_amount short-circuits to "No budget" before any severity math runs. Checked against
-// the current at_risk/over severity filter above: both derive from the same consumptionSeverity
-// call and, across every currently-seeded budget row, agree (no row lands in the 75-89% "warn"
-// band today) -- if one ever does, the "At risk (75%+)" filter chip would surface it while this
-// pill reads "On track", which is worth revisiting then.
+// verbatim (never forks them): "over" stays red, the "high" (90-99%) tier reads orange "At
+// risk" (same tier->color mapping as CONSUMPTION_BADGE_CLASS.high in lib/budget.ts -- amber is
+// the "warn", 75-89%, tier there, not "high"), everything else (ok + the 75-89% "warn" tier)
+// reads green "On track". Checked against the current at_risk/over severity filter above: both
+// derive from the same consumptionSeverity call and, across every currently-seeded budget row,
+// agree (no row lands in the 75-89% "warn" band today) -- if one ever does, the "At risk (75%+)"
+// filter chip would surface it while this pill reads "On track", which is worth revisiting then.
+//
+// "no_budget" (client_amount === null) is deliberately NOT rendered as an affirmative status
+// anywhere -- project_budget_rows (migration 20260716000005) collapses two very different cases
+// into the same NULL: a project that genuinely has no budget set, and a project this viewer
+// simply can't see (view_budget is `own_projects`-scoped for the project_manager role, i.e.
+// PER-PROJECT, so one PM's portfolio can legitimately mix visible and RLS-hidden rows -- see
+// has_permission's own_projects branch in 20260715000003_projects.sql). The view's own comment
+// is explicit that this null must never read as a real "no budget" claim, only as "you can't see
+// this" -- so budget-portfolio-table.tsx renders the SAME plain muted dash every other gated cell
+// in this row already uses for that null (ConsumptionCell/MarginCell), never a "No budget" badge.
+// budgetStatus() still returns "no_budget" for null rows purely so the Status column's sort keeps
+// pushing them last (BUDGET_STATUS_RANK) -- that value is never used to pick a rendered label.
 export type BudgetStatus = "no_budget" | "over" | "at_risk" | "on_track";
 
 export function budgetStatus(
@@ -63,17 +75,19 @@ export const BUDGET_STATUS_RANK: Record<BudgetStatus, number> = {
   no_budget: 3,
 };
 
-export const BUDGET_STATUS_LABEL: Record<BudgetStatus, string> = {
+// "no_budget" has no label -- it never reaches a Badge (see the block comment above), so it's
+// intentionally excluded rather than paired with a string nothing will render.
+export const BUDGET_STATUS_LABEL: Record<Exclude<BudgetStatus, "no_budget">, string> = {
   over: "Over budget",
   at_risk: "At risk",
   on_track: "On track",
-  no_budget: "No budget",
 };
 
-// Same light+dark-safe border/bg/text triplet as CONSUMPTION_BADGE_CLASS -- "no_budget" renders
-// as a plain muted outline directly in the cell (no tint), so it isn't listed here.
+// Same light+dark-safe border/bg/text triplet as CONSUMPTION_BADGE_CLASS -- "at_risk" uses the
+// ORANGE tint (CONSUMPTION_BADGE_CLASS.high), matching the "high" severity tier it derives from;
+// amber is reserved for "warn" in that shared convention, which this pill folds into on_track.
 export const BUDGET_STATUS_BADGE_CLASS: Record<Exclude<BudgetStatus, "no_budget">, string> = {
   over: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400",
-  at_risk: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  at_risk: "border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-400",
   on_track: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
 };
