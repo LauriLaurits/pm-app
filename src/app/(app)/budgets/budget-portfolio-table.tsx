@@ -267,13 +267,14 @@ export function BudgetPortfolioTable({
 function ClientSubline({ name, clientId }: { name: string | null; clientId?: string }) {
   if (!name) return <div className="mt-0.5 text-xs text-muted-foreground">—</div>;
   if (!clientId) return <div className="mt-0.5 text-xs text-muted-foreground">{name}</div>;
+  // Block wrapper, not a bare inline Link -- the project-name Link above is inline, so an
+  // inline(-block) sibling renders BESIDE the name instead of as a subline under it.
   return (
-    <Link
-      href={`/clients/${clientId}`}
-      className="mt-0.5 inline-block text-xs text-muted-foreground transition-opacity hover:opacity-70"
-    >
-      {name}
-    </Link>
+    <div className="mt-0.5 text-xs text-muted-foreground">
+      <Link href={`/clients/${clientId}`} className="transition-opacity hover:opacity-70">
+        {name}
+      </Link>
+    </div>
   );
 }
 
