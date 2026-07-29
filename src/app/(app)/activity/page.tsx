@@ -3,8 +3,8 @@ import { requireActiveUser } from "@/lib/auth/session";
 import { ActivityFilters } from "./activity-filters";
 import { ActivityTable } from "./activity-table";
 import { ActivityPagination } from "./activity-pagination";
-import { PAGE_SIZE, nextDayIso, resolveProjectId } from "./types";
-import type { ActivityListItem, AuditLogRow, ProjectOption } from "./types";
+import { PAGE_SIZE, nextDayIso, resolveProjectId, summarizeMetadata } from "./types";
+import type { AuditLogRow, ProjectOption, SafeActivityItem } from "./types";
 
 type ActivitySearchParams = {
   actor?: string;
@@ -40,9 +40,9 @@ export default async function ActivityPage({
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold">Activity log</h1>
-        <p className="text-muted-foreground">
+        <div className="rounded-xl border border-dashed p-12 text-center text-muted-foreground">
           You don&apos;t have access to this page. The activity log is restricted to admins and view_audit holders.
-        </p>
+        </div>
       </div>
     );
   }
@@ -96,9 +96,24 @@ export default async function ActivityPage({
   const hasMore = allRows.length > PAGE_SIZE;
   const pageRows = allRows.slice(0, PAGE_SIZE);
 
-  const items: ActivityListItem[] = pageRows.map((row) => {
+  // Built field-by-field (not spread from `row`) -- see SafeActivityItem's doc comment: this
+  // list crosses into a "use client" table component, so only render-safe fields belong here.
+  // `details` is the summarizeMetadata() STRING; the raw metadata jsonb never leaves this file.
+  const items: SafeActivityItem[] = pageRows.map((row) => {
     const projectId = resolveProjectId(row);
-    return { ...row, project_name: projectId ? (projectNameById.get(projectId) ?? null) : null };
+    return {
+      id: row.id,
+      created_at: row.created_at,
+      actor_email: row.actor_email,
+      action: row.action,
+      resource_type: row.resource_type,
+      resource_id: row.resource_id,
+      project_id: projectId,
+      project_name: projectId ? (projectNameById.get(projectId) ?? null) : null,
+      ip: row.ip,
+      user_agent: row.user_agent,
+      details: summarizeMetadata(row.metadata),
+    };
   });
 
   const hasFilters = Boolean(
@@ -114,7 +129,20 @@ export default async function ActivityPage({
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Activity log</h1>
+      <div>
+        <h1 className="text-2xl font-semibold">Activity log</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Page {page}
+          <span className="mx-1.5 text-border">·</span>
+          latest {PAGE_SIZE} per page
+          {hasFilters && (
+            <>
+              <span className="mx-1.5 text-border">·</span>
+              filtered
+            </>
+          )}
+        </p>
+      </div>
       <ActivityFilters actors={actors} actions={actions} resourceTypes={resourceTypes} projects={projects} />
 
       {items.length === 0 ? (

@@ -24,9 +24,9 @@ export function ActivityPagination({
   }
 
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-muted-foreground">Page {page}</span>
-      <div className="flex gap-2">
+    <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-sm text-muted-foreground">
+      <span>Page {page}</span>
+      <div className="flex items-center gap-1">
         {page > 1 ? (
           <Button variant="outline" size="sm" render={<Link href={hrefFor(page - 1)} />}>
             <ChevronLeftIcon /> Newer

@@ -4,9 +4,24 @@ export type AuditLogRow = Database["public"]["Tables"]["audit_logs"]["Row"];
 
 export type ProjectOption = { id: string; name: string };
 
-/** One page's worth of audit_logs rows, enriched with a best-effort project name. */
-export type ActivityListItem = AuditLogRow & {
+/** Render-safe, allowlisted shape of an audit_logs row -- this is what crosses into
+ * ActivityTable, a "use client" component (needed for the IP/Device column-visibility gear),
+ * so its whole prop tree serializes into the RSC flight payload. Built field-by-field in
+ * page.tsx rather than spreading the full AuditLogRow: `details` is always the
+ * summarizeMetadata() STRING (never the raw metadata jsonb), and `actor_id` never crosses at
+ * all since nothing renders it. Add a field here only when something actually renders it. */
+export type SafeActivityItem = {
+  id: number;
+  created_at: string;
+  actor_email: string | null;
+  action: string;
+  resource_type: string | null;
+  resource_id: string | null;
+  project_id: string | null;
   project_name: string | null;
+  ip: string | null;
+  user_agent: string | null;
+  details: string | null;
 };
 
 export const PAGE_SIZE = 50;
@@ -72,6 +87,23 @@ export function formatDateTime(value: string) {
 export function truncate(value: string | null, max = 48) {
   if (!value) return null;
   return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
+
+/** The part of an actor email before `@` (e.g. "anna.pm@example.com" -> "anna.pm") -- shown
+ * in the Actor cell chip instead of the full address. */
+export function emailNamePart(email: string) {
+  return email.split("@")[0] || email;
+}
+
+/** Two-letter initials for an email's name-part, splitting on the usual local-part separators
+ * (`.`, `_`, `-`) rather than whitespace -- mirrors the per-module `initials()` helper's
+ * first+last-token shape for names like "anna.pm" -> "AP". */
+export function emailInitials(namePart: string) {
+  const tokens = namePart.split(/[._-]+/).filter(Boolean);
+  if (tokens.length === 0) return "?";
+  const first = tokens[0]?.[0] ?? "";
+  const last = tokens.length > 1 ? (tokens.at(-1)?.[0] ?? "") : "";
+  return (first + last).toUpperCase() || "?";
 }
 
 /** Keys that would never legitimately appear in audit metadata (by design nothing secret is ever
