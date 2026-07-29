@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(33);
+select plan(37);
 
 -- Phase 9: security invariants (audit 2026-07-29, fixes H2/H3/H5/H6/M5 in
 -- 20260729000001_security_hardening.sql). These assertions encode the hardened state as
@@ -86,6 +86,19 @@ select is(has_function_privilege('anon', 'public.reveal_credential_secret(uuid)'
 -- that EXECUTE grant must never be revoked.
 select is(has_function_privilege('authenticated', 'public.has_permission(uuid,text,uuid)', 'EXECUTE'),
   true, 'INV3: authenticated KEEPS execute on has_permission (every RLS policy depends on it)');
+-- TRIPWIRE for the H5 guards: all four uid-guarded definer functions treat a null auth.uid()
+-- as a TRUSTED internal/definer context (postgres, service_role, pgTAP fixtures). That is only
+-- safe while `anon` -- the one API role that reaches PostgREST with auth.uid() null -- holds no
+-- EXECUTE on them. A future `grant execute ... to anon` (or ACL reset) would silently void all
+-- four guards; these assertions make that a loud test failure instead.
+select is(has_function_privilege('anon', 'public.has_permission(uuid,text,uuid)', 'EXECUTE'),
+  false, 'INV3: anon cannot execute has_permission (null-uid trust in its guard depends on this)');
+select is(has_function_privilege('anon', 'public.has_credential_access(uuid,uuid)', 'EXECUTE'),
+  false, 'INV3: anon cannot execute has_credential_access (null-uid trust in its guard depends on this)');
+select is(has_function_privilege('anon', 'public.person_current_allocation(uuid)', 'EXECUTE'),
+  false, 'INV3: anon cannot execute person_current_allocation (null-uid trust in its guard depends on this)');
+select is(has_function_privilege('anon', 'public.person_weekly_allocation(uuid,date,integer)', 'EXECUTE'),
+  false, 'INV3: anon cannot execute person_weekly_allocation (null-uid trust in its guard depends on this)');
 
 -- ---------- INV4: reveal + role change audit at the DB level ----------
 -- pam (reveal_credential via project_manager own_projects on P1) reveals: legit flow intact...
