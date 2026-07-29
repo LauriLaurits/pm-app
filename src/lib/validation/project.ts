@@ -253,7 +253,10 @@ export const LINK_VISIBILITY_OPTIONS = ["project", "pm_only", "admins_only"] as 
 
 export const linkSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
-  url: z.url("Enter a valid URL").max(2000),
+  // Restricted to http(s) only -- audit H1: a bare z.url() accepts javascript:/data:/vbscript:
+  // schemes, which links-list.tsx then renders as a raw clickable <a href>, letting any
+  // project_manager plant a stored-XSS link that runs in a higher-privileged viewer's session.
+  url: z.url({ protocol: /^https?$/, error: "Enter a valid http(s) URL" }).max(2000),
   type: z.enum(LINK_TYPE_OPTIONS),
   environment: nullableText(100),
   description: nullableText(),
@@ -275,14 +278,17 @@ export const CREDENTIAL_ENVIRONMENT_OPTIONS = ["prod", "prelive", "staging", "de
 export const CREDENTIAL_VISIBILITY_OPTIONS = ["project_members", "pms_only", "admins_only"] as const;
 
 /** Optional URL: blank collapses to null (like nullableText), a non-blank value must parse
- * as a URL. Kept separate from linkSchema's required `url` since related_url is optional here. */
+ * as an http(s) URL. Kept separate from linkSchema's required `url` since related_url is
+ * optional here. Restricted to http(s) only for the same H1 reason as linkSchema.url above --
+ * not currently rendered as a live href/window.open anywhere, but flagged as a stored-input
+ * gap that becomes a live XSS sink the moment a "visit related URL" link is added. */
 const nullableUrl = z
   .string()
   .max(2000)
   .optional()
   .nullable()
   .transform((v) => (v && v.trim() !== "" ? v.trim() : null))
-  .refine((v) => !v || z.url().safeParse(v).success, "Enter a valid URL");
+  .refine((v) => !v || z.url({ protocol: /^https?$/ }).safeParse(v).success, "Enter a valid http(s) URL");
 
 // secret is required here: this schema only ever backs credential *creation* (there is no
 // edit/rotate flow yet -- see project-credentials.ts). It is write-only: it goes straight into

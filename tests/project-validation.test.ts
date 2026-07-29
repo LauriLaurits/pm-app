@@ -526,6 +526,22 @@ describe("linkSchema", () => {
     expect(linkSchema.safeParse({ ...validLink, url: "not-a-url" }).success).toBe(false);
   });
 
+  it("rejects javascript:/data:/vbscript: URLs (H1 -- stored XSS via clickable link)", () => {
+    expect(linkSchema.safeParse({ ...validLink, url: "javascript:alert(1)" }).success).toBe(false);
+    expect(linkSchema.safeParse({ ...validLink, url: "data:text/html,x" }).success).toBe(false);
+    expect(linkSchema.safeParse({ ...validLink, url: "vbscript:msgbox(1)" }).success).toBe(false);
+  });
+
+  it("rejects a javascript: URL with leading whitespace/tabs/newlines (browser-tolerant scheme sniffing)", () => {
+    expect(linkSchema.safeParse({ ...validLink, url: "\tjavascript:alert(1)" }).success).toBe(false);
+    expect(linkSchema.safeParse({ ...validLink, url: " \n javascript:alert(1)" }).success).toBe(false);
+  });
+
+  it("accepts http(s) urls", () => {
+    expect(linkSchema.safeParse({ ...validLink, url: "https://x.com" }).success).toBe(true);
+    expect(linkSchema.safeParse({ ...validLink, url: "http://x.com/y" }).success).toBe(true);
+  });
+
   it("rejects an unknown type/visibility", () => {
     expect(linkSchema.safeParse({ ...validLink, type: "wiki" }).success).toBe(false);
     expect(linkSchema.safeParse({ ...validLink, visibility: "public" }).success).toBe(false);
@@ -571,6 +587,22 @@ describe("credentialSchema", () => {
 
   it("rejects a malformed related_url", () => {
     expect(credentialSchema.safeParse({ ...validCredential, related_url: "not-a-url" }).success).toBe(false);
+  });
+
+  it("rejects javascript:/data:/vbscript: related_url (H1 -- stored XSS gap)", () => {
+    expect(credentialSchema.safeParse({ ...validCredential, related_url: "javascript:alert(1)" }).success).toBe(false);
+    expect(credentialSchema.safeParse({ ...validCredential, related_url: "data:text/html,x" }).success).toBe(false);
+    expect(credentialSchema.safeParse({ ...validCredential, related_url: "vbscript:msgbox(1)" }).success).toBe(false);
+  });
+
+  it("rejects a javascript: related_url with leading whitespace/tabs/newlines", () => {
+    expect(credentialSchema.safeParse({ ...validCredential, related_url: "\tjavascript:alert(1)" }).success).toBe(false);
+    expect(credentialSchema.safeParse({ ...validCredential, related_url: " \n javascript:alert(1)" }).success).toBe(false);
+  });
+
+  it("accepts http(s) related_url", () => {
+    expect(credentialSchema.safeParse({ ...validCredential, related_url: "https://x.com" }).success).toBe(true);
+    expect(credentialSchema.safeParse({ ...validCredential, related_url: "http://x.com/y" }).success).toBe(true);
   });
 
   it("allows omitted username/related_url/notes/expires_at and normalizes blank to null", () => {

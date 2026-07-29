@@ -11,6 +11,14 @@ const VISIBILITY_BADGE: Record<LinkRow["visibility"], "outline" | "secondary" | 
   admins_only: "destructive",
 };
 
+// Belt-and-suspenders (H1): linkSchema.url already restricts new/edited links to http(s), but
+// this guards any link written before that validation existed (or by any other future write
+// path) from ever reaching a raw <a href>.
+const SAFE_URL = /^https?:\/\//i;
+function safeHref(url: string) {
+  return SAFE_URL.test(url.trim()) ? url : undefined;
+}
+
 /** Grouped by link type -- RLS already narrowed `links` to what this caller may see
  * (project/pm_only/admins_only tiers), so grouping here is display-only, never a filter. */
 function groupByType(links: LinkRow[]) {
@@ -43,7 +51,7 @@ export function LinksList({
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <a
-                      href={link.url}
+                      href={safeHref(link.url)}
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center gap-1 font-medium hover:underline"
