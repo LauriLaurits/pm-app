@@ -276,6 +276,27 @@ insert into public.budget_items (budget_id, item_type, name, amount, occurred_on
   -- consumption severity tier on the portfolio dashboard (Phase 5, Task 1).
   ('70000003-0000-4000-8000-000000000003','invoice','Phase 2', 35000, current_date-10);
 
+-- Monthly ACTUAL internal-cost ledger rows (item_type 'actual_cost') for the three budgeted
+-- projects -- without these the Reports cost KPI/line reads €0 for finance viewers (the seed
+-- previously only logged planned_cost at kickoff). Spread over the last 6 months so the
+-- vs-previous-window delta math has real data on both sides. Guarded idempotent by name.
+insert into public.budget_items (budget_id, item_type, name, amount, occurred_on)
+select b.budget_id, 'actual_cost', 'Monthly cost ' || to_char(d, 'YYYY-MM'), b.amount, d::date
+from (values
+  ('70000001-0000-4000-8000-000000000001'::uuid, 7800),
+  ('70000002-0000-4000-8000-000000000002'::uuid, 5200),
+  ('70000003-0000-4000-8000-000000000003'::uuid, 9100)
+) as b(budget_id, amount)
+cross join generate_series(
+  date_trunc('month', current_date) - interval '5 months',
+  date_trunc('month', current_date),
+  interval '1 month'
+) as d
+where not exists (
+  select 1 from public.budget_items x
+  where x.budget_id = b.budget_id and x.item_type = 'actual_cost'
+    and x.name = 'Monthly cost ' || to_char(d, 'YYYY-MM'));
+
 -- ===== 13. status updates (history: 2 per active project, newest includes handover info) =====
 insert into public.project_status_updates (project_id, author_id, completed, in_progress, blockers, decisions_needed, next_milestone, handover_info, created_at) values
   ('30000001-0000-4000-8000-000000000001','10000002-0000-4000-8000-000000000002','Discovery, checkout API','Catalog sync','—','CDN vendor choice','Beta on staging', null, now() - interval '21 days'),
