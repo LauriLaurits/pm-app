@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { AlertTriangle, FolderKanban, KeyRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
+import { StatCard } from "@/components/stat-card";
+import { expiryStatus } from "@/lib/credentials-display";
 import type { DisplayCredentialRow } from "../projects/[id]/credentials/types";
 import { CredentialsIndexList } from "./credentials-index-list";
 import type { ProjectCredentialGroup } from "./types";
@@ -68,15 +71,48 @@ export default async function CredentialsIndexPage() {
     }))
     .sort((a, b) => a.projectName.localeCompare(b.projectName));
 
+  // Subtitle-strip + StatCard counts are computed over EVERY row this caller can see (never the
+  // client-side search subset inside CredentialsIndexList) -- "expiring soon" is inclusive of
+  // already-expired credentials, same semantics as the budgets "at risk" facet.
+  const expiringCount = rows.filter((c) => expiryStatus(c.expires_at) !== null).length;
+
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold">Credentials</h1>
-        <p className="text-sm text-muted-foreground">
-          Every credential you can access, across all of your projects. To add one, open a
-          project&apos;s Credentials tab.
-        </p>
+        {rows.length > 0 && (
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {rows.length} credential{rows.length === 1 ? "" : "s"}
+            <span className="mx-1.5 text-border">·</span>
+            {groups.length} project{groups.length === 1 ? "" : "s"}
+            <span className="mx-1.5 text-border">·</span>
+            {expiringCount} expiring soon
+          </p>
+        )}
       </div>
+
+      {rows.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <StatCard
+            icon={KeyRound}
+            label="Total credentials"
+            value={String(rows.length)}
+            iconClass="bg-blue-500/10 text-blue-600 dark:text-blue-400"
+          />
+          <StatCard
+            icon={AlertTriangle}
+            label="Expiring soon"
+            value={String(expiringCount)}
+            iconClass="bg-amber-500/10 text-amber-600 dark:text-amber-400"
+          />
+          <StatCard
+            icon={FolderKanban}
+            label="Projects"
+            value={String(groups.length)}
+            iconClass="bg-violet-500/10 text-violet-600 dark:text-violet-400"
+          />
+        </div>
+      )}
 
       {error ? (
         <p className="text-destructive">Failed to load credentials. Try again.</p>
