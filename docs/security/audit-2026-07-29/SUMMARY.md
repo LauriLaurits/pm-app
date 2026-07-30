@@ -152,3 +152,44 @@ bar than avatars:
 4. **Before contracts feature:** implement to the D-spec above from day one.
 
 All of the above are **local-only** until you approve — nothing here is deployed.
+
+---
+
+## Remediation status (2026-07-30)
+
+Security hardening wave, commits `d3ecdd0..64036f5`. Every FIXED item below was re-verified
+end-to-end after the wave landed: suites green (`npm run test` 337, `npm run test:db` 256 incl. the
+new phase-9 invariants + anon-EXECUTE tripwires, `npm run lint` 0 errors, `npm run build` clean),
+plus live exploit-replay against a local Supabase stack and dev server using GoTrue REST logins and
+hand-built session cookies across six personas. Full evidence:
+`.superpowers/sdd/2026-07-29-security-hardening/task-5-report.md`.
+
+| # | Finding | Status | Commit / reason |
+|---|---|---|---|
+| C1 | CSV export formula injection | **FIXED** | `src/lib/csv.ts` — `csvCell()` prefixes `'` on a leading `= + - @ \t \r`, then RFC-4180 quoting; `csvNumberCell()` deliberately exempt so negatives stay numeric. 14/14 `tests/reports-export.test.ts`. (Reports fix round, pre-wave.) |
+| H1 | `javascript:` links execute in a viewer's session | **FIXED** | `6cd0e2f` — `linkSchema.url` + `credentialSchema.related_url` restricted to `z.url({protocol:/^https?$/})`; `links-list.tsx` `safeHref()` added as a render-layer backstop. Verified: a `javascript:` URL planted directly in the DB renders with `href="$undefined"`, 0 `href="javascript:` in the payload. |
+| H2 | Budget cost-row re-typing leaks internal cost | **FIXED** | `8a2d03b` — `view_internal_cost` gate added to the `budget_items` UPDATE policy's `USING` **and** `WITH CHECK`, and `item_type` removed from the `authenticated` UPDATE column grant. Verified: direct PostgREST PATCH re-typing a cost row → `42501`, both directions; legitimate amount/name edits still succeed. |
+| H3 | Credential reveal has no database-level audit | **FIXED** | `8a2d03b` — the audit row is written inside `reveal_credential_secret` itself. Verified: a direct REST RPC reveal (bypassing the app) produced `audit_logs` row with `metadata.source = "db_rpc"`. Follow-up **M-b** (in-transaction guarantee under PostgREST tx-end semantics) logged before prod. |
+| H4 | `secret_id` serialized on the project Credentials tab | **FIXED** | `73bfceb` — `SafeCredentialRow` allowlist, built field-by-field (no row spread). Verified: 0 `secret_id` in raw HTML for admin and the project PM, credential rows still render. |
+| H5 | Definer functions leak the workload + authorization graph | **FIXED** | `8a2d03b` (+ `bb44b3b` tripwire tests) — internal `auth.uid()`/`view_people` guards in `has_permission`, `has_credential_access`, `person_current_allocation`, `person_weekly_allocation`. Verified: a viewer calling `has_permission` with a foreign uid gets `false`, self-checks still `true`, allocation for a foreign person returns `0/0` while legit `view_people` holders get the real `95.00/2`. |
+| H6 | Credentials writes don't pin `owner_id` | **FIXED** | `8a2d03b` — INSERT `WITH CHECK` pins `owner_id IS NULL OR = auth.uid()`; `owner_id` removed from the UPDATE column grant. Verified: foreign-owner INSERT → `42501`, `owner_id` PATCH → `42501`, normal edits unaffected. |
+| H7 | Avatars bucket accepts SVG → stored XSS | **FIXED** | `8a2d03b` — bucket `allowed_mime_types` narrowed to `{image/png,image/jpeg,image/webp,image/gif}`, mirrored in the server action. Verified: PNG upload `200`, SVG upload `415 invalid_mime_type`. Follow-up **M-d** (purge any pre-existing SVG objects) logged before prod. |
+| M1 | People list ships `internal_cost`/`billing_rate` | **FIXED** | `73bfceb` — `SafePersonRow` allowlist on `/people` **and** on `people/[id]` (a second instance of the same leak, found during the fix, that the audit had not listed). Verified: 0 occurrences for a real `view_internal_cost` holder; all 16 rows still render. |
+| M2 | Parts tab ships internal `notes` + raw `part_billing` rates | **FIXED** | `73bfceb` — `SafePartRow`; edit-only keys (`notes`, `hourly_rate`, `fixed_amount`, …) are **omitted from the object**, not nulled, for callers without `edit_project`. Verified with a planted canary note: 0 for a `view_budget`-only finance viewer and a plain member; `edit_project` holders still receive real values. |
+| M3 | Password floor 12 in-app but 6 in Supabase config | **FIXED** | `64036f5` — `minimum_password_length = 12` + `password_requirements = "lower_upper_letters_digits"` in `config.toml`. |
+| M4 | Auth cookies not `Secure`, no HSTS | **FIXED** | `64036f5` — `cookieOptions.secure = NODE_ENV === "production"` in both the server and middleware clients; `Strict-Transport-Security: max-age=31536000; includeSubDomains` in `next.config.ts` (confirmed live on response headers). |
+| M5 | `is_admin`/`pm_options`/definer helpers callable by `anon` | **FIXED** | `8a2d03b` + `bb44b3b` — EXECUTE revoked from `public`/`anon`, with pgTAP tripwire tests. Verified: `proacl` contains no `anon`/`PUBLIC` on any of the eight helpers; live anon RPC calls all return `42501 permission denied for function`. |
+| M6 | `manage_people` granted globally to PMs (sick-leave exposure, `people.user_id` rewrite) | **DEFERRED** | Not a leak to unauthorized users — it is a **role-design** question (which permissions the PM role should carry) that changes who can do what across the app. Re-scoping `manage_people` needs a product decision on the PM/HR boundary plus a `time_off`/`people` policy split; out of scope for a fix-only hardening wave. Revisit with the role-model work, before wider rollout. |
+| M7 | Open signup + `enable_confirmations = false` | **DEFERRED** | Intentional for local/dev: `enable_signup = false` is the *rollout* switch, to be flipped when Entra ID goes live (the approval gate already keeps self-registered accounts in `pending` with no data access). Tracked in remediation step 3 "before public rollout / prod config push". |
+| Lows | unrendered client `notes`; two `.or()` route-param interpolations; unescaped `%`/`_` in projects search; `set_updated_at` unpinned `search_path`; `set_user_role` can delete the last admin; policies relying on `USING` reuse for `WITH CHECK` | **DEFERRED** | Accepted tradeoffs — no privilege impact, ids UUID-forced upstream. Left as documented backlog. |
+
+Additional follow-ups opened during the wave and **not** fixed here (tracked in the SDD ledger):
+**M-a** cost-tier INSERT gate (integrity, outside H2's scope), **M-b** reveal audit in-transaction,
+**M-c** matview invariant test, **M-d** purge pre-existing SVG avatars before prod, **M-e**
+`person_has_history`/`part_project` oracles (brief-accepted).
+
+Regression posture after the wave: 17 routes × 6 personas = 102 requests, all `200`, no 5xx, no
+broken RLS — a finance viewer still sees budgets with real figures, a member still sees exactly his
+member projects, and a viewer still sees only her single granted project.
+
+**Still local-only — nothing in this wave has been deployed.**
