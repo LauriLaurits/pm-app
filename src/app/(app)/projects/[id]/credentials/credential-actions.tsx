@@ -3,7 +3,7 @@
 import { deleteCredentialAction } from "@/app/actions/project-credentials";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import type { DisplayCredentialRow } from "./types";
+import type { SafeCredentialRow } from "./types";
 import { DESTRUCTIVE_ACTION_CLASS } from "@/lib/action-styles";
 
 export function CredentialDeleteButton({
@@ -11,7 +11,7 @@ export function CredentialDeleteButton({
   credential,
 }: {
   projectId: string;
-  credential: DisplayCredentialRow;
+  credential: SafeCredentialRow;
 }) {
   return (
     <ConfirmDialog

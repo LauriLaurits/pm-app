@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
-import type { PersonListRow, PersonWorkloadRow } from "../types";
+import type { PersonWorkloadRow, SafePersonRow } from "../types";
 import { PersonFormDialog } from "../person-form-dialog";
 import { CurrentProjectsCard } from "./current-projects-card";
 import { FinancialsCard } from "./financials-card";
@@ -103,9 +103,24 @@ export default async function PersonDetailPage({
   const teamOptions = (managedOptions ?? [])
     .filter((option) => option.kind === "team")
     .map((option) => option.value);
-  const editablePerson: PersonListRow = {
-    ...row,
+  // PersonFormDialog (below) is a "use client" component -- same shared component the people
+  // list feeds, so it must receive the same allowlisted shape (SafePersonRow), never a spread of
+  // `row`: `row` still carries internal_cost/billing_rate whenever this viewer holds
+  // view_internal_cost (see showFinancials below), and those must never cross this boundary --
+  // FinancialsCard, a server component, is the only place they're allowed to reach the browser.
+  const editablePerson: SafePersonRow = {
     id,
+    full_name: row.full_name,
+    avatar_url: row.avatar_url,
+    role_title: row.role_title,
+    department: row.department,
+    employment_type: row.employment_type,
+    status: row.status,
+    current_allocation_pct: row.current_allocation_pct,
+    weekly_capacity_hours: row.weekly_capacity_hours,
+    active_project_count: row.active_project_count,
+    on_vacation_now: row.on_vacation_now,
+    vacation_ends_on: row.vacation_ends_on,
     email: personLink?.email ?? null,
   };
 

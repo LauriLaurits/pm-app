@@ -23,7 +23,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { utilizationBarClasses, utilizationLabel } from "@/lib/workload";
 import { EmploymentTypeBadge } from "./employment-type-badge";
 import { EMPLOYMENT_TYPE_OPTIONS, formatShortDate } from "./types";
-import type { EmploymentType, PersonListRow } from "./types";
+import type { EmploymentType, SafePersonRow } from "./types";
 import { PersonRowActions } from "./person-row-actions";
 
 const PAGE_SIZE = 10;
@@ -31,12 +31,12 @@ const PAGE_SIZE = 10;
 type SortKey = "name" | "status" | "workload" | "projects";
 
 // Away (on vacation now) sorts and filters as its own state between Active and Deactivated.
-function derivedStatus(r: PersonListRow): "active" | "away" | "inactive" {
+function derivedStatus(r: SafePersonRow): "active" | "away" | "inactive" {
   if (r.on_vacation_now) return "away";
   return r.status === "inactive" ? "inactive" : "active";
 }
 
-const ACCESSORS: SortAccessors<PersonListRow, SortKey> = {
+const ACCESSORS: SortAccessors<SafePersonRow, SortKey> = {
   name: (r) => r.full_name,
   status: (r) => derivedStatus(r),
   workload: (r) => r.current_allocation_pct,
@@ -98,7 +98,7 @@ export function PeopleTable({
   roleFilterOptions,
   projectNamesByPersonId,
 }: {
-  rows: PersonListRow[];
+  rows: SafePersonRow[];
   canManage: boolean;
   roleTitleOptions: string[];
   teamOptions: string[];
@@ -364,7 +364,7 @@ export function PeopleTable({
 
 // Avatar tile + 16px semibold name link, role title + employment-type micro-chip underneath --
 // the same leading-cell anatomy as the projects/clients tables.
-function PersonCell({ row }: { row: PersonListRow }) {
+function PersonCell({ row }: { row: SafePersonRow }) {
   return (
     <div className="flex items-center gap-3">
       <PersonAvatar name={row.full_name} avatarUrl={row.avatar_url} className="size-10" />
@@ -388,7 +388,7 @@ function PersonCell({ row }: { row: PersonListRow }) {
 // editable), and amber Away (derived from a vacation covering today). Away REPLACES the shown
 // status rather than stacking beside it, but only as a display override -- opening the select
 // still edits the real stored status (earlier feedback: Away must never block status changes).
-function StatusCell({ row, canManage }: { row: PersonListRow; canManage: boolean }) {
+function StatusCell({ row, canManage }: { row: SafePersonRow; canManage: boolean }) {
   if (!row.status) return <Badge variant="outline">—</Badge>;
   return (
     <InlineEditSelect
@@ -417,7 +417,7 @@ function StatusCell({ row, canManage }: { row: PersonListRow; canManage: boolean
 // Allocation vs weekly capacity in the projects budget-cell anatomy: severity-colored bar
 // (emerald/blue/amber/red via the shared UTILIZATION classes), bold allocated hours "/ capacity"
 // muted, % pinned to the column's right edge. Over 100% clamps the fill but shows red.
-function WorkloadCell({ row }: { row: PersonListRow }) {
+function WorkloadCell({ row }: { row: SafePersonRow }) {
   const pct = row.current_allocation_pct ?? 0;
   const capacity = row.weekly_capacity_hours ?? 0;
   const allocated = Math.round((pct / 100) * capacity * 10) / 10;
@@ -444,7 +444,7 @@ function WorkloadCell({ row }: { row: PersonListRow }) {
 // "N active" in the shared DotBadge language (emerald dot -- same as the clients list); muted 0
 // otherwise. The hover tooltip lists the person's visible active-project names -- an RLS-scoped
 // read, so a viewer who can't see some projects simply gets a shorter list (or none).
-function ProjectsCell({ row, names }: { row: PersonListRow; names: string[] }) {
+function ProjectsCell({ row, names }: { row: SafePersonRow; names: string[] }) {
   const count = row.active_project_count ?? 0;
   const badge =
     count > 0 ? (

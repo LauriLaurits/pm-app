@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { PeopleTable } from "./people-table";
 import { PersonFormDialog } from "./person-form-dialog";
 import { utilizationClass } from "./types";
-import type { PersonListRow, PersonWorkloadRow } from "./types";
+import type { PersonWorkloadRow, SafePersonRow } from "./types";
 
 function distinct(values: (string | null)[]) {
   return Array.from(new Set(values.filter((v): v is string => !!v))).sort();
@@ -66,15 +66,35 @@ export default async function PeoplePage() {
     const { data: peopleRows } = await supabase.from("people").select("id, email").in("id", ids);
     for (const p of peopleRows ?? []) emailByPersonId.set(p.id, p.email);
   }
-  const rows: PersonListRow[] = workloadRows
+  // PeopleTable (below) is a "use client" component -- it owns the search/filter state -- so
+  // whatever shape crosses that boundary gets serialized into the flight payload, readable in
+  // the raw page response by ANY caller who can load this page. Build an explicit allowlist
+  // (SafePersonRow) rather than spreading `r`: internal_cost/billing_rate must never leave the
+  // server for a page whose UI never shows them (RLS already nulls both for non-finance
+  // viewers, but this shape must not ship them even to the finance-visibility population).
+  const rows: SafePersonRow[] = workloadRows
     .filter((r): r is PersonWorkloadRow & { id: string } => !!r.id)
-    .map((r) => ({ ...r, email: emailByPersonId.get(r.id) ?? null }));
+    .map((r) => ({
+      id: r.id,
+      full_name: r.full_name,
+      avatar_url: r.avatar_url,
+      role_title: r.role_title,
+      department: r.department,
+      employment_type: r.employment_type,
+      status: r.status,
+      current_allocation_pct: r.current_allocation_pct,
+      weekly_capacity_hours: r.weekly_capacity_hours,
+      active_project_count: r.active_project_count,
+      on_vacation_now: r.on_vacation_now,
+      vacation_ends_on: r.vacation_ends_on,
+      email: emailByPersonId.get(r.id) ?? null,
+    }));
 
   // Summary-strip rollups only -- no KPI cards here, same call as the clients list: at this
   // scale every candidate metric is already visible in the table itself (workload bars, Away
   // badges, type chips), so cards were decoration. Available = ACTIVE, under-90% utilization
   // and not currently on vacation; Busy = full/overallocated; Away = on vacation today.
-  const util = (r: PersonListRow) => utilizationClass(r.current_allocation_pct ?? 0);
+  const util = (r: SafePersonRow) => utilizationClass(r.current_allocation_pct ?? 0);
   const availableCount = rows.filter(
     (r) =>
       r.status === "active" &&

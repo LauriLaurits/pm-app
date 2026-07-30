@@ -14,12 +14,12 @@ import { deriveProgress, hoursOverrun, progressBasisLabel } from "@/lib/progress
 import { formatMoney, humanize } from "../../types";
 import { PartDeleteButton } from "./part-actions";
 import { PartFormDialog } from "./part-form-dialog";
-import type { PartRow, PersonOption } from "./types";
+import type { PersonOption, SafePartRow } from "./types";
 
 // Each part_status gets a distinct, accessible color (not just variant) so e.g. "not_started"
 // and "done" never render visually identical -- text label stays in all cases, so color is a
 // reinforcing signal, not the only one.
-const PART_STATUS_BADGE_CLASS: Record<PartRow["status"], string> = {
+const PART_STATUS_BADGE_CLASS: Record<SafePartRow["status"], string> = {
   not_started: "text-muted-foreground",
   in_progress:
     "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/15 dark:text-blue-400",
@@ -49,7 +49,7 @@ function fmtHrs(n: number | null): string {
   return String(Math.round(n * 10) / 10);
 }
 
-const STATUS_RANK: Record<PartRow["status"], number> = {
+const STATUS_RANK: Record<SafePartRow["status"], number> = {
   in_progress: 0,
   blocked: 1,
   not_started: 2,
@@ -65,7 +65,7 @@ export function PartsTable({
   projectId,
   people,
 }: {
-  parts: PartRow[];
+  parts: SafePartRow[];
   nameByPersonId: Record<string, string>;
   actualByPartId: Record<string, number>;
   canEdit: boolean;
@@ -74,7 +74,7 @@ export function PartsTable({
   people: PersonOption[];
 }) {
   // Accessors close over the page-provided rollups, so build them here (stable per props).
-  const accessors: SortAccessors<PartRow, "part" | "status" | "responsible" | "hours" | "price"> = {
+  const accessors: SortAccessors<SafePartRow, "part" | "status" | "responsible" | "hours" | "price"> = {
     part: (p) => p.name,
     status: (p) => STATUS_RANK[p.status],
     responsible: (p) => (p.responsible_person_id ? (nameByPersonId[p.responsible_person_id] ?? null) : null),

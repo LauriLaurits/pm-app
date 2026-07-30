@@ -10,7 +10,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PersonFormDialog } from "./person-form-dialog";
-import type { PersonListRow } from "./types";
+import type { SafePersonRow } from "./types";
 
 /** Row actions in the projects-table language: hover-revealed "Open" + a "…" menu. Edit,
  * Deactivate/Activate, and the guarded hard-delete live in the menu (managers only) and open
@@ -25,7 +25,7 @@ export function PersonRowActions({
   roleTitleOptions,
   teamOptions,
 }: {
-  person: PersonListRow;
+  person: SafePersonRow;
   canManage: boolean;
   roleTitleOptions: string[];
   teamOptions: string[];

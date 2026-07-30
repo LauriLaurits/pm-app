@@ -6,7 +6,7 @@ import { MASK, VISIBILITY_BADGE, expiryStatus, groupByEnvironment } from "@/lib/
 import { CredentialDeleteButton } from "./credential-actions";
 import { CredentialFormDialog } from "./credential-form-dialog";
 import { CredentialRevealControl } from "./credential-reveal-control";
-import type { DisplayCredentialRow } from "./types";
+import type { SafeCredentialRow } from "./types";
 
 export function CredentialsList({
   credentials,
@@ -14,7 +14,7 @@ export function CredentialsList({
   canManage,
   canReveal,
 }: {
-  credentials: DisplayCredentialRow[];
+  credentials: SafeCredentialRow[];
   projectId: string;
   canManage: boolean;
   canReveal: boolean;

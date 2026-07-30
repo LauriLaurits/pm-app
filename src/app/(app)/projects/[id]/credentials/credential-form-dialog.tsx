@@ -8,7 +8,7 @@ import {
 import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
 import { CredentialEditForm } from "./credential-edit-form";
 import { CredentialForm } from "./credential-form";
-import type { DisplayCredentialRow } from "./types";
+import type { SafeCredentialRow } from "./types";
 
 /** `credential` present -> edit mode (non-secret metadata only, CredentialEditForm); absent ->
  * create mode (CredentialForm, the only place the write-once secret field appears). Same
@@ -18,7 +18,7 @@ export function CredentialFormDialog({
   credential,
 }: {
   projectId: string;
-  credential?: DisplayCredentialRow;
+  credential?: SafeCredentialRow;
 }) {
   const [open, setOpen] = useState(false);
 

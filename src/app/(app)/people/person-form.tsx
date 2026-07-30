@@ -13,14 +13,14 @@ import {
 import { FormSection } from "@/components/form-section";
 import { PersonAvatarPicker } from "@/components/person-avatar-picker";
 import { DEFAULT_PERSON_AVATAR, isPersonAvatarPreset } from "@/lib/person-avatar-presets";
-import type { PersonListRow } from "./types";
+import type { SafePersonRow } from "./types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-function toDefaults(person?: PersonListRow): PersonInput {
+function toDefaults(person?: SafePersonRow): PersonInput {
   return {
     full_name: person?.full_name ?? "",
     email: person?.email ?? null,
@@ -40,7 +40,7 @@ export function PersonForm({
   teamOptions,
   onSuccess,
 }: {
-  person?: PersonListRow;
+  person?: SafePersonRow;
   roleTitleOptions: string[];
   teamOptions: string[];
   onSuccess: () => void;

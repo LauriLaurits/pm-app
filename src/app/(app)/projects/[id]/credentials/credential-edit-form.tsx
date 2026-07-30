@@ -9,7 +9,7 @@ import {
   credentialUpdateSchema, type CredentialUpdateInput,
 } from "@/lib/validation/project";
 import { CredentialEnumSelectField, CredentialTextField } from "./credential-form-fields";
-import type { DisplayCredentialRow } from "./types";
+import type { SafeCredentialRow } from "./types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -17,7 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-function toDefaults(credential: DisplayCredentialRow): CredentialUpdateInput {
+function toDefaults(credential: SafeCredentialRow): CredentialUpdateInput {
   return {
     name: credential.name,
     username: credential.username,
@@ -37,7 +37,7 @@ export function CredentialEditForm({
   onSuccess,
 }: {
   projectId: string;
-  credential: DisplayCredentialRow;
+  credential: SafeCredentialRow;
   onSuccess: () => void;
 }) {
   const [serverError, setServerError] = useState<string | null>(null);

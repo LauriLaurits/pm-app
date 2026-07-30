@@ -8,7 +8,7 @@ import {
 import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
 import { cn } from "@/lib/utils";
 import { PersonForm } from "./person-form";
-import type { PersonListRow } from "./types";
+import type { SafePersonRow } from "./types";
 
 /** Add/edit dialog for the /people screens. Two modes (same as ClientFormDialog):
  * - Uncontrolled (default): renders its own trigger button + owns open state -- the page-level
@@ -24,7 +24,7 @@ export function PersonFormDialog({
   open: controlledOpen,
   onOpenChange,
 }: {
-  person?: PersonListRow;
+  person?: SafePersonRow;
   roleTitleOptions: string[];
   teamOptions: string[];
   triggerClassName?: string;

@@ -11,6 +11,34 @@ export type EmploymentType = Database["public"]["Enums"]["employment_type"];
 // missing it before rows ever reach this type, so downstream components can rely on `string`.
 export type PersonListRow = Omit<PersonWorkloadRow, "id"> & { id: string; email: string | null };
 
+// Render-safe projection of PersonListRow for the "use client" components fed by the people
+// list AND the person-detail edit dialog (PeopleTable, PersonRowActions, PersonForm,
+// PersonFormDialog): whatever shape crosses that boundary gets serialized into the flight
+// payload, readable in the raw page response by ANY viewer who can load the page -- not just
+// managers, and not just the subset who also hold view_internal_cost. `internal_cost` /
+// `billing_rate` are DB-nulled by RLS for everyone without view_internal_cost, but for the
+// finance-visibility population itself they'd otherwise ship for EVERY employee on a page whose
+// UI never shows them (the one place that legitimately does, FinancialsCard on the detail page,
+// is a server component and reads PersonWorkloadRow directly -- never this type). `skills` is
+// similarly fetched by the view but never rendered anywhere in this tab. Add a field ONLY when a
+// component fed by this type actually renders/uses it.
+export type SafePersonRow = Pick<
+  PersonListRow,
+  | "id"
+  | "full_name"
+  | "avatar_url"
+  | "role_title"
+  | "department"
+  | "employment_type"
+  | "status"
+  | "current_allocation_pct"
+  | "weekly_capacity_hours"
+  | "active_project_count"
+  | "on_vacation_now"
+  | "vacation_ends_on"
+  | "email"
+>;
+
 export const EMPLOYMENT_TYPE_OPTIONS: EmploymentType[] = ["employee", "contractor", "freelance"];
 
 export const AVAILABILITY_OPTIONS: UtilizationClass[] = [

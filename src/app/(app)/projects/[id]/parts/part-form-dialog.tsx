@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { EDIT_ACTION_CLASS } from "@/lib/action-styles";
 import { PartForm } from "./part-form";
-import type { PartRow, PersonOption } from "./types";
+import type { PersonOption, SafePartRow } from "./types";
 
 export function PartFormDialog({
   projectId,
@@ -18,7 +18,7 @@ export function PartFormDialog({
   projectId: string;
   people: PersonOption[];
   canViewBudget: boolean;
-  part?: PartRow;
+  part?: SafePartRow;
 }) {
   const [open, setOpen] = useState(false);
 

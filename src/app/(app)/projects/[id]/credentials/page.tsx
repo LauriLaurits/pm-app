@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { CredentialFormDialog } from "./credential-form-dialog";
 import { CredentialsList } from "./credentials-list";
-import type { DisplayCredentialRow } from "./types";
+import type { SafeCredentialRow } from "./types";
 
 export default async function ProjectCredentialsPage({
   params,
@@ -51,8 +51,22 @@ export default async function ProjectCredentialsPage({
     : { data: [] as { user_id: string | null; full_name: string }[] };
   const nameByUserId = new Map((owners ?? []).map((o) => [o.user_id, o.full_name]));
 
-  const rows: DisplayCredentialRow[] = (credentials ?? []).map((c) => ({
-    ...c,
+  // CredentialsList (below) is a "use client" component -- whatever shape crosses that boundary
+  // gets serialized into the flight payload, readable in the raw page response by ANY
+  // manage_credentials holder on this project, reveal rights or not. Build an explicit allowlist
+  // (SafeCredentialRow) rather than spreading `c`: secret_id (the Vault reference), owner_id,
+  // project_id, and the timestamps must never leave the server for rows nothing here renders.
+  const rows: SafeCredentialRow[] = (credentials ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    type: c.type,
+    environment: c.environment,
+    visibility: c.visibility,
+    username: c.username,
+    related_url: c.related_url,
+    expires_at: c.expires_at,
+    last_rotated_at: c.last_rotated_at,
+    notes: c.notes,
     owner_name: c.owner_id ? nameByUserId.get(c.owner_id) ?? null : null,
   }));
 

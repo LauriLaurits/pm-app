@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { PartFormDialog } from "./part-form-dialog";
 import { PartsTable } from "./parts-table";
-import type { PartRow, PersonOption } from "./types";
+import type { PartRow, PersonOption, SafePartRow } from "./types";
 
 export default async function ProjectPartsPage({
   params,
@@ -80,6 +80,46 @@ export default async function ProjectPartsPage({
     (assignedPeople ?? []).map((p) => [p.id, p.full_name])
   );
 
+  // PartsTable (below) is a "use client" component -- it owns the sort state -- so whatever
+  // shape crosses that boundary gets serialized into the flight payload, readable in the raw
+  // page response by ANY view_project holder on this project, edit rights or not. Build an
+  // explicit allowlist (SafePartRow) rather than spreading each part: `notes` has no permission
+  // gate of its own (project_parts RLS is row-level only), and `fixed_amount`/`hourly_rate` are
+  // only ever rendered inside the edit form's canViewBudget block (PartsTable itself only shows
+  // `client_price`). A JSON key survives serialization even when its value is null, so for
+  // anyone who isn't edit_project these keys are OMITTED from the object entirely (not just
+  // nulled) -- same effective masking RLS already applies to the whole `part_billing` join for a
+  // non-view_budget caller (no row, not a row of nulls).
+  const canEditParts = !!canEdit;
+  const safeParts: SafePartRow[] = (parts ?? []).map((p) => {
+    const part = p as PartRow;
+    const row: SafePartRow = {
+      id: part.id,
+      name: part.name,
+      description: part.description,
+      status: part.status,
+      responsible_person_id: part.responsible_person_id,
+      billing_model: part.billing_model,
+      estimated_hours: part.estimated_hours,
+      part_billing: part.part_billing ? { client_price: part.part_billing.client_price } : null,
+    };
+    if (!canEditParts) return row;
+    return {
+      ...row,
+      progress: part.progress,
+      start_date: part.start_date,
+      end_date: part.end_date,
+      notes: part.notes,
+      part_billing: part.part_billing
+        ? {
+            client_price: part.part_billing.client_price,
+            fixed_amount: part.part_billing.fixed_amount,
+            hourly_rate: part.part_billing.hourly_rate,
+          }
+        : null,
+    };
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -87,10 +127,10 @@ export default async function ProjectPartsPage({
         {canEdit && <PartFormDialog projectId={id} people={allPeople ?? []} canViewBudget={!!canViewBudget} />}
       </div>
       <PartsTable
-        parts={(parts ?? []) as PartRow[]}
+        parts={safeParts}
         nameByPersonId={nameByPersonId}
         actualByPartId={actualByPartId}
-        canEdit={!!canEdit}
+        canEdit={canEditParts}
         canViewBudget={!!canViewBudget}
         projectId={id}
         people={allPeople ?? []}

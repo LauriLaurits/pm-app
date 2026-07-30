@@ -7,7 +7,7 @@ import { upsertPartAction } from "@/app/actions/project-parts";
 import {
   BILLING_MODEL_OPTIONS, PART_STATUS_OPTIONS, partSchema, type PartInput,
 } from "@/lib/validation/project";
-import type { PartRow, PersonOption } from "./types";
+import type { PersonOption, SafePartRow } from "./types";
 import {
   DateField, EnumSelectField, NumberField, ResponsiblePersonField,
 } from "./part-form-fields";
@@ -18,7 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-function toDefaults(part?: PartRow): PartInput {
+function toDefaults(part?: SafePartRow): PartInput {
   return {
     name: part?.name ?? "",
     description: part?.description ?? null,
@@ -46,7 +46,7 @@ export function PartForm({
   projectId: string;
   people: PersonOption[];
   canViewBudget: boolean;
-  part?: PartRow;
+  part?: SafePartRow;
   onSuccess: () => void;
 }) {
   const [serverError, setServerError] = useState<string | null>(null);
