@@ -23,7 +23,10 @@ export async function createClient() {
           }
         },
       },
-      cookieOptions: { httpOnly: true },
+      cookieOptions: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+      },
     }
   );
 }

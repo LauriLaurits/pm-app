@@ -8,6 +8,21 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "3mb",
     },
   },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            // Harmless locally (local dev is http; browsers ignore HSTS over http),
+            // and forces HTTPS in production once the site is reachable over TLS.
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

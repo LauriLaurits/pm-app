@@ -24,7 +24,10 @@ export async function updateSession(request: NextRequest) {
           );
         },
       },
-      cookieOptions: { httpOnly: true },
+      cookieOptions: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+      },
     }
   );
 
