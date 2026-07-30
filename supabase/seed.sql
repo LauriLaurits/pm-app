@@ -253,6 +253,38 @@ from (values
 cross join generate_series(current_date - 21, current_date - 1, interval '1 day') as d
 where extract(isodow from d) < 6;
 
+-- Monthly time-entry HISTORY (12 months back). Time logging is monthly in this product (the log
+-- form is person/project/month/hours -- see 20260720000006), so one row per person/project/month.
+-- Without this the Reports "hours over time" chart shows a single bar and every vs-previous-period
+-- delta reads "—" (all seeded entries above land in the current month). Billable + a smaller
+-- non-billable row per month so the stacked chart shows both series. Idempotent by description.
+insert into public.time_entries (person_id, project_id, project_part_id, entry_date, hours, billable, description)
+select p.person_id, p.project_id, p.part_id,
+  (date_trunc('month', current_date) - (m || ' months')::interval)::date,
+  round((70 + random() * 70)::numeric, 1), true, 'seeded history'
+from (values
+  ('50000003-0000-4000-8000-000000000003'::uuid,'30000001-0000-4000-8000-000000000001'::uuid,'40000002-0000-4000-8000-000000000002'::uuid),
+  ('50000004-0000-4000-8000-000000000004','30000001-0000-4000-8000-000000000001','40000003-0000-4000-8000-000000000003'),
+  ('50000007-0000-4000-8000-000000000007','30000003-0000-4000-8000-000000000003','40000006-0000-4000-8000-000000000006'),
+  ('50000010-0000-4000-8000-000000000010','30000004-0000-4000-8000-000000000004','40000008-0000-4000-8000-000000000008'),
+  ('50000013-0000-4000-8000-000000000013','30000002-0000-4000-8000-000000000002','40000005-0000-4000-8000-000000000005'),
+  ('50000005-0000-4000-8000-000000000005','30000005-0000-4000-8000-000000000005','40000009-0000-4000-8000-000000000009')
+) as p(person_id, project_id, part_id)
+cross join generate_series(1, 11) as m
+where not exists (select 1 from public.time_entries where description = 'seeded history');
+
+insert into public.time_entries (person_id, project_id, project_part_id, entry_date, hours, billable, description)
+select p.person_id, p.project_id, p.part_id,
+  (date_trunc('month', current_date) - (m || ' months')::interval)::date,
+  round((8 + random() * 18)::numeric, 1), false, 'seeded history nb'
+from (values
+  ('50000003-0000-4000-8000-000000000003'::uuid,'30000001-0000-4000-8000-000000000001'::uuid,'40000002-0000-4000-8000-000000000002'::uuid),
+  ('50000007-0000-4000-8000-000000000007','30000003-0000-4000-8000-000000000003','40000006-0000-4000-8000-000000000006'),
+  ('50000013-0000-4000-8000-000000000013','30000002-0000-4000-8000-000000000002','40000005-0000-4000-8000-000000000005')
+) as p(person_id, project_id, part_id)
+cross join generate_series(1, 11) as m
+where not exists (select 1 from public.time_entries where description = 'seeded history nb');
+
 -- ===== 12. budgets + item history for the three biggest projects =====
 insert into public.budgets (id, project_id) values
   ('70000001-0000-4000-8000-000000000001','30000001-0000-4000-8000-000000000001'),
