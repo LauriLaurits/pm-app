@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Clock, FileText, PiggyBank, Users, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/budget";
+import { projectIconKey, type ProjectIconKey } from "@/lib/project-icons";
 import { StatCard } from "@/components/stat-card";
 import { ChartCard, ChartEmptyState } from "@/components/charts/chart-card";
 import { MonthlyFinanceChart } from "@/components/charts/monthly-finance-chart";
@@ -10,6 +11,7 @@ import type { ProjectBudgetRow } from "../dashboard/types";
 import { CapacityCard } from "./capacity-card";
 import { ExportButton } from "./export-button";
 import { HoursOverTimeCard } from "./hours-over-time-card";
+import { PerformanceTable } from "./performance-table";
 import {
   buildCapacityRows,
   buildMonthlyFinance,
@@ -108,6 +110,14 @@ export default async function ReportsPage({
   });
   const hoursByProject = hoursByProjectForWindow(reportsBase.timeEntries, window);
   const performanceRows = buildPerformanceRows(reportsBudgetRows, hoursByProject);
+
+  // Same `id, tags` -> icon-key resolution budgets/page.tsx and projects/page.tsx already do --
+  // the performance table's identity cell needs an icon tile and project_budget_rows carries no
+  // tags of its own.
+  const iconKeys: Record<string, ProjectIconKey> = {};
+  for (const p of reportsBase.projects) {
+    if (p.id) iconKeys[p.id] = projectIconKey(p.tags);
+  }
 
   // Hours-over-time chart + top-projects donut. nameById resolves each project_id to its budget
   // row's name (every project with time entries should also have a project_budget_rows row --
@@ -237,6 +247,21 @@ export default async function ReportsPage({
               </ChartCard>
             )}
           </div>
+
+          <ChartCard
+            title="Project performance summary"
+            description="Budget, hours, and margin per project, this window"
+          >
+            {/* SafeRow discipline: only the allowlisted PerformanceRow[] (already the compute
+                output, see reports/compute.ts's buildPerformanceRows) + the icon-key map cross the
+                client boundary -- never a raw project_budget_rows view row. hasFinanceVisibility
+                is what gates the Cost/Margin columns OFF entirely (never rendered blank). */}
+            <PerformanceTable
+              rows={performanceRows}
+              iconKeys={iconKeys}
+              hasFinanceVisibility={hasFinanceVisibility}
+            />
+          </ChartCard>
         </>
       )}
     </div>
