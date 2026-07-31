@@ -92,6 +92,10 @@
   --viz-surface: #fcfcfb;
   --viz-series-1: #0071e3; /* categorical slot 1 -- blue */
   --viz-series-2: #23a566; /* categorical slot 2 -- green */
+  --viz-series-3: #eda100; /* categorical slot 3 -- yellow (donut: top-projects) */
+  --viz-series-4: #e87ba4; /* categorical slot 4 -- magenta (donut: top-projects) */
+  --viz-series-5: #4a3aa7; /* categorical slot 5 -- violet (donut: top-projects) */
+  --viz-series-other: #b0aea6; /* muted neutral -- "Other" bucket, never a hue identity slot */
   --viz-track: #e9e8e2; /* unfilled meter/track, gridlines */
   --viz-status-good: #0ca30c;
   --viz-status-warning: #fab219;
@@ -139,6 +143,10 @@
   --viz-surface: #1a1a19;
   --viz-series-1: #0a84ff;
   --viz-series-2: #22aa6e;
+  --viz-series-3: #c98500;
+  --viz-series-4: #d55181;
+  --viz-series-5: #9085e9;
+  --viz-series-other: #4a4946;
   --viz-track: #272725;
   --viz-status-good: #0ca30c;
   --viz-status-warning: #fab219;

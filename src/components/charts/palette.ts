@@ -10,9 +10,23 @@ import type { CSSProperties } from "react";
 // (light #0071e3/#23a566 on #fcfcfb: ALL PASS, deutan ΔE 89.8; dark #0a84ff/#22aa6e on #1a1a19:
 // ALL PASS, protan ΔE 91.5). Status colors are the fixed, never-themed four-step scale --
 // reserved for severity-coded marks (consumption/utilization), never reused as "series N".
+//
+// Slots 3-5 (yellow/magenta/violet) were added for the reports "Top projects" donut (5 slices +
+// "Other"), re-validated as the full 5-slot adjacent sequence via the same script: light
+// #0071e3,#23a566,#eda100,#e87ba4,#4a3aa7 -> ALL PASS (worst adjacent ΔE 8.8 protan, normal-vision
+// floor 19.6); dark #0a84ff,#22aa6e,#c98500,#d55181,#9085e9 -> ALL PASS (worst adjacent ΔE 8.8
+// protan, normal-vision floor 19.3). Order matters -- yellow sits between green and magenta
+// specifically to avoid the documented yellow/orange-family collision. `VIZ_SERIES_OTHER` is a
+// deliberately desaturated neutral (not a 6th hue slot) for the donut's "Other projects" wedge,
+// which sits between slot 5 and slot 1 in the ring and never needs to compete for hue identity.
 
 export const VIZ_SERIES_1 = "var(--viz-series-1)"; // blue
 export const VIZ_SERIES_2 = "var(--viz-series-2)"; // green
+export const VIZ_SERIES_3 = "var(--viz-series-3)"; // yellow
+export const VIZ_SERIES_4 = "var(--viz-series-4)"; // magenta
+export const VIZ_SERIES_5 = "var(--viz-series-5)"; // violet
+export const VIZ_SERIES_OTHER = "var(--viz-series-other)"; // muted neutral, "Other" bucket only
+export const VIZ_SERIES = [VIZ_SERIES_1, VIZ_SERIES_2, VIZ_SERIES_3, VIZ_SERIES_4, VIZ_SERIES_5] as const;
 export const VIZ_TRACK = "var(--viz-track)";
 export const VIZ_INK_SECONDARY = "var(--viz-ink-secondary)";
 export const VIZ_INK_MUTED = "var(--viz-ink-muted)";

@@ -1,14 +1,19 @@
+import Link from "next/link";
 import { Clock, FileText, PiggyBank, Users, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/budget";
-import { monthLabel } from "@/lib/dashboard";
 import { StatCard } from "@/components/stat-card";
+import { ChartCard, ChartEmptyState } from "@/components/charts/chart-card";
+import { ProjectHoursDonut } from "@/components/charts/project-hours-donut";
 import { fetchDashboardBase } from "../dashboard/queries";
 import type { ProjectBudgetRow } from "../dashboard/types";
 import { ChartsSection } from "./charts-section";
 import { ExportButton } from "./export-button";
+import { HoursOverTimeCard } from "./hours-over-time-card";
 import {
+  buildMonthlyHours,
   buildPerformanceRows,
+  buildProjectHoursSlices,
   buildReportsKpis,
   computeBudgetSpentChart,
   computeCapacityChart,
@@ -16,7 +21,7 @@ import {
   reportsWindow,
 } from "./compute";
 import { PERIOD_OPTIONS, PeriodSelector, type PeriodMonths } from "./period-selector";
-import { fetchMonthlyActualCosts, fetchMonthlyHours, fetchReportsBase } from "./queries";
+import { fetchReportsBase } from "./queries";
 import type { TrendDelta } from "./types";
 
 // Period-over-period delta -> a KPI tile's context line + tone. `invertGood` flips which
@@ -56,15 +61,12 @@ export default async function ReportsPage({
   const todayISO = new Date().toISOString().slice(0, 10);
   const window = reportsWindow(months, todayISO);
 
-  // One parallel wave: fetchDashboardBase/fetchMonthlyHours still feed the pre-existing
-  // ChartsSection (Tasks 3-4 replace it), fetchReportsBase is the new v2 data layer (Task 1) that
-  // feeds the KPI row + CSV export below. Independent reads, so they run together rather than
-  // sequentially.
-  const [base, monthlyHoursRaw, reportsBase] = await Promise.all([
-    fetchDashboardBase(supabase),
-    fetchMonthlyHours(supabase, months),
-    fetchReportsBase(supabase, window),
-  ]);
+  // One parallel wave: fetchDashboardBase still feeds the pre-existing ChartsSection's "Right
+  // now" group (Task 4 replaces those), fetchReportsBase is the new v2 data layer (Task 1) that
+  // feeds the KPI row, CSV export, and the hours-over-time/top-projects charts below -- the old
+  // fetchMonthlyHours read is gone, buildMonthlyHours (compute.ts) now buckets the same
+  // reportsBase.timeEntries array the KPIs already use, not a second query.
+  const [base, reportsBase] = await Promise.all([fetchDashboardBase(supabase), fetchReportsBase(supabase, window)]);
 
   const hasError = Boolean(
     base.projectsError ||
@@ -103,18 +105,10 @@ export default async function ReportsPage({
   const hasBudgetVisibility = budgetRows.some((r) => r.client_amount !== null);
   const hasFinanceVisibility = budgetRows.some((r) => r.internal_cost !== null);
 
-  const monthlyCostRaw = hasFinanceVisibility ? await fetchMonthlyActualCosts(supabase, months) : null;
-  const monthlyCost = monthlyCostRaw?.map((p) => ({ month: monthLabel(p.month), cost: p.cost })) ?? null;
-  const monthlyHours = monthlyHoursRaw.map((p) => ({
-    month: monthLabel(p.month),
-    billable: p.billable,
-    nonBillable: p.nonBillable,
-  }));
-
   // Reports v2 KPI row + CSV export data. hoursByProjectForWindow/buildPerformanceRows only need
   // the CURRENT window's hours (buildReportsKpis re-derives current/previous itself from the full
-  // [prevStart, end) read) -- nothing here re-queries time_entries, both builders bucket the same
-  // reportsBase.timeEntries array Task 1 already fetched once.
+  // [prevStart, end) read) -- nothing here re-queries time_entries, every builder below buckets
+  // the same reportsBase.timeEntries array Task 1 already fetched once.
   const kpis = buildReportsKpis({
     window,
     timeEntries: reportsBase.timeEntries,
@@ -126,6 +120,13 @@ export default async function ReportsPage({
   });
   const hoursByProject = hoursByProjectForWindow(reportsBase.timeEntries, window);
   const performanceRows = buildPerformanceRows(reportsBudgetRows, hoursByProject);
+
+  // Hours-over-time chart + top-projects donut. nameById resolves each project_id to its budget
+  // row's name (every project with time entries should also have a project_budget_rows row --
+  // buildProjectHoursSlices falls back to "Unknown project" otherwise), per Task 1's carried note.
+  const monthlyHoursPoints = buildMonthlyHours(reportsBase.timeEntries, window);
+  const nameById = Object.fromEntries(reportsBudgetRows.map((r) => [r.id, r.name]));
+  const hoursSlices = buildProjectHoursSlices(reportsBase.timeEntries, window, nameById);
 
   // Budget-remaining tile's "% of portfolio" context -- same ratio convention as the Budgets page
   // (src/app/(app)/budgets/page.tsx's remainingPct), computed locally since ReportsKpis only
@@ -211,10 +212,24 @@ export default async function ReportsPage({
             />
           </div>
 
+          <div className="grid gap-4 xl:grid-cols-3">
+            <div className="xl:col-span-2">
+              <HoursOverTimeCard points={monthlyHoursPoints} />
+            </div>
+            <ChartCard
+              title="Top projects by hours"
+              description="Share of hours logged this window"
+              action={
+                <Link href="/projects" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+                  View all
+                </Link>
+              }
+            >
+              {hoursSlices.length === 0 ? <ChartEmptyState /> : <ProjectHoursDonut slices={hoursSlices} />}
+            </ChartCard>
+          </div>
+
           <ChartsSection
-            months={months}
-            monthlyHours={monthlyHours}
-            monthlyCost={monthlyCost}
             budgetSpent={computeBudgetSpentChart(budgetRows, hasBudgetVisibility)}
             capacity={computeCapacityChart(people)}
           />

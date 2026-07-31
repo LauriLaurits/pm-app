@@ -1,16 +1,20 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 // Plain layout shell shared by every dashboard chart -- not "use client" itself (Recharts only
 // needs the client boundary at the actual chart component, passed in as `children`), so this can
 // wrap either a client chart or a server-rendered empty state without forcing the whole card to
-// hydrate.
+// hydrate. `action` is an optional header-right slot (a "View all" link, a segmented toggle) --
+// same discretion: a plain link can be rendered straight from a server call site, while a
+// stateful toggle brings its own "use client" wrapper (see reports/hours-over-time-card.tsx).
 export function ChartCard({
   title,
   description,
+  action,
   children,
 }: {
   title: string;
   description?: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -18,6 +22,7 @@ export function ChartCard({
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         {description && <CardDescription>{description}</CardDescription>}
+        {action && <CardAction>{action}</CardAction>}
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>
