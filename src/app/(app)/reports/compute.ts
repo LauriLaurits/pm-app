@@ -1,9 +1,7 @@
-import type { BudgetSpentRow } from "@/components/charts/budget-spent-chart";
-import type { CapacityRow as ChartCapacityRow } from "@/components/charts/capacity-chart";
 import { monthKey, monthLabel } from "@/lib/dashboard";
 import { utilizationClass } from "@/lib/workload";
 import { budgetStatus } from "../budgets/types";
-import type { ValidBudgetRow, ValidPerson, BudgetRow, WorkloadPerson } from "../dashboard/types";
+import type { BudgetRow, WorkloadPerson } from "../dashboard/types";
 import type {
   ReportsWindow,
   TrendDelta,
@@ -15,31 +13,6 @@ import type {
   MonthlyFinancePoint,
   PerformanceRow,
 } from "./types";
-
-const CHART_TOP_N = 6;
-const CAPACITY_TOP_N = 8;
-
-// ---- charts (pre-Task-1 -- still consumed by the current /reports page.tsx verbatim; Task 2
-// rewrites the page against the builders below and these two will be deleted then) ----
-export function computeBudgetSpentChart(budgetRows: ValidBudgetRow[], hasBudgetVisibility: boolean) {
-  if (!hasBudgetVisibility) return null;
-  return budgetRows
-    .filter((r) => r.client_amount !== null)
-    .sort((a, b) => (b.client_amount ?? 0) - (a.client_amount ?? 0))
-    .slice(0, CHART_TOP_N)
-    .map((r): BudgetSpentRow => ({ id: r.id, name: r.name, invoiced: r.invoiced ?? 0, remaining: Math.max(r.remaining ?? 0, 0) }));
-}
-
-export function computeCapacityChart(people: ValidPerson[]): ChartCapacityRow[] {
-  return people
-    .sort((a, b) => (b.current_allocation_pct ?? 0) - (a.current_allocation_pct ?? 0))
-    .slice(0, CAPACITY_TOP_N)
-    .map((p) => {
-      const capacityHours = Number(p.weekly_capacity_hours ?? 0);
-      const allocatedHours = Math.round(((p.current_allocation_pct ?? 0) / 100) * capacityHours * 10) / 10;
-      return { id: p.id, name: p.full_name, capacityHours, allocatedHours };
-    });
-}
 
 // ============================================================================================
 // Reports v2 data layer (Task 1, .superpowers/sdd/2026-07-29-reports-v2). Pure builders only --
@@ -215,8 +188,8 @@ export function buildUtilizationRows(budgetRows: BudgetRow[]): UtilizationRow[] 
 // ---- capacity ----
 
 // person_workload_rows -> CapacityRow, current-state (not windowed). allocatedHours derives from
-// pct * capacity the same way computeCapacityChart above always has; avatarUrl/pct are new here
-// for the v2 capacity view.
+// pct * capacity (same formula the old, now-deleted computeCapacityChart used); avatarUrl/pct feed
+// the v2 capacity card's PersonAvatar + meter row (Task 4).
 export function buildCapacityRows(people: WorkloadPerson[]): CapacityRow[] {
   return people.map((p) => {
     const capacityHours = Number(p.weekly_capacity_hours ?? 0);
@@ -230,8 +203,8 @@ export function buildCapacityRows(people: WorkloadPerson[]): CapacityRow[] {
 
 // Sums budget_items (item_type invoice|actual_cost, full [prevStart, end) read) into the CURRENT
 // window's months, zero-filled. `invoiced` is always a number (never gated -- the caller only
-// renders this series at all when it has budget visibility, same as the old
-// computeBudgetSpentChart's null-the-whole-chart gate). `cost` is null for EVERY point without
+// renders this series/card at all when it has budget visibility, the same never-render-zeroed
+// discipline the old computeBudgetSpentChart followed). `cost` is null for EVERY point without
 // finance visibility -- never partially populated, never 0-coerced.
 export function buildMonthlyFinance(
   items: { amount: number; occurred_on: string; item_type: "invoice" | "actual_cost" }[],

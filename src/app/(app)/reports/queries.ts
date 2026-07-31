@@ -10,10 +10,12 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 //
 // The old fetchMonthlyActualCosts/fetchMonthlyHours (trailing-N-months, self-contained queries
 // each with their own `isoMonthsAgo` cutoff and month bucketing) are gone as of Task 3 -- their
-// last caller (page.tsx's pre-v2 ChartsSection) now gets the same data for free out of
-// fetchReportsBase's single timeEntries/budgetItems reads below, bucketed by compute.ts's
-// buildMonthlyHours/buildMonthlyFinance against a proper ReportsWindow (current + previous, for
-// deltas) instead of a second round trip.
+// last caller (page.tsx's pre-v2 charts) now gets the same data for free out of fetchReportsBase's
+// single timeEntries/budgetItems reads below, bucketed by compute.ts's buildMonthlyHours/
+// buildMonthlyFinance against a proper ReportsWindow (current + previous, for deltas) instead of a
+// second round trip. Task 4 also retired the separate fetchDashboardBase read page.tsx used to run
+// alongside this one (it only fed the now-deleted computeBudgetSpentChart/computeCapacityChart) --
+// budgetRows/people below are the same RLS-gated views, one fewer query.
 
 // ============================================================================================
 // Reports v2 data layer (Task 1). One parallel read wave for the whole /reports page: a single

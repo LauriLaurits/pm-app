@@ -4,25 +4,27 @@ import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/budget";
 import { StatCard } from "@/components/stat-card";
 import { ChartCard, ChartEmptyState } from "@/components/charts/chart-card";
+import { MonthlyFinanceChart } from "@/components/charts/monthly-finance-chart";
 import { ProjectHoursDonut } from "@/components/charts/project-hours-donut";
-import { fetchDashboardBase } from "../dashboard/queries";
 import type { ProjectBudgetRow } from "../dashboard/types";
-import { ChartsSection } from "./charts-section";
+import { CapacityCard } from "./capacity-card";
 import { ExportButton } from "./export-button";
 import { HoursOverTimeCard } from "./hours-over-time-card";
 import {
+  buildCapacityRows,
+  buildMonthlyFinance,
   buildMonthlyHours,
   buildPerformanceRows,
   buildProjectHoursSlices,
   buildReportsKpis,
-  computeBudgetSpentChart,
-  computeCapacityChart,
+  buildUtilizationRows,
   hoursByProjectForWindow,
   reportsWindow,
 } from "./compute";
 import { PERIOD_OPTIONS, PeriodSelector, type PeriodMonths } from "./period-selector";
 import { fetchReportsBase } from "./queries";
 import type { TrendDelta } from "./types";
+import { UtilizationCard } from "./utilization-card";
 
 // Period-over-period delta -> a KPI tile's context line + tone. `invertGood` flips which
 // direction reads as "good" (emerald) vs "bad" (red) -- hours/invoiced going UP is good, cost
@@ -61,34 +63,20 @@ export default async function ReportsPage({
   const todayISO = new Date().toISOString().slice(0, 10);
   const window = reportsWindow(months, todayISO);
 
-  // One parallel wave: fetchDashboardBase still feeds the pre-existing ChartsSection's "Right
-  // now" group (Task 4 replaces those), fetchReportsBase is the new v2 data layer (Task 1) that
-  // feeds the KPI row, CSV export, and the hours-over-time/top-projects charts below -- the old
-  // fetchMonthlyHours read is gone, buildMonthlyHours (compute.ts) now buckets the same
-  // reportsBase.timeEntries array the KPIs already use, not a second query.
-  const [base, reportsBase] = await Promise.all([fetchDashboardBase(supabase), fetchReportsBase(supabase, window)]);
+  // fetchReportsBase is the whole page's data layer (Task 1) -- KPI row, CSV export, hours-over-
+  // time/top-projects charts, and (Task 4) the utilization/capacity/monthly-finance row below all
+  // bucket the same reportsBase reads. The pre-v2 ChartsSection's separate fetchDashboardBase read
+  // (project_budget_rows + person_workload_rows, duplicated here just to feed the now-deleted
+  // computeBudgetSpentChart/computeCapacityChart) is gone -- reportsBase.budgetRows/people are the
+  // same RLS-gated views, so nothing lost, one fewer round trip.
+  const reportsBase = await fetchReportsBase(supabase, window);
 
-  const hasError = Boolean(
-    base.projectsError ||
-      base.budgetError ||
-      base.workloadError ||
-      reportsBase.budgetError ||
-      reportsBase.peopleError
-  );
+  const hasError = Boolean(reportsBase.budgetError || reportsBase.peopleError);
 
   // Every *_rows view marks every column nullable in the generated types (typical for Postgres
   // views), but `id`/`name` are the underlying tables' NOT NULL columns and are never actually
   // null -- filter defensively once here so every downstream compute() helper can rely on plain
-  // `string`, same pattern as the dashboard page. fetchReportsBase returns its own raw budgetRows/
-  // people (Task 1 left the same filtering to the caller, mirroring fetchDashboardBase's own
-  // discipline), so the same filter runs a second time over that read.
-  const budgetRows = base.budgetRows.filter(
-    (r): r is ProjectBudgetRow & { id: string; name: string } => r.id !== null && r.name !== null
-  );
-  const people = base.workloadRows.filter(
-    (p): p is (typeof base.workloadRows)[number] & { id: string; full_name: string } =>
-      p.id !== null && p.full_name !== null
-  );
+  // `string`, same pattern as the dashboard page.
   const reportsBudgetRows = reportsBase.budgetRows.filter(
     (r): r is ProjectBudgetRow & { id: string; name: string } => r.id !== null && r.name !== null
   );
@@ -102,8 +90,8 @@ export default async function ReportsPage({
   // computeFinanceOverview, a dashboard-page concern. /reports only ever needed the two visibility
   // booleans, so it computes them itself (same one-liners computeSummary used internally) instead
   // of depending on a shape that isn't its own.
-  const hasBudgetVisibility = budgetRows.some((r) => r.client_amount !== null);
-  const hasFinanceVisibility = budgetRows.some((r) => r.internal_cost !== null);
+  const hasBudgetVisibility = reportsBudgetRows.some((r) => r.client_amount !== null);
+  const hasFinanceVisibility = reportsBudgetRows.some((r) => r.internal_cost !== null);
 
   // Reports v2 KPI row + CSV export data. hoursByProjectForWindow/buildPerformanceRows only need
   // the CURRENT window's hours (buildReportsKpis re-derives current/previous itself from the full
@@ -127,6 +115,17 @@ export default async function ReportsPage({
   const monthlyHoursPoints = buildMonthlyHours(reportsBase.timeEntries, window);
   const nameById = Object.fromEntries(reportsBudgetRows.map((r) => [r.id, r.name]));
   const hoursSlices = buildProjectHoursSlices(reportsBase.timeEntries, window, nameById);
+
+  // Middle row: Budget utilization (top 6 by consumption) + Capacity vs allocation (top 8 by
+  // allocation) + Monthly financial overview (invoiced/cost lines). Utilization rows and the
+  // finance points are cheap to compute unconditionally (pure), but the CARDS themselves are only
+  // mounted below when hasBudgetVisibility -- invoiced (both the utilization list and the finance
+  // chart's Invoiced line) needs budget visibility, never rendered zeroed for a viewer without it.
+  // Capacity is ungated, same as the pre-v2 CapacityChart it replaces.
+  const utilizationRows = buildUtilizationRows(reportsBudgetRows);
+  const capacityRows = buildCapacityRows(reportsPeople);
+  const monthlyFinancePoints = buildMonthlyFinance(reportsBase.budgetItems, window, hasFinanceVisibility);
+  const financeIsEmpty = monthlyFinancePoints.every((p) => p.invoiced === 0 && (p.cost === null || p.cost === 0));
 
   // Budget-remaining tile's "% of portfolio" context -- same ratio convention as the Budgets page
   // (src/app/(app)/budgets/page.tsx's remainingPct), computed locally since ReportsKpis only
@@ -229,10 +228,15 @@ export default async function ReportsPage({
             </ChartCard>
           </div>
 
-          <ChartsSection
-            budgetSpent={computeBudgetSpentChart(budgetRows, hasBudgetVisibility)}
-            capacity={computeCapacityChart(people)}
-          />
+          <div className="grid gap-4 xl:grid-cols-3">
+            {hasBudgetVisibility && <UtilizationCard rows={utilizationRows} />}
+            <CapacityCard rows={capacityRows} />
+            {hasBudgetVisibility && (
+              <ChartCard title="Monthly financial overview" description="Invoiced vs internal cost, by month">
+                {financeIsEmpty ? <ChartEmptyState /> : <MonthlyFinanceChart points={monthlyFinancePoints} />}
+              </ChartCard>
+            )}
+          </div>
         </>
       )}
     </div>

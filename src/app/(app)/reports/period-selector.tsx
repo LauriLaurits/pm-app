@@ -7,9 +7,10 @@ export type PeriodMonths = (typeof PERIOD_OPTIONS)[number];
 // Segmented control for the reports page's time window. Links to ?months=N (a server round-trip
 // that re-queries the time-based charts); the active option is filled. Server component -- no
 // client JS. `label` (the ReportsWindow's human date-range string, e.g. "1 Feb – 31 Jul 2026") is
-// optional so the pre-existing "Over time" section header call site (charts-section.tsx) keeps
-// rendering chips-only, while the page header's call site pairs it with the range label per the
-// v2 mockup.
+// optional -- the page header (this control's only remaining call site, now that the old
+// ChartsSection's own label-less selector is gone) always passes it, per the v2 mockup; kept
+// optional rather than tightened to required since it's a trivial, out-of-scope prop change (see
+// Task 3's carried follow-up note).
 export function PeriodSelector({ active, label }: { active: PeriodMonths; label?: string }) {
   return (
     <div className="flex items-center gap-2">
